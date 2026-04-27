@@ -182,7 +182,7 @@ export async function createProduct(data: {
   revalidatePath("/zangochap-manager/products");
   revalidatePath("/zangochap-manager/dashboard");
   revalidatePath("/");
-  return product;
+  return JSON.parse(JSON.stringify(product));
 }
 
 // ============ UPDATE VARIANTS ============

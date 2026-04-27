@@ -40,38 +40,26 @@ export default async function ManagerLayout({
 
   try {
     // Fetch counts for Sidebar badges
-    const [ordersCount, packingCount, toProcessCount, deliveriesCount, ordersWithItems] = await Promise.all([
+    const [ordersCount, packingCount, toProcessCount, deliveriesCount, collectionCount] = await Promise.all([
       prisma.order.count({ where: { status: { not: OrderStatus.CANCELLED } } }),
       prisma.order.count({ where: { status: OrderStatus.CONFIRMED } }),
       prisma.order.count({ where: { status: OrderStatus.TO_PROCESS } }),
       prisma.order.count({ where: { deliverymanId: user.id, status: { notIn: [OrderStatus.DELIVERED, OrderStatus.CANCELLED] } } }),
-      prisma.order.findMany({
-        where: { status: { notIn: [OrderStatus.CANCELLED, OrderStatus.DELIVERED] } },
-        include: { items: true }
-      })
-    ]);
-
-    // Calculate collection count (orders with at least one item out of stock)
-    const productIds = Array.from(new Set(ordersWithItems.flatMap(o => o.items.map(i => i.productId))));
-    const oosProducts = await prisma.product.findMany({
-      where: { 
-        id: { in: productIds as string[] },
-        variants: {
-          none: {
-            stock: { gt: 0 }
+      prisma.order.count({
+        where: {
+          status: { notIn: [OrderStatus.CANCELLED, OrderStatus.DELIVERED] },
+          items: {
+            some: {
+              product: {
+                variants: {
+                  none: { stock: { gt: 0 } }
+                }
+              }
+            }
           }
         }
-      },
-      select: { id: true }
-    });
-    const oosIds = new Set(oosProducts.map(p => p.id));
-    
-    let collectionCount = 0;
-    ordersWithItems.forEach(o => {
-      if (o.items.some(i => i.productId && oosIds.has(i.productId))) {
-        collectionCount++;
-      }
-    });
+      })
+    ]);
 
     counts = {
       orders: ordersCount,

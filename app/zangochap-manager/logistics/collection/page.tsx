@@ -22,7 +22,7 @@ export default async function CollectionPage() {
   });
 
   // Build toCollect items
-  const productMap = new Map(products.map(p => [p.id, p]));
+  const productMap = new Map(products.map((p: any) => [p.id, p]));
   const toCollect: any[] = [];
 
   for (const order of orders) {

@@ -29,7 +29,7 @@ export default async function ShortagesPage() {
   });
 
   // For each OOS product, find waiting orders
-  const oosData = products.map(p => {
+  const oosData = products.map((p: any) => {
     const waitingOrders: any[] = [];
     orders.forEach(o => {
       o.items.forEach(i => {

@@ -12,8 +12,16 @@ export async function GET(req: NextRequest) {
 
   const orders = await prisma.order.findMany({
     where: {
-      status: { in: ['PACKED', 'CONFIRMED', 'PARTIAL'] },
-      createdAt: { gte: startOfDay, lte: endOfDay },
+      OR: [
+        { deliveryDate: { gte: startOfDay, lte: endOfDay } },
+        { 
+          AND: [
+            { deliveryDate: null },
+            { createdAt: { gte: startOfDay, lte: endOfDay } }
+          ]
+        },
+        { createdAt: { gte: startOfDay, lte: endOfDay } }
+      ]
     },
     include: { 
       items: {

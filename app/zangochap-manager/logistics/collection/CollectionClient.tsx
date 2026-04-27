@@ -13,6 +13,7 @@ export default function CollectionClient({ toCollect, user }: { toCollect: any[]
   const [isPending, startTransition] = useTransition();
   const [editingVariants, setEditingVariants] = useState<any>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [filter, setFilter] = useState('all');
   const { showToast } = useToast();
   const router = useRouter();
 
@@ -39,17 +40,28 @@ export default function CollectionClient({ toCollect, user }: { toCollect: any[]
     });
   };
 
-  const openVariantsEditor = (product: any) => {
-    setEditingVariants({
-      product,
-      variants: JSON.parse(JSON.stringify(product.variants || [])),
+  const filteredToCollect = React.useMemo(() => {
+    if (filter === 'all') return toCollect;
+    return toCollect.filter(tc => {
+      const h = tc.order.history || [];
+      if (filter === 'collected') return h.some((log: any) => log.action.includes('Marqué collecté'));
+      if (filter === 'unavailable') return h.some((log: any) => log.action.includes('Marqué indisponible'));
+      if (filter === 'alternative') return h.some((log: any) => log.action.includes('Alternative proposée'));
+      return true;
     });
-  };
+  }, [toCollect, filter]);
 
   return (
     <div className="content animate-fade-in">
-      <TableCard title={`${toCollect.length} produit(s) à collecter`} meta="Groupés par fournisseur">
-        {toCollect.length === 0 ? (
+      <div className="filters-bar" style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
+        <button className={`filter-chip ${filter === 'all' ? 'active' : ''}`} onClick={() => setFilter('all')}>Tous</button>
+        <button className={`filter-chip ${filter === 'collected' ? 'active' : ''}`} onClick={() => setFilter('collected')}>Collectés</button>
+        <button className={`filter-chip ${filter === 'unavailable' ? 'active' : ''}`} onClick={() => setFilter('unavailable')}>Indisponibles</button>
+        <button className={`filter-chip ${filter === 'alternative' ? 'active' : ''}`} onClick={() => setFilter('alternative')}>Alternatives</button>
+      </div>
+
+      <TableCard title={`${filteredToCollect.length} produit(s) à collecter`} meta="Groupés par fournisseur">
+        {filteredToCollect.length === 0 ? (
           <EmptyState icon="✓" title="Tout est en stock" description="Aucune collecte nécessaire." />
         ) : (
           <table>
@@ -65,7 +77,7 @@ export default function CollectionClient({ toCollect, user }: { toCollect: any[]
               </tr>
             </thead>
             <tbody>
-              {toCollect.map(({ order, item, product }, i) => (
+              {filteredToCollect.map(({ order, item, product }, i) => (
                 <tr key={i}>
                   <td>
                     <span className="cell-mono" style={{ fontWeight: 800 }}>{order.ref}</span>
@@ -144,16 +156,28 @@ export default function CollectionClient({ toCollect, user }: { toCollect: any[]
         )}
       </TableCard>
 
-      {/* LIGHTBOX / IMAGE PREVIEW */}
+      {/* IMMERSIVE LIGHTBOX */}
       {previewImage && (
-        <Modal isOpen={true} onClose={() => setPreviewImage(null)} title="Aperçu du produit">
-          <div style={{ textAlign: 'center', background: 'var(--cream)', borderRadius: 12, overflow: 'hidden' }}>
-            <img src={previewImage} style={{ maxWidth: '100%', maxHeight: '75vh', display: 'block', margin: '0 auto', boxShadow: 'var(--shadow-lg)' }} />
+        <div
+          className="lightbox-overlay"
+          onClick={() => setPreviewImage(null)}
+          style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(5px)', cursor: 'zoom-out' }}
+        >
+          <div className="lightbox-content animate-zoom-in" onClick={e => e.stopPropagation()} style={{ position: 'relative', maxWidth: '90%', maxHeight: '90%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <img
+              src={previewImage}
+              alt="Preview"
+              style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 12, boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}
+            />
+            <button
+              className="lightbox-close"
+              onClick={() => setPreviewImage(null)}
+              style={{ position: 'absolute', top: -40, right: 0, background: 'transparent', border: 'none', color: 'white', cursor: 'pointer' }}
+            >
+              <X size={24} />
+            </button>
           </div>
-          <div style={{ marginTop: 20, textAlign: 'center' }}>
-            <button className="btn-secondary" onClick={() => setPreviewImage(null)}>Fermer l'aperçu</button>
-          </div>
-        </Modal>
+        </div>
       )}
 
       <style jsx>{`

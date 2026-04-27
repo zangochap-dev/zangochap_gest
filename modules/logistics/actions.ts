@@ -158,3 +158,35 @@ export async function getItemsToCollect() {
 
   return toCollect;
 }
+
+// ============ VERIFICATION ============
+export async function toggleItemVerification(orderItemId: string, isVerified: boolean) {
+  const session = await getSession();
+  if (!session) throw new Error("Non authentifié");
+
+  const item = await prisma.orderItem.update({
+    where: { id: orderItemId },
+    data: {
+      isVerified,
+      verifiedAt: isVerified ? new Date() : null,
+    },
+    include: { order: true }
+  });
+
+  // Add history log
+  const history = Array.isArray(item.order.history) ? [...(item.order.history as any[])] : [];
+  history.push({
+    at: new Date().toISOString(),
+    action: `Vérification : Article "${item.name}" marqué comme ${isVerified ? 'VÉRIFIÉ ✓' : 'NON VÉRIFIÉ ✕'}`,
+    by: session.email,
+    byName: session.name,
+  });
+
+  await prisma.order.update({
+    where: { id: item.orderId },
+    data: { history }
+  });
+
+  revalidatePath("/zangochap-manager/logistics/verification");
+  return { success: true };
+}

@@ -6,12 +6,13 @@ import Modal from "@/components/Modal";
 import { useToast } from "@/components/Toast";
 import { updateOrderStatus } from "@/modules/orders/actions";
 import { formatPrice, formatDay, STATUS_LABELS } from "@/lib/constants";
-import { useRouter } from "next/navigation";
-import { Eye, Package, Check, ArrowLeftRight, Warehouse } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Eye, Package, Check, ArrowLeftRight, Warehouse, X } from "lucide-react";
 import { addOrderHistoryEntry } from "@/modules/orders/actions";
 
 export default function PackingClient({ initialOrders, products, user }: { initialOrders: any[]; products: any[]; user: any }) {
-  const [filter, setFilter] = useState('CONFIRMED');
+  const searchParams = useSearchParams();
+  const [filter, setFilter] = useState(searchParams.get('status') || 'CONFIRMED');
   const [search, setSearch] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [checkedItems, setCheckedItems] = useState<Record<string, Set<number>>>({});
@@ -62,7 +63,7 @@ export default function PackingClient({ initialOrders, products, user }: { initi
     }
     if (dateFrom) result = result.filter((o: any) => new Date(o.createdAt) >= new Date(dateFrom));
     if (dateTo) result = result.filter((o: any) => new Date(o.createdAt) <= new Date(dateTo + 'T23:59:59'));
-    
+
     if (warehouseFilter !== 'all') {
       result = result.filter((o: any) => {
         return o.items.some((item: any) => {
@@ -178,10 +179,10 @@ export default function PackingClient({ initialOrders, products, user }: { initi
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <select 
-            className="filter-date" 
+          <select
+            className="filter-date"
             style={{ width: 140, fontWeight: 600, color: warehouseFilter !== 'all' ? 'var(--orange)' : 'inherit' }}
-            value={warehouseFilter} 
+            value={warehouseFilter}
             onChange={e => setWarehouseFilter(e.target.value)}
           >
             <option value="all">Tous les entrepôts</option>
@@ -217,7 +218,13 @@ export default function PackingClient({ initialOrders, products, user }: { initi
             </thead>
             <tbody>
               {filtered.map((o: any) => (
-                <tr key={o.id} style={selectedIds.has(o.id) ? { background: 'var(--cream-2)' } : undefined}>
+                <tr
+                  key={o.id}
+                  style={{
+                    background: o.status === 'PREPARING' ? '#FFF1F2' : selectedIds.has(o.id) ? 'var(--cream-2)' : '',
+                    borderLeft: o.status === 'PREPARING' ? '4px solid #FB7185' : ''
+                  }}
+                >
                   <td><input type="checkbox" checked={selectedIds.has(o.id)} onChange={() => toggleSelect(o.id)} /></td>
                   <td>
                     <span className="cell-mono" style={{ fontWeight: 800 }}>{o.ref}</span>
@@ -286,7 +293,7 @@ export default function PackingClient({ initialOrders, products, user }: { initi
                         <Eye size={14} />
                       </button>
                       {o.status === 'PACKED' && (
-                        <button className="action-btn" title="Annuler l'emballage (Erreur)" onClick={() => { if(confirm('Annuler l\'emballage de cette commande ?')) handleMarkPacking(o.id, 'CONFIRMED'); }} style={{ color: 'var(--red)', background: '#FEE2E2' }}>
+                        <button className="action-btn" title="Annuler l'emballage (Erreur)" onClick={() => { if (confirm('Annuler l\'emballage de cette commande ?')) handleMarkPacking(o.id, 'CONFIRMED'); }} style={{ color: 'var(--red)', background: '#FEE2E2' }}>
                           <ArrowLeftRight size={14} />
                         </button>
                       )}
@@ -352,9 +359,9 @@ export default function PackingClient({ initialOrders, products, user }: { initi
 
                   <div style={{ width: 60, height: 60, background: 'var(--cream-2)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, flexShrink: 0, overflow: 'hidden', border: '1px solid var(--line)' }}>
                     {item.image ? (
-                      <img 
-                        src={item.image} 
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'zoom-in' }} 
+                      <img
+                        src={item.image}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'zoom-in' }}
                         onClick={() => setPreviewImage(item.image)}
                         alt=""
                       />
@@ -431,13 +438,28 @@ export default function PackingClient({ initialOrders, products, user }: { initi
           </div>
         </Modal>
       )}
-      {/* IMAGE PREVIEW MODAL */}
+      {/* IMMERSIVE LIGHTBOX */}
       {previewImage && (
-        <Modal isOpen={true} onClose={() => setPreviewImage(null)} title="Aperçu de l'article">
-          <div style={{ width: '100%', display: 'flex', justifyContent: 'center', background: 'var(--cream)', borderRadius: 12, overflow: 'hidden' }}>
-            <img src={previewImage} style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain' }} alt="Aperçu" />
+        <div
+          className="lightbox-overlay"
+          onClick={() => setPreviewImage(null)}
+          style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(5px)', cursor: 'zoom-out' }}
+        >
+          <div className="lightbox-content animate-zoom-in" onClick={e => e.stopPropagation()} style={{ position: 'relative', maxWidth: '90%', maxHeight: '90%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <img
+              src={previewImage}
+              alt="Preview"
+              style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 12, boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}
+            />
+            <button
+              className="lightbox-close"
+              onClick={() => setPreviewImage(null)}
+              style={{ position: 'absolute', top: -40, right: 0, background: 'transparent', border: 'none', color: 'white', cursor: 'pointer' }}
+            >
+              <X size={24} />
+            </button>
           </div>
-        </Modal>
+        </div>
       )}
     </div>
   );

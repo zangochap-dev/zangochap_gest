@@ -1,40 +1,63 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { TableCard, LocationBadge } from "@/components/UI";
 import { Package, AlertTriangle, ArrowRight, Search, Filter, RefreshCw, X, ChevronLeft, ChevronRight } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import styles from "./inventory.module.css";
 
-const ITEMS_PER_PAGE = 30;
+interface InventoryClientProps {
+  initialProducts: any[];
+  totalCount: number;
+  currentPage: number;
+  pageSize: number;
+}
 
-export default function InventoryClient({ initialProducts }: { initialProducts: any[] }) {
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [zoneFilter, setZoneFilter] = useState('all');
-  const [currentPage, setCurrentPage] = useState(1);
+export default function InventoryClient({ 
+  initialProducts, 
+  totalCount, 
+  currentPage: serverPage, 
+  pageSize 
+}: InventoryClientProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const [search, setSearch] = useState(searchParams.get('q') || '');
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
+  const [zoneFilter, setZoneFilter] = useState(searchParams.get('zone') || 'all');
+  
+  const currentPage = serverPage;
+  const totalPages = Math.ceil(totalCount / pageSize);
 
   // Debounce search — 300ms
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search);
-      setCurrentPage(1);
     }, 300);
     return () => clearTimeout(timer);
   }, [search]);
 
-  // Auto-refresh every 30s
+  // Sync state to URL
+  const isFirstRender = useRef(true);
   useEffect(() => {
-    const interval = setInterval(() => router.refresh(), 30000);
-    return () => clearInterval(interval);
-  }, [router]);
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    const params = new URLSearchParams(searchParams.toString());
+    if (debouncedSearch) params.set('q', debouncedSearch); else params.delete('q');
+    if (zoneFilter !== 'all') params.set('zone', zoneFilter); else params.delete('zone');
+    params.set('page', '1');
+    router.push(`?${params.toString()}`);
+  }, [debouncedSearch, zoneFilter, router]);
 
-  // Reset page on filter change
-  useEffect(() => { setCurrentPage(1); }, [zoneFilter]);
-  
-  const lowStockThreshold = 5; // Fallback
+  const goToPage = (page: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('page', page.toString());
+    router.push(`?${params.toString()}`);
+  };
 
+  // Simplified zones based on current page (for a full list, they should be fetched on server)
   const zones = useMemo(() => {
     const set = new Set<string>();
     initialProducts.forEach(p => {
@@ -52,45 +75,26 @@ export default function InventoryClient({ initialProducts }: { initialProducts: 
     return Array.from(set).sort();
   }, [initialProducts]);
 
-  const filtered = useMemo(() => {
-    return initialProducts.filter(p => {
-      const matchesSearch = p.name.toLowerCase().includes(debouncedSearch.toLowerCase()) || 
-                           p.supplier?.name.toLowerCase().includes(debouncedSearch.toLowerCase());
-      
-      const pZone = p.location?.charAt(0).toUpperCase();
-      const hasVariantInZone = p.variants?.some((v: any) => v.location?.charAt(0).toUpperCase() === zoneFilter);
-      const matchesZone = zoneFilter === 'all' || pZone === zoneFilter || hasVariantInZone;
-      
-      return matchesSearch && matchesZone;
-    });
-  }, [initialProducts, debouncedSearch, zoneFilter]);
-
-  // Pagination
-  const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
-  const paginated = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filtered.slice(start, start + ITEMS_PER_PAGE);
-  }, [filtered, currentPage]);
-
-  const lowStockItems = filtered.filter(p => p.stock <= p.lowStockThreshold);
+  const paginated = initialProducts;
+  const lowStockItems = initialProducts.filter(p => p.stock <= (p.lowStockThreshold || 5));
 
   return (
     <div className={`${styles.content} animate-fade-in`}>
       {/* STATS */}
       <div className={styles.statsGrid}>
         <div className={styles.statCard}>
-          <div className={styles.statLabel}>Valeur du stock</div>
+          <div className={styles.statLabel}>Valeur du stock (Page)</div>
           <div className={styles.statValue}>
-            {filtered.reduce((acc, p) => acc + (p.price * p.stock), 0).toLocaleString()} FCFA
+            {initialProducts.reduce((acc, p) => acc + (p.price * p.stock), 0).toLocaleString()} FCFA
           </div>
         </div>
         <div className={`${styles.statCard} ${lowStockItems.length > 0 ? styles.statCardWarning : ''}`}>
-          <div className={styles.statLabel}>Alertes (Filtre actuel)</div>
+          <div className={styles.statLabel}>Alertes (Page)</div>
           <div className={styles.statValue}>{lowStockItems.length}</div>
         </div>
         <div className={styles.statCard}>
-          <div className={styles.statLabel}>Total articles</div>
-          <div className={styles.statValue}>{filtered.reduce((acc, p) => acc + p.stock, 0)}</div>
+          <div className={styles.statLabel}>Total articles (Page)</div>
+          <div className={styles.statValue}>{initialProducts.reduce((acc, p) => acc + p.stock, 0)}</div>
         </div>
       </div>
 
@@ -126,7 +130,7 @@ export default function InventoryClient({ initialProducts }: { initialProducts: 
         </div>
       </div>
 
-      <TableCard title="État des stocks" meta={`${filtered.length} produit(s) · Page ${currentPage}/${totalPages}`}>
+      <TableCard title="État des stocks" meta={`${totalCount} produit(s) · Page ${currentPage}/${totalPages}`}>
         <table className={styles.table}>
           <thead>
             <tr>
@@ -139,11 +143,11 @@ export default function InventoryClient({ initialProducts }: { initialProducts: 
             </tr>
           </thead>
           <tbody>
-            {filtered.length === 0 ? (
+            {initialProducts.length === 0 ? (
               <tr><td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: 'var(--brown-soft)' }}>Aucun résultat</td></tr>
             ) : (
               paginated.map((p) => {
-                const isLow = p.stock <= p.lowStockThreshold;
+                const isLow = p.stock <= (p.lowStockThreshold || 5);
                 return (
                   <tr key={p.id} className={isLow ? styles.rowWarning : ''}>
                     <td>
@@ -184,25 +188,48 @@ export default function InventoryClient({ initialProducts }: { initialProducts: 
         {totalPages > 1 && (
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', borderTop: '1px solid var(--line)', background: 'var(--cream)' }}>
             <div style={{ fontSize: 12, color: 'var(--brown-soft)', fontWeight: 500 }}>
-              {((currentPage - 1) * ITEMS_PER_PAGE) + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, filtered.length)} sur {filtered.length}
+              {((currentPage - 1) * pageSize) + 1}–{Math.min(currentPage * pageSize, totalCount)} sur {totalCount}
             </div>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-              <button className="action-btn" disabled={currentPage <= 1} onClick={() => setCurrentPage(p => Math.max(1, p - 1))} style={{ opacity: currentPage <= 1 ? 0.3 : 1 }}>
+              <button 
+                className="action-btn" 
+                disabled={currentPage <= 1} 
+                onClick={() => goToPage(currentPage - 1)} 
+                style={{ opacity: currentPage <= 1 ? 0.3 : 1 }}
+              >
                 <ChevronLeft size={16} />
               </button>
               {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                let page: number;
-                if (totalPages <= 5) page = i + 1;
-                else if (currentPage <= 3) page = i + 1;
-                else if (currentPage >= totalPages - 2) page = totalPages - 4 + i;
-                else page = currentPage - 2 + i;
+                let pageNum: number;
+                if (totalPages <= 5) pageNum = i + 1;
+                else if (currentPage <= 3) pageNum = i + 1;
+                else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + i;
+                else pageNum = currentPage - 2 + i;
+                
                 return (
-                  <button key={page} onClick={() => setCurrentPage(page)} style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, cursor: 'pointer', border: 'none', background: currentPage === page ? 'var(--ink)' : 'white', color: currentPage === page ? 'white' : 'var(--brown)', boxShadow: currentPage === page ? 'none' : '0 1px 2px rgba(0,0,0,0.06)', transition: 'all 0.15s' }}>
-                    {page}
+                  <button 
+                    key={pageNum} 
+                    onClick={() => goToPage(pageNum)} 
+                    style={{ 
+                      width: 32, height: 32, borderRadius: 8, 
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                      fontSize: 12, fontWeight: 700, cursor: 'pointer', border: 'none', 
+                      background: currentPage === pageNum ? 'var(--ink)' : 'white', 
+                      color: currentPage === pageNum ? 'white' : 'var(--brown)', 
+                      boxShadow: currentPage === pageNum ? 'none' : '0 1px 2px rgba(0,0,0,0.06)', 
+                      transition: 'all 0.15s' 
+                    }}
+                  >
+                    {pageNum}
                   </button>
                 );
               })}
-              <button className="action-btn" disabled={currentPage >= totalPages} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} style={{ opacity: currentPage >= totalPages ? 0.3 : 1 }}>
+              <button 
+                className="action-btn" 
+                disabled={currentPage >= totalPages} 
+                onClick={() => goToPage(currentPage + 1)} 
+                style={{ opacity: currentPage >= totalPages ? 0.3 : 1 }}
+              >
                 <ChevronRight size={16} />
               </button>
             </div>

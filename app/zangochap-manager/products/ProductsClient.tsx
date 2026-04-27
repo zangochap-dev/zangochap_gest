@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState, useMemo, useTransition, useEffect, startTransition } from "react";
+import React, { useState, useMemo, useTransition, useEffect, startTransition, useRef } from "react";
 import { TableCard, StatusBadge, EmptyState, DetailCard, SectionLabel, StatCard, LocationBadge } from "@/components/UI";
 import Modal from "@/components/Modal";
 import { useToast } from "@/components/Toast";
 import { updateProductVariants, markProductSent, deleteProduct, updateProduct, createProduct, fixAllProductStocks } from "@/modules/products/actions";
 import { formatPrice, formatDay, CATEGORIES } from "@/lib/constants";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, Eye, Package, Trash2, Minus, Search, X, ChevronLeft, ChevronRight, RefreshCw, Copy, Edit3, Box, Maximize, LayoutDashboard, AlertTriangle, MapPin, Save, Edit2, Warehouse } from "lucide-react";
 import Topbar from "@/components/Topbar";
 
@@ -15,70 +15,65 @@ const PRODUCTS_PER_PAGE = 30;
 interface ProductsClientProps {
   initialProducts: any[];
   user: any;
+  totalCount: number;
+  oosCount: number;
+  currentPage: number;
+  pageSize: number;
 }
 
-export default function ProductsClient({ initialProducts, user }: ProductsClientProps) {
-  const [filter, setFilter] = useState('all');
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
+export default function ProductsClient({ initialProducts, user, totalCount, oosCount, currentPage: serverPage, pageSize }: ProductsClientProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const [filter, setFilter] = useState(searchParams.get('filter') || 'all');
+  const [search, setSearch] = useState(searchParams.get('q') || '');
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
+
+  const currentPage = serverPage;
+  const totalPages = Math.ceil(totalCount / pageSize);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [editingVariants, setEditingVariants] = useState<any>(null);
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const { showToast } = useToast();
-  const router = useRouter();
   const [isSyncing, setIsSyncing] = useState(false);
 
   // Debounced search — 300ms
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search);
-      setCurrentPage(1);
     }, 300);
     return () => clearTimeout(timer);
   }, [search]);
 
-  // Auto-refresh every 30s
+  // Sync state to URL
+  const isFirstRender = useRef(true);
   useEffect(() => {
-    const interval = setInterval(() => router.refresh(), 30000);
-    return () => clearInterval(interval);
-  }, [router]);
-
-  // Reset page on filter change
-  useEffect(() => { setCurrentPage(1); }, [filter]);
-
-  const filtered = useMemo(() => {
-    let result = initialProducts;
-    if (filter === 'oos') result = result.filter(p => {
-      const realStock = p.variants?.length > 0 ? p.variants.reduce((s: number, v: any) => s + (v.stock || 0), 0) : p.stock;
-      return realStock === 0;
-    });
-    if (filter === 'low') result = result.filter(p => {
-      const realStock = p.variants?.length > 0 ? p.variants.reduce((s: number, v: any) => s + (v.stock || 0), 0) : p.stock;
-      return realStock > 0 && realStock <= p.lowStockThreshold;
-    });
-    if (filter === 'in-stock') result = result.filter(p => {
-      const realStock = p.variants?.length > 0 ? p.variants.reduce((s: number, v: any) => s + (v.stock || 0), 0) : p.stock;
-      return realStock > p.lowStockThreshold;
-    });
-    if (debouncedSearch) {
-      const q = debouncedSearch.toLowerCase();
-      result = result.filter(p => p.name.toLowerCase().includes(q) || p.supplier?.toLowerCase().includes(q) || p.location?.toLowerCase().includes(q));
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
     }
-    return result;
-  }, [initialProducts, filter, debouncedSearch]);
+    const params = new URLSearchParams(searchParams.toString());
+    if (filter !== 'all') params.set('filter', filter); else params.delete('filter');
+    if (debouncedSearch) params.set('q', debouncedSearch); else params.delete('q');
+    params.set('page', '1');
+    router.push(`?${params.toString()}`);
+  }, [filter, debouncedSearch, router]);
 
-  // Pagination
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PRODUCTS_PER_PAGE));
-  const paginatedProducts = useMemo(() => {
-    const start = (currentPage - 1) * PRODUCTS_PER_PAGE;
-    return filtered.slice(start, start + PRODUCTS_PER_PAGE);
-  }, [filtered, currentPage]);
+  const goToPage = (page: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('page', page.toString());
+    router.push(`?${params.toString()}`);
+  };
 
-  const oos = initialProducts.filter(p => p.stock === 0).length;
-  const low = initialProducts.filter(p => p.stock > 0 && p.stock <= p.lowStockThreshold).length;
-  const totalUnits = initialProducts.reduce((s: number, p: any) => s + p.stock, 0);
+  const paginatedProducts = initialProducts;
+
+  // Stats (some might be approximate if only looking at current page, but oosCount is passed from server)
+  const low = initialProducts.filter(p => {
+    const realStock = p.variants?.length > 0 ? p.variants.reduce((s: number, v: any) => s + (v.stock || 0), 0) : p.stock;
+    return realStock > 0 && realStock <= p.lowStockThreshold;
+  }).length;
+  const totalUnits = initialProducts.reduce((s: number, p: any) => s + (p.variants?.reduce((ss: number, v: any) => ss + (v.stock || 0), 0) || p.stock), 0);
 
   return (
     <>
@@ -134,7 +129,7 @@ export default function ProductsClient({ initialProducts, user }: ProductsClient
           <StatCard label="Produits" value={initialProducts.length} compact />
           <StatCard label="Unités en stock" value={totalUnits} compact />
           <StatCard label="Stock faible" value={low} color="var(--amber)" trend="Seuil atteint" trendDir="down" compact />
-          <StatCard label="Ruptures" value={oos} color="var(--red)" compact />
+          <StatCard label="Ruptures" value={oosCount} color="var(--red)" compact />
         </div>
 
         {/* SEARCH */}
@@ -177,8 +172,8 @@ export default function ProductsClient({ initialProducts, user }: ProductsClient
         </div>
 
         {/* TABLE */}
-        <TableCard title="Catalogue" meta={`${filtered.length} produit(s) · Page ${currentPage}/${totalPages}`}>
-          {filtered.length === 0 ? (
+        <TableCard title="Catalogue" meta={`${totalCount} produit(s) · Page ${currentPage}/${totalPages}`}>
+          {initialProducts.length === 0 ? (
             <EmptyState icon="📦" title="Aucun produit" description="Aucun produit trouvé." />
           ) : (
             <>
@@ -279,10 +274,10 @@ export default function ProductsClient({ initialProducts, user }: ProductsClient
               {totalPages > 1 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', borderTop: '1px solid var(--line)', background: 'var(--cream)' }}>
                   <div style={{ fontSize: 12, color: 'var(--brown-soft)', fontWeight: 500 }}>
-                    {((currentPage - 1) * PRODUCTS_PER_PAGE) + 1}–{Math.min(currentPage * PRODUCTS_PER_PAGE, filtered.length)} sur {filtered.length}
+                    {((currentPage - 1) * PRODUCTS_PER_PAGE) + 1}–{Math.min(currentPage * PRODUCTS_PER_PAGE, totalCount)} sur {totalCount}
                   </div>
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                    <button className="action-btn" disabled={currentPage <= 1} onClick={() => setCurrentPage(p => Math.max(1, p - 1))} style={{ opacity: currentPage <= 1 ? 0.3 : 1 }}>
+                    <button className="action-btn" disabled={currentPage <= 1} onClick={() => goToPage(currentPage - 1)} style={{ opacity: currentPage <= 1 ? 0.3 : 1 }}>
                       <ChevronLeft size={16} />
                     </button>
                     {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
@@ -292,12 +287,12 @@ export default function ProductsClient({ initialProducts, user }: ProductsClient
                       else if (currentPage >= totalPages - 2) page = totalPages - 4 + i;
                       else page = currentPage - 2 + i;
                       return (
-                        <button key={page} onClick={() => setCurrentPage(page)} style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, cursor: 'pointer', border: 'none', background: currentPage === page ? 'var(--ink)' : 'white', color: currentPage === page ? 'white' : 'var(--brown)', boxShadow: currentPage === page ? 'none' : '0 1px 2px rgba(0,0,0,0.06)', transition: 'all 0.15s' }}>
+                        <button key={page} onClick={() => goToPage(page)} style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, cursor: 'pointer', border: 'none', background: currentPage === page ? 'var(--ink)' : 'white', color: currentPage === page ? 'white' : 'var(--brown)', boxShadow: currentPage === page ? 'none' : '0 1px 2px rgba(0,0,0,0.06)', transition: 'all 0.15s' }}>
                           {page}
                         </button>
                       );
                     })}
-                    <button className="action-btn" disabled={currentPage >= totalPages} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} style={{ opacity: currentPage >= totalPages ? 0.3 : 1 }}>
+                    <button className="action-btn" disabled={currentPage >= totalPages} onClick={() => goToPage(currentPage + 1)} style={{ opacity: currentPage >= totalPages ? 0.3 : 1 }}>
                       <ChevronRight size={16} />
                     </button>
                   </div>
@@ -306,6 +301,7 @@ export default function ProductsClient({ initialProducts, user }: ProductsClient
             </>
           )}
         </TableCard>
+      </div>
 
         {/* PRODUCT DETAIL MODAL */}
         {selectedProduct && (
@@ -327,30 +323,24 @@ export default function ProductsClient({ initialProducts, user }: ProductsClient
           <ProductEditModal product={editingProduct} onClose={() => setEditingProduct(null)} />
         )}
 
-        {/* IMAGE VIEWER MODAL */}
-        {selectedImage && (
-          <Modal isOpen={true} onClose={() => setSelectedImage(null)} title="Aperçu de l'image">
-            <div style={{ textAlign: 'center' }}>
-              <img src={selectedImage} style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: 12, boxShadow: 'var(--shadow-lg)' }} />
-              <div style={{ marginTop: 16 }}>
-                <a href={selectedImage} download="produit.jpg" className="btn-orange" style={{ display: 'inline-flex' }}>
-                  Télécharger l'image
-                </a>
-              </div>
-            </div>
-          </Modal>
-        )}
-      </div>
-
-      {/* LIGHTBOX / ZOOM IMAGE */}
+      {/* IMMERSIVE LIGHTBOX */}
       {selectedImage && (
         <div
           className="lightbox-overlay"
           onClick={() => setSelectedImage(null)}
+          style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(5px)', cursor: 'zoom-out' }}
         >
-          <div className="lightbox-content animate-zoom-in" onClick={e => e.stopPropagation()}>
-            <img src={selectedImage} alt="Preview" />
-            <button className="lightbox-close" onClick={() => setSelectedImage(null)}>
+          <div className="lightbox-content animate-zoom-in" onClick={e => e.stopPropagation()} style={{ position: 'relative', maxWidth: '90%', maxHeight: '90%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <img
+              src={selectedImage}
+              alt="Preview"
+              style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 12, boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}
+            />
+            <button
+              className="lightbox-close"
+              onClick={() => setSelectedImage(null)}
+              style={{ position: 'absolute', top: -40, right: 0, background: 'transparent', border: 'none', color: 'white', cursor: 'pointer' }}
+            >
               <X size={24} />
             </button>
           </div>

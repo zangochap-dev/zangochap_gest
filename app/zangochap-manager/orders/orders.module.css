@@ -1,0 +1,62 @@
+.content { padding: 24px 28px; flex: 1; }
+.filtersBar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  background: white;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.filterChip {
+  padding: 6px 12px;
+  background: var(--cream);
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--brown);
+  cursor: pointer;
+}
+.filterChipActive { background: var(--ink); color: white; border-color: var(--ink); }
+.filterSelect, .filterDate {
+  padding: 7px 10px;
+  background: var(--cream);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 12px;
+}
+.filterSpacer { flex: 1; }
+.table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.table thead th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--brown-soft);
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--cream);
+}
+.table tbody tr { border-bottom: 1px solid var(--line); transition: background 0.1s; }
+.table tbody tr:hover { background: var(--cream); }
+.table tbody td { padding: 12px 16px; vertical-align: middle; }
+.cellMono { font-family: var(--font-mono); font-size: 12px; font-weight: 600; color: var(--brown); }
+.cellStrong { font-weight: 600; color: var(--ink); }
+.cellMuted { color: var(--brown-soft); font-size: 12px; }
+.cellPrice { font-family: var(--font-display); font-weight: 700; color: var(--orange); }
+.actionBtn {
+  width: 28px; height: 28px;
+  border-radius: 7px;
+  background: var(--cream);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--brown);
+}
+.actionBtn:hover { background: var(--orange); color: white; }
+.empty { text-align: center; padding: 50px 20px; color: var(--brown-soft); }
+.emptyIcon { font-size: 40px; margin-bottom: 10px; opacity: 0.5; }
+.empty h4 { font-family: var(--font-display); font-size: 16px; color: var(--ink); }

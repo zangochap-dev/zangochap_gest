@@ -1,0 +1,34 @@
+.content { padding: 24px 28px; }
+.filtersBar { display: flex; gap: 12px; align-items: center; margin-bottom: 24px; }
+.searchBox { display: flex; align-items: center; gap: 8px; background: white; border: 1px solid var(--line); border-radius: 8px; padding: 0 12px; height: 38px; flex: 1; max-width: 300px; }
+.searchBox input { border: none; outline: none; font-size: 13px; width: 100%; }
+.filterSelect { height: 38px; border: 1px solid var(--line); border-radius: 8px; padding: 0 10px; font-size: 13px; background: white; }
+.filterSpacer { flex: 1; }
+
+.productsGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; }
+.productCard { background: white; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; transition: transform 0.2s, box-shadow 0.2s; }
+.productCard:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
+
+.productImage { height: 180px; position: relative; background: var(--cream-2); display: flex; align-items: center; justify-content: center; }
+.imagePlaceholder { font-size: 48px; font-family: var(--font-display); color: var(--line-2); font-weight: 700; }
+.productBadge { position: absolute; top: 12px; left: 12px; background: rgba(255,255,255,0.9); padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--brown); }
+
+.productDetails { padding: 16px; }
+.productHeader { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+.productName { font-size: 15px; font-weight: 600; color: var(--ink); line-height: 1.2; }
+.productPrice { font-family: var(--font-display); font-size: 18px; font-weight: 700; color: var(--orange); display: flex; align-items: center; gap: 8px; }
+.oldPrice { font-size: 12px; text-decoration: line-through; color: var(--brown-soft); font-weight: 400; }
+
+.productStock { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--brown-soft); margin: 10px 0 16px; }
+.stockIndicator { width: 8px; height: 8px; border-radius: 50%; }
+.stockIndicatorOk { background: var(--green); }
+.stockIndicatorLow { background: var(--amber); }
+
+.productActions { display: flex; gap: 8px; }
+.btnAction { flex: 1; height: 32px; border: 1px solid var(--line); border-radius: 6px; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s; }
+.btnAction:hover { border-color: var(--orange); color: var(--orange); }
+.btnActionDelete { flex: 0 0 32px; color: var(--red); }
+.btnActionDelete:hover { background: var(--red-soft); border-color: var(--red); }
+
+.emptyState { grid-column: 1 / -1; text-align: center; padding: 100px 20px; }
+.emptyIcon { font-size: 48px; margin-bottom: 12px; opacity: 0.3; }

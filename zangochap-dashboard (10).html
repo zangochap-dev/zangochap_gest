@@ -10,6 +10,7 @@
 <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
 /* ============================================
    ZANGOCHAP BACK OFFICE — Design System
@@ -584,6 +585,36 @@ tbody td { padding: 12px 16px; vertical-align: middle; }
 .status.sent { background: #DCEAFC; color: #1F5C8C; }
 .status.sent::before { background: #1F5C8C; }
 
+/* Sélecteur statut inline (admin uniquement, dans tableau commandes) */
+.status-inline-select {
+  border: 1.5px solid transparent;
+  border-radius: 100px;
+  padding: 4px 26px 4px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='3'><path stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  background-size: 10px;
+  transition: filter 0.15s, transform 0.1s;
+  font-family: inherit;
+}
+.status-inline-select:hover { filter: brightness(0.95); transform: scale(1.02); }
+.status-inline-select:focus { box-shadow: 0 0 0 2px rgba(212,84,28,0.25); }
+.status-inline-select.status-pending { background-color: var(--amber-soft); color: var(--amber); }
+.status-inline-select.status-to_process { background-color: #FFE4B5; color: #8B4513; }
+.status-inline-select.status-confirmed { background-color: var(--blue-soft); color: var(--blue); }
+.status-inline-select.status-packed { background-color: #E8E0F4; color: #6B4FA1; }
+.status-inline-select.status-partial { background-color: var(--amber-soft); color: var(--amber); }
+.status-inline-select.status-delivered { background-color: var(--green-soft); color: var(--green); }
+.status-inline-select.status-cancelled { background-color: var(--red-soft); color: var(--red); }
+
 .action-btn {
   width: 28px; height: 28px;
   border-radius: 7px;
@@ -1054,13 +1085,22 @@ const COMMUNES = {
   'Hors Abidjan': 'EXP',
 };
 
+// Libellés possibles à préfixer sur la référence
+const ORDER_LABELS = [
+  { value: '', text: 'Aucun (commande standard)' },
+  { value: 'Échange', text: 'Échange' },
+  { value: 'Reprogrammé', text: 'Reprogrammé' },
+  { value: 'Récupération', text: 'Récupération' },
+  { value: 'Express', text: 'Express' },
+];
+
 // Comptes équipe — SEED par défaut
 const SEED_ACCOUNTS = [
-  { email:'aya@zangochap.ci', password:'demo', name:'Aya Konan', role:'commercial', initials:'AK' },
-  { email:'kone@zangochap.ci', password:'demo', name:'Koné Bakary', role:'packing', initials:'KB' },
-  { email:'diallo@zangochap.ci', password:'demo', name:'Diallo Mariam', role:'collection', initials:'DM' },
-  { email:'fatou@zangochap.ci', password:'demo', name:'Fatou Touré', role:'stock', initials:'FT' },
-  { email:'cheick@zangochap.ci', password:'demo', name:'Cheick Diakité', role:'admin', initials:'CD' },
+  { email:'aya@zangochap.ci', password:'demo', name:'Aya Konan', role:'commercial', initials:'AK', serviceNumber:'+225 07 07 07 07 01' },
+  { email:'kone@zangochap.ci', password:'demo', name:'Koné Bakary', role:'packing', initials:'KB', serviceNumber:'+225 07 07 07 07 02' },
+  { email:'diallo@zangochap.ci', password:'demo', name:'Diallo Mariam', role:'collection', initials:'DM', serviceNumber:'+225 07 07 07 07 03' },
+  { email:'fatou@zangochap.ci', password:'demo', name:'Fatou Touré', role:'stock', initials:'FT', serviceNumber:'+225 07 07 07 07 04' },
+  { email:'cheick@zangochap.ci', password:'demo', name:'Cheick Diakité', role:'admin', initials:'CD', serviceNumber:'+225 07 07 07 07 00' },
 ];
 
 // Accesseur dynamique (dataService.getAccounts())
@@ -1707,6 +1747,79 @@ function renderOrdersCommercial() {
   applyOrderFilters();
 }
 
+/* ============================================
+   ADMIN — CHANGEMENT RAPIDE DE STATUT (depuis tableau)
+   ============================================ */
+function quickChangeStatus(orderId, newStatus, selectEl) {
+  // Sécurité : seul admin peut
+  if (state.user.role !== 'admin') {
+    showToast('Action réservée à l\'administrateur', 'error');
+    return;
+  }
+  const o = dataService.getOrders().find(x => x.id === orderId);
+  if (!o) return;
+  if (newStatus === o.status) return; // pas de changement
+
+  // Confirmation pour les statuts terminaux
+  const confirmFor = ['delivered', 'cancelled'];
+  if (confirmFor.includes(newStatus)) {
+    if (!confirm(`Confirmer le passage de ${o.ref} au statut "${statusLabel(newStatus)}" ?`)) {
+      // Restaurer l'ancien statut visuel
+      if (selectEl) {
+        selectEl.value = o.status;
+        selectEl.className = `status-inline-select status-${o.status}`;
+      }
+      return;
+    }
+  }
+
+  const history = [...o.history, {
+    at: new Date().toISOString(),
+    action: `${state.user.name} : Statut → ${statusLabel(newStatus)} (changement rapide)`,
+    by: state.user.email,
+    byName: state.user.name,
+  }];
+  const patch = { status: newStatus, history };
+
+  // Gestion stock auto
+  if (newStatus === 'confirmed' && o.status !== 'confirmed' && !o.stockDecremented) {
+    const warnings = decrementStockForOrder(o);
+    patch.stockDecremented = true;
+    patch.stockDecrementedAt = new Date().toISOString();
+    if (warnings && warnings.length) {
+      history.push({ at: new Date().toISOString(), action: `⚠️ Stock : ${warnings.join(' ; ')}`, by: 'system', byName: 'Système' });
+    } else {
+      history.push({ at: new Date().toISOString(), action: 'Stock décrémenté automatiquement', by: 'system', byName: 'Système' });
+    }
+  }
+  if (newStatus === 'cancelled' && o.stockDecremented) {
+    restoreStockForOrder(o);
+    patch.stockDecremented = false;
+    history.push({ at: new Date().toISOString(), action: 'Stock restauré (commande annulée)', by: 'system', byName: 'Système' });
+  }
+
+  // Marquer les dates terminales
+  if (newStatus === 'delivered') {
+    patch.deliveredAt = new Date().toISOString();
+    patch.deliveredByName = state.user.name;
+  }
+  if (newStatus === 'cancelled') {
+    patch.cancelledAt = new Date().toISOString();
+    patch.cancelledByName = state.user.name;
+  }
+  if (newStatus === 'confirmed' && o.status !== 'confirmed') {
+    patch.confirmedAt = new Date().toISOString();
+    patch.confirmedByName = state.user.name;
+  }
+
+  dataService.updateOrder(orderId, patch);
+  // Maj visuel immédiat de la pastille
+  if (selectEl) {
+    selectEl.className = `status-inline-select status-${newStatus}`;
+  }
+  showToast(`${o.ref} → ${statusLabel(newStatus)} ✓`, 'success');
+}
+
 function applyOrderFilters() {
   const myId = 'commercial-' + state.user.name.split(' ')[0].toLowerCase();
   const isAdmin = state.user.role === 'admin';
@@ -1776,11 +1889,26 @@ function ordersTable(orders, opts = {}) {
               <td>${o.commune}</td>
               <td><span class="cell-muted">${o.items.length} article${o.items.length>1?'s':''}</span></td>
               <td><span class="cell-price">${fmtPrice(o.total)}</span></td>
-              <td><span class="status ${o.status}">${statusLabel(o.status)}</span></td>
+              <td>
+                ${state.user.role === 'admin' ? `
+                  <select class="status-inline-select status-${o.status}" onchange="quickChangeStatus('${o.id}', this.value, this)" title="Modifier le statut">
+                    <option value="to_process" ${o.status==='to_process'?'selected':''}>À traiter</option>
+                    <option value="pending" ${o.status==='pending'?'selected':''}>En attente</option>
+                    <option value="confirmed" ${o.status==='confirmed'?'selected':''}>Confirmée</option>
+                    <option value="packed" ${o.status==='packed'?'selected':''}>Emballée</option>
+                    <option value="partial" ${o.status==='partial'?'selected':''}>Partiel</option>
+                    <option value="delivered" ${o.status==='delivered'?'selected':''}>Livrée</option>
+                    <option value="cancelled" ${o.status==='cancelled'?'selected':''}>Annulée</option>
+                  </select>
+                ` : `<span class="status ${o.status}">${statusLabel(o.status)}</span>`}
+              </td>
               <td>
                 <div class="row-actions">
                   <button class="action-btn" title="Voir le détail" onclick="openOrderDetail('${o.id}', ${canEdit})">
                     <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                  </button>
+                  <button class="action-btn" title="Imprimer reçu" onclick="openReceiptPrintDialog('${o.id}')" style="background:var(--blue-soft);color:var(--blue)">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
                   </button>
                   ${canEdit ? `
                     <button class="action-btn" title="Dupliquer (échange)" onclick="duplicateOrder('${o.id}')">
@@ -1886,15 +2014,35 @@ function openOrderDetail(orderId, canEdit) {
           <span class="status ${o.status}">${statusLabel(o.status)}</span>
           ${canEdit ? `
             <div style="margin-top:10px">
-              <label class="detail-label">Modifier le statut</label>
-              <select class="field-input" id="editStatus" style="font-size:13px;padding:8px 10px">
-                <option value="pending" ${o.status==='pending'?'selected':''}>En attente</option>
-                <option value="confirmed" ${o.status==='confirmed'?'selected':''}>Confirmée</option>
-                <option value="packed" ${o.status==='packed'?'selected':''}>Emballée</option>
-                <option value="partial" ${o.status==='partial'?'selected':''}>Partiel</option>
-                <option value="delivered" ${o.status==='delivered'?'selected':''}>Livrée</option>
-                <option value="cancelled" ${o.status==='cancelled'?'selected':''}>Annulée</option>
-              </select>
+              ${state.user.role === 'admin' ? `
+                <label class="detail-label">Modifier le statut <span style="color:var(--orange);font-size:9px;background:var(--orange-soft);padding:1px 5px;border-radius:3px;margin-left:4px">ADMIN</span></label>
+                <select class="field-input" id="editStatus" style="font-size:13px;padding:8px 10px">
+                  <option value="to_process" ${o.status==='to_process'?'selected':''}>À traiter</option>
+                  <option value="pending" ${o.status==='pending'?'selected':''}>En attente</option>
+                  <option value="confirmed" ${o.status==='confirmed'?'selected':''}>Confirmée</option>
+                  <option value="packed" ${o.status==='packed'?'selected':''}>Emballée</option>
+                  <option value="partial" ${o.status==='partial'?'selected':''}>Partiel</option>
+                  <option value="delivered" ${o.status==='delivered'?'selected':''}>Livrée</option>
+                  <option value="cancelled" ${o.status==='cancelled'?'selected':''}>Annulée</option>
+                </select>
+              ` : (
+                // Commercial : peut seulement passer une commande "à traiter" → "confirmée" (workflow web)
+                // Sur les autres statuts, le champ statut est verrouillé
+                o.status === 'to_process' ? `
+                  <label class="detail-label">Modifier le statut</label>
+                  <select class="field-input" id="editStatus" style="font-size:13px;padding:8px 10px">
+                    <option value="to_process" selected>À traiter</option>
+                    <option value="confirmed">Confirmée</option>
+                  </select>
+                  <div class="form-help">Tu peux uniquement confirmer cette commande web.</div>
+                ` : `
+                  <input type="hidden" id="editStatus" value="${o.status}">
+                  <div style="background:var(--cream-2);padding:8px 12px;border-radius:8px;margin-top:8px;font-size:11px;color:var(--brown-soft);display:flex;align-items:center;gap:6px">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                    Seul l'administrateur peut modifier ce statut.
+                  </div>
+                `
+              )}
               <label class="detail-label" style="margin-top:10px">Reprogrammer la livraison</label>
               <input type="date" class="field-input" id="editDate" style="font-size:13px;padding:8px 10px">
             </div>
@@ -1905,12 +2053,20 @@ function openOrderDetail(orderId, canEdit) {
   `;
   const footer = canEdit ? `
     <button class="btn-secondary" onclick="closeModal()">Annuler</button>
+    <button class="btn-secondary" onclick="openReceiptPrintDialog('${o.id}')" style="border-color:var(--blue);color:var(--blue)">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+      Imprimer reçu
+    </button>
     <button style="padding:8px 14px;background:#16A34A;color:white;border-radius:8px;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px" onclick="sendWhatsAppReceipt('${o.id}')">
       <svg fill="currentColor" style="width:14px;height:14px" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981z"/></svg>
-      Envoyer reçu WhatsApp
+      Reçu WhatsApp
     </button>
     <button class="btn-primary-sm" onclick="saveOrderEdit('${o.id}')">Enregistrer</button>
   ` : `
+    <button class="btn-secondary" onclick="openReceiptPrintDialog('${o.id}')" style="border-color:var(--blue);color:var(--blue)">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+      Imprimer
+    </button>
     <button style="padding:8px 14px;background:#16A34A;color:white;border-radius:8px;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px" onclick="sendWhatsAppReceipt('${o.id}')">
       <svg fill="currentColor" style="width:14px;height:14px" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981z"/></svg>
       Reçu WhatsApp
@@ -1921,11 +2077,27 @@ function openOrderDetail(orderId, canEdit) {
 }
 
 function saveOrderEdit(orderId) {
-  const newStatus = document.getElementById('editStatus').value;
+  const o = dataService.getOrders().find(x => x.id === orderId);
+  if (!o) return;
+  const requestedStatus = document.getElementById('editStatus').value;
   const newDate = document.getElementById('editDate').value;
   const newFee = parseInt(document.getElementById('editDeliveryFee')?.value) || 0;
   const newNote = document.getElementById('editDeliveryNote')?.value || '';
-  const o = dataService.getOrders().find(x => x.id === orderId);
+
+  // GARDE-FOU SÉCURITÉ : seul admin peut changer vers les statuts terminaux
+  // Commercial peut seulement : garder le statut OU passer to_process → confirmed
+  let newStatus = requestedStatus;
+  if (state.user.role !== 'admin') {
+    const allowedTransitions = (o.status === 'to_process')
+      ? ['to_process', 'confirmed']
+      : [o.status]; // Commercial ne peut pas changer le statut sur les autres
+    if (!allowedTransitions.includes(requestedStatus)) {
+      // Si le commercial a tenté un statut interdit, on garde l'ancien et on prévient
+      newStatus = o.status;
+      showToast('Tu n\'as pas le droit de modifier le statut. Seul l\'admin peut.', 'error');
+    }
+  }
+
   const history = [...o.history];
   if (newStatus !== o.status) history.push({ at: new Date().toISOString(), action: `${state.user.name} : Statut → ${statusLabel(newStatus)}`, by: state.user.email, byName: state.user.name });
   if (newDate) history.push({ at: new Date().toISOString(), action: `${state.user.name} : Livraison reprogrammée au ${fmtDay(newDate)}`, by: state.user.email, byName: state.user.name });
@@ -1933,7 +2105,6 @@ function saveOrderEdit(orderId) {
   const patch = { status: newStatus, scheduledFor: newDate || o.scheduledFor, deliveryFee: newFee, deliveryNote: newNote, history };
 
   // GESTION STOCK AUTO
-  // Si on passe en "confirmed" et que le stock n'a pas encore été décrémenté → décrémenter
   if (newStatus === 'confirmed' && o.status !== 'confirmed' && !o.stockDecremented) {
     const warnings = decrementStockForOrder(o);
     patch.stockDecremented = true;
@@ -1944,7 +2115,6 @@ function saveOrderEdit(orderId) {
       history.push({ at: new Date().toISOString(), action: 'Stock décrémenté automatiquement', by: 'system', byName: 'Système' });
     }
   }
-  // Si on passe en "cancelled" depuis un statut où le stock était décrémenté → restaurer
   if (newStatus === 'cancelled' && o.stockDecremented) {
     restoreStockForOrder(o);
     patch.stockDecremented = false;
@@ -1972,37 +2142,74 @@ function saveOrderEdit(orderId) {
 
 function duplicateOrder(orderId) {
   const o = dataService.getOrders().find(x => x.id === orderId);
-  if (!o) return;
-  const seq = nextOrderSeq();
-  const newRef = COMMUNES[o.commune] + seq;
-  const dup = {
-    ...o,
-    id: newRef, ref: newRef,
-    status: 'pending',
-    createdAt: new Date().toISOString(),
-    history: [{ at: new Date().toISOString(), action: `${state.user.name} a créé un échange depuis ${o.ref}`, by: state.user.email, byName: state.user.name }],
-    isExchange: true,
-    originalRef: o.ref,
-    commercialId: 'commercial-' + state.user.name.split(' ')[0].toLowerCase(),
-    commercialName: state.user.name,
+  if (!o) { showToast('Commande introuvable', 'error'); return; }
+  // Stocker les données dans une variable globale temporaire
+  // pour qu'elles survivent au passage navigation -> renderNewOrder
+  window._pendingDuplicate = {
+    sourceRef: o.ref,
+    customer: {
+      name: o.customer.name || '',
+      phone: o.customer.phone || '',
+      phone2: o.customer.phone2 || '',
+      location: o.customer.location || '',
+    },
+    commune: o.commune || '',
+    label: 'Échange',
   };
-  dataService.addOrder(dup);
-  showToast(`Échange créé : ${newRef} ✓`, 'success');
-  routes[state.currentPage]?.();
+  navigate('new-order');
 }
 
 /* ============================================
    COMMERCIAL — NOUVELLE COMMANDE
    ============================================ */
-const newOrderState = { items: [], commune: '', customer: { name:'', phone:'', location:'' } };
+const newOrderState = {
+  items: [],
+  commune: '',
+  customer: { name:'', phone:'', phone2:'', location:'' },
+  label: '',         // Libellé : Échange, Express, etc.
+  fromDuplicate: null, // Réf de la commande originale si duplication
+  prefilled: false,  // Si certains champs sont pré-remplis (duplication)
+};
 
 function renderNewOrder() {
+  // Reset par défaut
   newOrderState.items = [];
   newOrderState.commune = '';
-  newOrderState.customer = { name:'', phone:'', location:'' };
-  document.getElementById('pageTitle').innerHTML = 'Nouvelle <em>commande</em>';
-  const products = dataService.getProducts();
+  newOrderState.customer = { name:'', phone:'', phone2:'', location:'' };
+  newOrderState.label = '';
+  newOrderState.fromDuplicate = null;
+  newOrderState.note = '';
+
+  // Si on arrive depuis "Dupliquer", on récupère les données
+  let isDuplicate = false;
+  let sourceRef = '';
+  if (window._pendingDuplicate) {
+    const d = window._pendingDuplicate;
+    newOrderState.customer = { ...d.customer };
+    newOrderState.commune = d.commune;
+    newOrderState.label = d.label;
+    newOrderState.fromDuplicate = d.sourceRef;
+    isDuplicate = true;
+    sourceRef = d.sourceRef;
+    // On consomme l'info pour que la prochaine entrée soit propre
+    window._pendingDuplicate = null;
+  }
+
+  document.getElementById('pageTitle').innerHTML = isDuplicate
+    ? `Dupliquer <em>${sourceRef}</em>`
+    : 'Nouvelle <em>commande</em>';
+
   document.getElementById('content').innerHTML = `
+    ${isDuplicate ? `
+      <div style="background:#FFF8E1;border-left:4px solid #FFC107;padding:14px 18px;border-radius:10px;margin-bottom:16px;font-size:13px;color:var(--brown);display:flex;align-items:flex-start;gap:10px">
+        <svg width="20" height="20" fill="none" stroke="#B8860B" stroke-width="2" viewBox="0 0 24 24" style="flex-shrink:0;margin-top:1px"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+        <div>
+          <strong>Duplication de la commande ${sourceRef}</strong><br>
+          Les infos client sont pré-remplies. Tu dois maintenant ressaisir le(s) produit(s) avec leurs taille/couleur/quantité, puis vérifier le libellé.
+        </div>
+      </div>
+    ` : ''}
+
     <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:18px" class="new-order-grid">
       <div>
         <div class="table-card" style="margin-bottom:16px">
@@ -2021,7 +2228,7 @@ function renderNewOrder() {
       </div>
       <div>
         <div class="table-card" style="margin-bottom:16px">
-          <div class="table-head"><div class="table-title">2. Panier (${newOrderState.items.length})</div></div>
+          <div class="table-head"><div class="table-title">2. Panier (<span id="cartCount">${newOrderState.items.length}</span>)</div></div>
           <div id="newOrderCart" style="padding:12px"></div>
         </div>
         <div class="table-card">
@@ -2029,36 +2236,48 @@ function renderNewOrder() {
           <div style="padding:14px 16px">
             <div class="field">
               <label class="field-label">Nom du client</label>
-              <input type="text" class="field-input" id="noName" placeholder="Ex. Aminata Diabaté">
+              <input type="text" class="field-input" id="noName" placeholder="Ex. Aminata Diabaté" value="${newOrderState.customer.name || ''}">
             </div>
             <div class="field">
               <label class="field-label">Téléphone</label>
-              <input type="tel" class="field-input" id="noPhone" placeholder="07 07 07 07 07">
+              <input type="tel" class="field-input" id="noPhone" placeholder="07 07 07 07 07" value="${newOrderState.customer.phone || ''}">
             </div>
             <div class="field">
               <label class="field-label">Téléphone secondaire <span style="font-weight:400;color:var(--brown-soft);text-transform:none;letter-spacing:0">(facultatif)</span></label>
-              <input type="tel" class="field-input" id="noPhone2" placeholder="Numéro de secours">
+              <input type="tel" class="field-input" id="noPhone2" placeholder="Numéro de secours" value="${newOrderState.customer.phone2 || ''}">
             </div>
             <div class="field">
               <label class="field-label">Commune (génère la référence)</label>
               <select class="field-input" id="noCommune" onchange="updateRefPreview()">
                 <option value="">Choisir...</option>
-                ${Object.keys(COMMUNES).map(c => `<option value="${c}">${c} (${COMMUNES[c]})</option>`).join('')}
+                ${Object.keys(COMMUNES).map(c => `<option value="${c}" ${newOrderState.commune===c?'selected':''}>${c} (${COMMUNES[c]})</option>`).join('')}
               </select>
             </div>
             <div class="field">
               <label class="field-label">Adresse de livraison</label>
-              <textarea class="field-input" id="noLocation" placeholder="Quartier, rue, repère..."></textarea>
+              <textarea class="field-input" id="noLocation" placeholder="Quartier, rue, repère...">${newOrderState.customer.location || ''}</textarea>
             </div>
             <div class="field">
               <label class="field-label">Frais de livraison (FCFA)</label>
               <input type="number" class="field-input" id="noDelivery" min="0" placeholder="Ex. 1500">
             </div>
+            <div class="field">
+              <label class="field-label">Libellé de la commande</label>
+              <select class="field-input" id="noLabel" onchange="updateRefPreview()">
+                ${ORDER_LABELS.map(l => `<option value="${l.value}" ${newOrderState.label===l.value?'selected':''}>${l.text}</option>`).join('')}
+              </select>
+              <div class="form-help">Ajoute un préfixe à la référence (ex: Express CD10765).</div>
+            </div>
+            <div class="field">
+              <label class="field-label">Note <span style="font-weight:400;color:var(--brown-soft);text-transform:none;letter-spacing:0">(facultatif)</span></label>
+              <textarea class="field-input" id="noNote" placeholder="Ex. Client demande livraison après 17h, attention emballage cadeau..." style="min-height:60px"></textarea>
+              <div class="form-help">Visible dans le détail de la commande et l'historique.</div>
+            </div>
             <div style="background:var(--cream);padding:10px 12px;border-radius:8px;font-size:12px;color:var(--brown);margin-bottom:14px">
               Référence : <strong id="refPreview" style="font-family:var(--font-mono);color:var(--orange)">—</strong>
             </div>
             <button class="btn-orange" style="width:100%;justify-content:center" onclick="confirmNewOrder()">
-              Créer la commande
+              ${isDuplicate ? 'Créer la commande dupliquée' : 'Créer la commande'}
             </button>
           </div>
         </div>
@@ -2067,6 +2286,7 @@ function renderNewOrder() {
   `;
   filterProductsForOrder('');
   renderNewOrderCart();
+  updateRefPreview();
 }
 
 function filterProductsForOrder(q) {
@@ -2097,6 +2317,389 @@ function addProductToOrder(id) {
     qty: 1, size: p.sizes[0], color: p.colors[0], price: p.price
   });
   renderNewOrderCart();
+}
+
+/* ============================================
+   REÇU IMPRIMABLE — 3 formats
+   ============================================ */
+// Logo SVG inline (sac orange avec t-shirt blanc)
+const ZANGOCHAP_LOGO_SVG = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%">
+  <!-- Anse du sac -->
+  <path d="M 70 60 Q 70 35 100 35 Q 130 35 130 60" stroke="#D4541C" stroke-width="9" fill="none" stroke-linecap="round"/>
+  <!-- Corps du sac (trapèze) -->
+  <path d="M 50 60 L 150 60 L 165 175 L 35 175 Z" fill="#D4541C"/>
+  <!-- T-shirt blanc -->
+  <path d="M 75 90 L 90 80 L 110 80 L 125 90 L 130 105 L 120 105 L 120 145 L 80 145 L 80 105 L 70 105 Z" fill="#FFFFFF"/>
+  <!-- Encolure du t-shirt -->
+  <path d="M 90 80 Q 100 87 110 80" stroke="#D4541C" stroke-width="2" fill="none"/>
+</svg>`;
+
+function openReceiptPrintDialog(orderId) {
+  const o = dataService.getOrders().find(x => x.id === orderId);
+  if (!o) return;
+  const body = `
+    <div style="text-align:center;padding:14px 0">
+      <div style="font-size:50px;margin-bottom:8px">🧾</div>
+      <p style="color:var(--brown);font-size:14px">Choisis le format pour la commande <strong style="color:var(--orange);font-family:var(--font-mono)">${o.ref}</strong></p>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));gap:12px;margin-bottom:16px">
+      <button onclick="closeModal();printReceipt('${o.id}', 'a4')" class="receipt-format-btn" style="background:var(--cream);border:2px solid var(--line);border-radius:12px;padding:18px;cursor:pointer;text-align:center;transition:all 0.2s">
+        <div style="font-size:32px;margin-bottom:4px">📄</div>
+        <strong>A4</strong>
+        <div style="font-size:10px;color:var(--brown-soft);margin-top:2px">Facture pleine page</div>
+      </button>
+      <button onclick="closeModal();printReceipt('${o.id}', 'a6')" class="receipt-format-btn" style="background:var(--cream);border:2px solid var(--line);border-radius:12px;padding:18px;cursor:pointer;text-align:center;transition:all 0.2s">
+        <div style="font-size:32px;margin-bottom:4px">📋</div>
+        <strong>A6</strong>
+        <div style="font-size:10px;color:var(--brown-soft);margin-top:2px">Format carte postale</div>
+      </button>
+      <button onclick="closeModal();printReceipt('${o.id}', 'thermal')" class="receipt-format-btn" style="background:var(--cream);border:2px solid var(--line);border-radius:12px;padding:18px;cursor:pointer;text-align:center;transition:all 0.2s">
+        <div style="font-size:32px;margin-bottom:4px">🧾</div>
+        <strong>Reçu de caisse</strong>
+        <div style="font-size:10px;color:var(--brown-soft);margin-top:2px">Ticket thermique 80mm</div>
+      </button>
+    </div>
+    <div style="border-top:1px solid var(--line);padding-top:14px">
+      <div style="font-size:11px;color:var(--brown-soft);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:10px">Pour partager au client</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <button onclick="downloadReceiptPDF('${o.id}')" style="background:linear-gradient(135deg, #FFE0CC, #FCC096);border:2px solid var(--orange);color:var(--brown);border-radius:12px;padding:14px;cursor:pointer;text-align:center;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:4px">
+          <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 13l3 3m0 0l3-3m-3 3V8"/></svg>
+          <strong style="font-size:13px">Télécharger PDF</strong>
+          <span style="font-size:10px;font-weight:400;color:var(--brown-soft)">Pour envoi WhatsApp</span>
+        </button>
+        <button onclick="closeModal();sendWhatsAppReceipt('${o.id}')" style="background:linear-gradient(135deg, #DCFCE7, #86EFAC);border:2px solid #16A34A;color:#14532D;border-radius:12px;padding:14px;cursor:pointer;text-align:center;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:4px">
+          <svg width="28" height="28" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981z"/></svg>
+          <strong style="font-size:13px">Message WhatsApp</strong>
+          <span style="font-size:10px;font-weight:400;color:#14532D">Texte formaté</span>
+        </button>
+      </div>
+    </div>
+  `;
+  const footer = `<button class="btn-secondary" onclick="closeModal()">Fermer</button>`;
+  openModal('Reçu commande', body, footer, true);
+}
+
+function downloadReceiptPDF(orderId) {
+  const o = dataService.getOrders().find(x => x.id === orderId);
+  if (!o) return;
+  if (typeof html2pdf === 'undefined') {
+    showToast('La librairie PDF n\'est pas chargée. Vérifie ta connexion.', 'error');
+    return;
+  }
+  showToast('Génération du PDF en cours...', 'success');
+  // On construit le HTML A4 sans @page (incompatible html2pdf)
+  const html = buildReceiptHtml(orderId, 'a4');
+  // Conteneur invisible pour le rendu
+  const container = document.createElement('div');
+  container.style.cssText = 'position:absolute;left:-99999px;top:0;width:794px;background:white;padding:30px;font-family:Helvetica,Arial,sans-serif';
+  // Extraction du body content uniquement
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  // Copier les styles inline et le contenu du body dans notre conteneur
+  const styles = doc.querySelector('style')?.textContent || '';
+  container.innerHTML = `<style>${styles}</style>` + doc.body.innerHTML;
+  document.body.appendChild(container);
+
+  const filename = `Recu_${o.ref.replace(/\s+/g,'_')}_${o.customer.name.split(' ')[0]}.pdf`;
+  const opt = {
+    margin: [10, 10, 10, 10],
+    filename,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+  };
+
+  html2pdf().set(opt).from(container).save().then(() => {
+    document.body.removeChild(container);
+    closeModal();
+    showToast('PDF téléchargé ✓ Tu peux maintenant le partager sur WhatsApp', 'success');
+    // Trace dans l'historique
+    const history = [...o.history, { at: new Date().toISOString(), action: `PDF du reçu téléchargé par ${state.user.name}`, by: state.user.email, byName: state.user.name }];
+    dataService.updateOrder(orderId, { history });
+  }).catch(err => {
+    document.body.removeChild(container);
+    console.error(err);
+    showToast('Erreur lors de la génération du PDF', 'error');
+  });
+}
+
+function buildReceiptHtml(orderId, format) {
+  const o = dataService.getOrders().find(x => x.id === orderId);
+  if (!o) return null;
+
+  let commercialServiceNumber = o.commercialServiceNumber || '';
+  if (!commercialServiceNumber && o.commercialName) {
+    const acc = dataService.getAccounts().find(a => a.name === o.commercialName);
+    if (acc?.serviceNumber) commercialServiceNumber = acc.serviceNumber;
+  }
+
+  const dateStr = new Date(o.createdAt).toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+  const totalPayer = (o.total || 0) + (o.deliveryFee || 0);
+
+  const itemsHtml = o.items.map(i => `
+    <tr>
+      <td style="padding:6px 4px;border-bottom:1px solid #eee">
+        <strong>${i.name}</strong>
+        ${i.isCustom ? '<span style="font-size:9px;background:#DCEAFC;color:#1F5C8C;padding:1px 5px;border-radius:3px;margin-left:4px">PERSO</span>' : ''}
+        <div style="font-size:11px;color:#666;margin-top:2px">Taille ${i.size} · ${i.color}</div>
+      </td>
+      <td style="padding:6px 4px;border-bottom:1px solid #eee;text-align:center">${i.qty}</td>
+      <td style="padding:6px 4px;border-bottom:1px solid #eee;text-align:right">${fmtPrice(i.price)}</td>
+      <td style="padding:6px 4px;border-bottom:1px solid #eee;text-align:right;font-weight:600">${fmtPrice(i.price * i.qty)}</td>
+    </tr>
+  `).join('');
+
+  if (format === 'a4') {
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Reçu ${o.ref}</title>
+<style>
+  @page { size: A4; margin: 12mm; }
+  body { font-family: 'Helvetica', Arial, sans-serif; color: #1A1410; margin: 0; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 16px; border-bottom: 3px solid #D4541C; margin-bottom: 18px; }
+  .logo-block { display: flex; align-items: center; gap: 12px; }
+  .logo-mark { width: 64px; height: 64px; }
+  .logo-text { font-family: Georgia, serif; font-size: 28px; font-weight: 700; color: #4A2E1F; line-height: 1; }
+  .logo-sub { font-size: 11px; color: #6B4838; margin-top: 3px; }
+  .receipt-title { text-align: right; }
+  .receipt-title h1 { margin: 0; font-size: 22px; color: #D4541C; }
+  .receipt-ref { font-family: monospace; font-size: 16px; font-weight: 700; color: #4A2E1F; }
+  .receipt-label { display: inline-block; padding: 2px 10px; background: #FFF8E1; color: #B8860B; font-size: 10px; font-weight: 700; text-transform: uppercase; border-radius: 4px; margin-bottom: 4px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 18px; }
+  .info-block h3 { font-size: 11px; color: #6B4838; text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 6px 0; }
+  .info-block p { margin: 2px 0; font-size: 13px; }
+  .note-block { background: #FFF8E1; border-left: 3px solid #FFC107; padding: 10px 14px; border-radius: 6px; margin-bottom: 16px; font-size: 12px; color: #4A2E1F; }
+  table.items { width: 100%; border-collapse: collapse; margin: 18px 0; }
+  table.items th { background: #FAF6F1; padding: 8px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: #4A2E1F; border-bottom: 2px solid #D4541C; }
+  table.items th.right { text-align: right; }
+  table.items th.center { text-align: center; }
+  .totals { margin-left: auto; width: 280px; margin-top: 8px; }
+  .totals tr td { padding: 6px 8px; }
+  .totals tr.grand td { border-top: 2px solid #1A1410; font-weight: 700; font-size: 18px; color: #D4541C; padding-top: 12px; }
+  .footer { margin-top: 30px; padding-top: 16px; border-top: 1px solid #E8DDD0; font-size: 11px; color: #6B4838; text-align: center; }
+  .footer .commercial-block { background: #FAF6F1; padding: 10px 14px; border-radius: 8px; margin-bottom: 10px; font-size: 12px; color: #4A2E1F; }
+  .footer .commercial-block strong { color: #D4541C; }
+</style></head><body>
+  <div class="header">
+    <div class="logo-block">
+      <div class="logo-mark">${ZANGOCHAP_LOGO_SVG}</div>
+      <div>
+        <div class="logo-text">zangochap</div>
+        <div class="logo-sub">mieux s'habiller à bas prix · Abidjan</div>
+      </div>
+    </div>
+    <div class="receipt-title">
+      ${o.label ? `<div class="receipt-label">${o.label}</div><br>` : ''}
+      <h1>REÇU</h1>
+      <div class="receipt-ref">${o.ref}</div>
+      <div style="font-size:11px;color:#666;margin-top:2px">${dateStr}</div>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="info-block">
+      <h3>Client</h3>
+      <p><strong>${o.customer.name}</strong></p>
+      <p>📞 ${o.customer.phone}</p>
+      ${o.customer.phone2 ? `<p>📞 ${o.customer.phone2}</p>` : ''}
+    </div>
+    <div class="info-block">
+      <h3>Livraison</h3>
+      <p>${o.customer.location}</p>
+      <p style="color:#D4541C;font-weight:600">${o.commune}</p>
+      ${o.deliveryNote ? `<p style="font-style:italic;color:#666">Note livreur : ${o.deliveryNote}</p>` : ''}
+    </div>
+  </div>
+  ${o.note ? `<div class="note-block"><strong>📝 Note :</strong> ${o.note}</div>` : ''}
+  <table class="items">
+    <thead><tr>
+      <th>Article</th><th class="center">Qté</th><th class="right">P.U.</th><th class="right">Total</th>
+    </tr></thead>
+    <tbody>${itemsHtml}</tbody>
+  </table>
+  <table class="totals">
+    <tr><td>Sous-total</td><td style="text-align:right">${fmtPrice(o.total)}</td></tr>
+    <tr><td>Frais de livraison</td><td style="text-align:right">${fmtPrice(o.deliveryFee || 0)}</td></tr>
+    <tr class="grand"><td>TOTAL À PAYER</td><td style="text-align:right">${fmtPrice(totalPayer)}</td></tr>
+    <tr><td colspan="2" style="text-align:center;padding-top:8px;font-size:11px;color:#6B4838">💵 Paiement à la livraison</td></tr>
+  </table>
+  <div class="footer">
+    <div class="commercial-block">
+      Commande traitée par <strong>${o.commercialName || '—'}</strong>
+      ${commercialServiceNumber ? `<br>📱 Pour toute question, contactez : <strong>${commercialServiceNumber}</strong>` : ''}
+    </div>
+    <p>Merci pour votre confiance ! En cas d'erreur, contactez-nous immédiatement.</p>
+    <p style="margin-top:6px">zangochap.com</p>
+  </div>
+</body></html>`;
+  }
+  // Pour A6 et thermal, on garde l'existant ; le PDF c'est principalement A4
+  return null;
+}
+
+function printReceipt(orderId, format) {
+  const o = dataService.getOrders().find(x => x.id === orderId);
+  if (!o) return;
+
+  let commercialServiceNumber = o.commercialServiceNumber || '';
+  if (!commercialServiceNumber && o.commercialName) {
+    const acc = dataService.getAccounts().find(a => a.name === o.commercialName);
+    if (acc?.serviceNumber) commercialServiceNumber = acc.serviceNumber;
+  }
+
+  const dateStr = new Date(o.createdAt).toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+  const totalPayer = (o.total || 0) + (o.deliveryFee || 0);
+
+  const itemsHtml = o.items.map(i => `
+    <tr>
+      <td style="padding:6px 4px;border-bottom:1px solid #eee">
+        <strong>${i.name}</strong>
+        ${i.isCustom ? '<span style="font-size:9px;background:#DCEAFC;color:#1F5C8C;padding:1px 5px;border-radius:3px;margin-left:4px">PERSO</span>' : ''}
+        <div style="font-size:11px;color:#666;margin-top:2px">Taille ${i.size} · ${i.color}</div>
+      </td>
+      <td style="padding:6px 4px;border-bottom:1px solid #eee;text-align:center">${i.qty}</td>
+      <td style="padding:6px 4px;border-bottom:1px solid #eee;text-align:right">${fmtPrice(i.price)}</td>
+      <td style="padding:6px 4px;border-bottom:1px solid #eee;text-align:right;font-weight:600">${fmtPrice(i.price * i.qty)}</td>
+    </tr>
+  `).join('');
+
+  let html;
+  if (format === 'a4') {
+    html = buildReceiptHtml(orderId, 'a4');
+  }
+
+  // Format A6 (carte postale)
+  else if (format === 'a6') {
+    html = `
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Reçu ${o.ref}</title>
+<style>
+  @page { size: A6 portrait; margin: 6mm; }
+  body { font-family: 'Helvetica', Arial, sans-serif; color: #1A1410; margin: 0; font-size: 11px; }
+  .header { text-align: center; padding-bottom: 8px; border-bottom: 2px solid #D4541C; margin-bottom: 10px; }
+  .logo-mark { width: 36px; height: 36px; margin: 0 auto 4px; }
+  .logo-text { font-family: Georgia, serif; font-size: 18px; font-weight: 700; color: #D4541C; }
+  .ref { font-family: monospace; font-size: 13px; font-weight: 700; margin-top: 2px; }
+  .label-tag { display: inline-block; padding: 1px 8px; background: #FFF8E1; color: #B8860B; font-size: 9px; font-weight: 700; text-transform: uppercase; border-radius: 3px; margin-bottom: 2px; }
+  .meta { font-size: 9px; color: #666; margin-top: 2px; }
+  .info { margin: 8px 0; line-height: 1.4; }
+  .info strong { color: #D4541C; }
+  .note { background: #FFF8E1; padding: 5px 8px; border-radius: 4px; margin: 6px 0; font-size: 10px; }
+  table { width: 100%; border-collapse: collapse; font-size: 10px; margin: 8px 0; }
+  th { background: #FAF6F1; padding: 4px; border-bottom: 1px solid #D4541C; text-align: left; font-size: 9px; text-transform: uppercase; }
+  td { padding: 3px 4px; border-bottom: 1px dashed #ccc; }
+  .total { margin-top: 8px; padding-top: 6px; border-top: 1px solid #1A1410; }
+  .total-row { display: flex; justify-content: space-between; padding: 2px 0; }
+  .total-row.grand { font-size: 13px; font-weight: 700; color: #D4541C; padding-top: 4px; border-top: 1px solid #D4541C; margin-top: 4px; }
+  .footer { text-align: center; margin-top: 10px; font-size: 9px; color: #6B4838; }
+  .footer strong { color: #D4541C; }
+</style></head><body>
+  <div class="header">
+    <div class="logo-mark">${ZANGOCHAP_LOGO_SVG}</div>
+    <div class="logo-text">zangochap</div>
+    ${o.label ? `<div class="label-tag">${o.label}</div><br>` : ''}
+    <div class="ref">${o.ref}</div>
+    <div class="meta">${dateStr}</div>
+  </div>
+  <div class="info">
+    <strong>${o.customer.name}</strong><br>
+    📞 ${o.customer.phone}${o.customer.phone2 ? ' / ' + o.customer.phone2 : ''}<br>
+    📍 ${o.customer.location} (${o.commune})
+  </div>
+  ${o.note ? `<div class="note">📝 ${o.note}</div>` : ''}
+  <table>
+    <thead><tr><th>Article</th><th style="text-align:center">Qté</th><th style="text-align:right">Prix</th></tr></thead>
+    <tbody>
+      ${o.items.map(i => `
+        <tr>
+          <td>${i.name}<br><span style="font-size:8px;color:#666">${i.size} · ${i.color}</span></td>
+          <td style="text-align:center">${i.qty}</td>
+          <td style="text-align:right">${fmtPrice(i.price * i.qty)}</td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>
+  <div class="total">
+    <div class="total-row"><span>Sous-total</span><span>${fmtPrice(o.total)}</span></div>
+    <div class="total-row"><span>Livraison</span><span>${fmtPrice(o.deliveryFee || 0)}</span></div>
+    <div class="total-row grand"><span>À PAYER</span><span>${fmtPrice(totalPayer)}</span></div>
+    <div style="text-align:center;font-size:9px;margin-top:4px;color:#666">💵 Paiement à la livraison</div>
+  </div>
+  <div class="footer">
+    Servi par <strong>${o.commercialName || '—'}</strong>
+    ${commercialServiceNumber ? `<br>📱 ${commercialServiceNumber}` : ''}
+    <br>Merci pour votre confiance ! 🧡
+  </div>
+</body></html>`;
+  }
+
+  // Format thermal (ticket de caisse 80mm)
+  else if (format === 'thermal') {
+    html = `
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Reçu ${o.ref}</title>
+<style>
+  @page { size: 80mm auto; margin: 3mm; }
+  body { font-family: 'Courier New', monospace; color: #000; margin: 0; font-size: 11px; line-height: 1.3; width: 74mm; }
+  .center { text-align: center; }
+  .right { text-align: right; }
+  .bold { font-weight: 700; }
+  .big { font-size: 14px; font-weight: 700; }
+  .logo-mark { width: 40px; height: 40px; margin: 0 auto 4px; display: block; }
+  .label-tag { display: inline-block; padding: 1px 8px; background: #000; color: #fff; font-size: 10px; font-weight: 700; }
+  .sep { border-top: 1px dashed #000; margin: 6px 0; }
+  .row { display: flex; justify-content: space-between; padding: 1px 0; }
+  .item { margin: 4px 0; }
+  .item-name { font-weight: 700; }
+  .item-meta { font-size: 9px; color: #333; }
+  .grand { font-size: 14px; font-weight: 700; }
+  .note-box { border: 1px dashed #000; padding: 4px 6px; margin: 4px 0; font-size: 10px; }
+</style></head><body>
+  <div class="center">
+    <div class="logo-mark">${ZANGOCHAP_LOGO_SVG}</div>
+    <div class="big">ZANGOCHAP</div>
+    <div style="font-size:9px">mieux s'habiller à bas prix</div>
+    <div style="font-size:9px">Abidjan, Côte d'Ivoire</div>
+  </div>
+  <div class="sep"></div>
+  ${o.label ? `<div class="center"><span class="label-tag">${o.label}</span></div>` : ''}
+  <div class="center bold" style="margin-top:4px">${o.ref}</div>
+  <div class="center" style="font-size:9px">${dateStr}</div>
+  <div class="sep"></div>
+  <div><strong>${o.customer.name}</strong></div>
+  <div>Tel: ${o.customer.phone}</div>
+  ${o.customer.phone2 ? `<div>Tel2: ${o.customer.phone2}</div>` : ''}
+  <div>${o.customer.location}</div>
+  <div class="bold">${o.commune}</div>
+  ${o.note ? `<div class="note-box"><strong>NOTE:</strong> ${o.note}</div>` : ''}
+  <div class="sep"></div>
+  ${o.items.map(i => `
+    <div class="item">
+      <div class="item-name">${i.name}</div>
+      <div class="item-meta">${i.size} · ${i.color}</div>
+      <div class="row">
+        <span>${i.qty} x ${fmtPrice(i.price)}</span>
+        <span class="bold">${fmtPrice(i.price * i.qty)}</span>
+      </div>
+    </div>
+  `).join('')}
+  <div class="sep"></div>
+  <div class="row"><span>Sous-total</span><span>${fmtPrice(o.total)}</span></div>
+  <div class="row"><span>Livraison</span><span>${fmtPrice(o.deliveryFee || 0)}</span></div>
+  <div class="sep"></div>
+  <div class="row grand"><span>TOTAL</span><span>${fmtPrice(totalPayer)}</span></div>
+  <div class="center" style="margin-top:4px;font-size:10px">PAIEMENT A LA LIVRAISON</div>
+  <div class="sep"></div>
+  <div class="center" style="font-size:9px">
+    Servi par ${o.commercialName || '—'}<br>
+    ${commercialServiceNumber ? `Tel: ${commercialServiceNumber}<br>` : ''}
+    Merci pour votre confiance !
+  </div>
+</body></html>`;
+  }
+
+  // Ouvrir et imprimer
+  const win = window.open('', '_blank', 'width=800,height=600');
+  if (!win) { showToast('Le navigateur a bloqué la fenêtre. Autorise les pop-ups.', 'error'); return; }
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => { win.print(); }, 350);
 }
 
 /* ============================================
@@ -2272,8 +2875,10 @@ function renderNewOrderCart() {
 
 function updateRefPreview() {
   const c = document.getElementById('noCommune').value;
+  const label = document.getElementById('noLabel')?.value || '';
   const seq = ls.get(STORAGE.COMMERCIAL_ID, 10056);
-  document.getElementById('refPreview').textContent = c ? COMMUNES[c] + seq : '—';
+  const baseRef = c ? COMMUNES[c] + seq : '—';
+  document.getElementById('refPreview').textContent = (label && c) ? `${label} ${baseRef}` : baseRef;
 }
 
 function confirmNewOrder() {
@@ -2283,18 +2888,47 @@ function confirmNewOrder() {
   const commune = document.getElementById('noCommune').value;
   const location = document.getElementById('noLocation').value.trim();
   const deliveryFee = parseInt(document.getElementById('noDelivery').value) || 0;
+  const label = document.getElementById('noLabel')?.value || '';
+  const note = document.getElementById('noNote')?.value.trim() || '';
   if (!name || !phone || !commune || !location) { showToast('Tous les champs sont requis', 'error'); return; }
   if (!newOrderState.items.length) { showToast('Ajoute au moins un produit', 'error'); return; }
   const myId = 'commercial-' + state.user.name.split(' ')[0].toLowerCase();
   const order = makeOrder(commune, name, phone, location, newOrderState.items, myId, 'confirmed', 0);
+  // Appliquer le libellé sur la référence
+  if (label) {
+    order.label = label;
+    order.ref = `${label} ${order.ref}`;
+    order.id = order.ref;
+  }
   order.customer.phone2 = phone2;
   order.deliveryFee = deliveryFee;
   order.commercialName = state.user.name;
+  order.commercialServiceNumber = state.user.serviceNumber || ''; // numéro de service
   order.confirmedAt = new Date().toISOString();
   order.confirmedByName = state.user.name;
-  order.history = [{ at: new Date().toISOString(), action: `Commande créée par ${state.user.name}`, by: state.user.email, byName: state.user.name }];
+  if (note) order.note = note;
+  // Garder lien vers commande source si duplication
+  if (newOrderState.fromDuplicate) {
+    order.duplicatedFrom = newOrderState.fromDuplicate;
+  }
+  const labelText = label ? ` (${label})` : '';
+  const dupText = newOrderState.fromDuplicate ? ` - Dupliquée depuis ${newOrderState.fromDuplicate}` : '';
+  order.history = [{
+    at: new Date().toISOString(),
+    action: `Commande créée par ${state.user.name}${labelText}${dupText}`,
+    by: state.user.email,
+    byName: state.user.name,
+  }];
+  if (note) {
+    order.history.push({
+      at: new Date().toISOString(),
+      action: `Note : ${note}`,
+      by: state.user.email,
+      byName: state.user.name,
+    });
+  }
 
-  // GESTION STOCK AUTO : commande créée directement en "confirmed"
+  // GESTION STOCK AUTO
   const warnings = decrementStockForOrder(order);
   order.stockDecremented = true;
   order.stockDecrementedAt = new Date().toISOString();
@@ -2305,7 +2939,13 @@ function confirmNewOrder() {
   }
 
   dataService.addOrder(order);
+  // Reset state
+  newOrderState.fromDuplicate = null;
+  newOrderState.label = '';
+  newOrderState.note = '';
   showToast(`Commande ${order.ref} créée ✓`, 'success');
+  // Proposer d'imprimer le reçu directement
+  setTimeout(() => openReceiptPrintDialog(order.id), 400);
   navigate('orders-commercial');
 }
 
@@ -2427,12 +3067,12 @@ function renderPackingTable() {
               const productMap = {};
               dataService.getProducts().forEach(p => productMap[p.id] = p);
               return `
-                <tr>
+                <tr style="cursor:pointer" onclick="openPackingDetail('${o.id}')">
                   <td><span class="cell-mono">${o.ref}</span><div class="cell-muted">${fmtDay(o.createdAt)}</div></td>
                   <td>
                     ${o.items.map(i => `
                       <div style="display:flex;align-items:center;gap:6px;font-size:12px;margin:2px 0">
-                        ${itemThumb(i, 26)}
+                        <span onclick="event.stopPropagation()">${itemThumb(i, 26)}</span>
                         <span>${i.name}</span>
                         <span class="size-dot">${i.size}</span>
                         <span style="font-weight:600;font-size:11px">${i.color}</span>
@@ -2441,9 +3081,9 @@ function renderPackingTable() {
                     `).join('')}
                   </td>
                   <td><span class="cell-mono" style="font-size:11px">${o.items.map(i => productMap[i.productId]?.location || '—').join(' / ')}</span></td>
-                  <td><span class="cell-muted">${o.commercialName || o.commercialId.replace('commercial-','')}</span></td>
+                  <td><span class="cell-muted">${o.commercialName || (o.commercialId||'').replace('commercial-','')}</span></td>
                   <td><span class="status ${o.status}">${statusLabel(o.status)}</span></td>
-                  <td>
+                  <td onclick="event.stopPropagation()">
                     <div class="row-actions">
                       <button class="action-btn" title="Détail emballage" onclick="openPackingDetail('${o.id}')">
                         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
@@ -2641,69 +3281,405 @@ function renderDashboardCollection() {
    ============================================ */
 function renderCollectionQueue() {
   document.getElementById('pageTitle').innerHTML = 'À <em>collecter</em>';
+  document.getElementById('content').innerHTML = `
+    <div class="filters-bar">
+      <button class="filter-chip active" data-cf="to_collect" onclick="setCollectionFilter(this)">À collecter</button>
+      <button class="filter-chip" data-cf="collected" onclick="setCollectionFilter(this)">Collectés</button>
+      <button class="filter-chip" data-cf="unavailable" onclick="setCollectionFilter(this)">Non collectés</button>
+      <button class="filter-chip" data-cf="alternative" onclick="setCollectionFilter(this)">Alternatives</button>
+      <div class="filter-spacer"></div>
+      <input type="text" class="filter-select" id="collectionSearch" placeholder="Rechercher (réf, produit, fournisseur)..." style="min-width:240px;cursor:text" oninput="renderCollectionContent()">
+    </div>
+    <div id="collectionContent"></div>
+  `;
+  state.collectionFilter = 'to_collect';
+  renderCollectionContent();
+}
+
+function setCollectionFilter(btn) {
+  document.querySelectorAll('[data-cf]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  state.collectionFilter = btn.dataset.cf;
+  renderCollectionContent();
+}
+
+function renderCollectionContent() {
+  const filter = state.collectionFilter || 'to_collect';
+  const search = (document.getElementById('collectionSearch')?.value || '').toLowerCase().trim();
   const orders = dataService.getOrders();
   const products = dataService.getProducts();
-  const toCollect = [];
-  orders.forEach(o => o.items.forEach(i => {
-    const p = products.find(x => x.id === i.productId);
-    if (p && p.stock === 0) toCollect.push({ order: o, item: i, product: p });
-  }));
-  document.getElementById('content').innerHTML = `
-    <div class="table-card">
-      <div class="table-head">
-        <div class="table-title">${toCollect.length} produit(s) à collecter</div>
-        <div class="table-meta">Groupés par fournisseur</div>
+  const records = ls.get(STORAGE.COLLECTION, []);
+
+  if (filter === 'to_collect') {
+    // Articles indisponibles (stock=0) dans des commandes non livrées
+    const toCollect = [];
+    orders.forEach(o => {
+      if (['cancelled','delivered'].includes(o.status)) return;
+      o.items.forEach(i => {
+        const p = products.find(x => x.id === i.productId);
+        if (p && p.stock === 0) {
+          // Vérifier qu'il n'a pas déjà été traité
+          const alreadyDone = records.some(r => r.orderId === o.id && r.productId === i.productId);
+          if (!alreadyDone) toCollect.push({ order: o, item: i, product: p });
+        }
+      });
+    });
+    let filtered = toCollect;
+    if (search) filtered = toCollect.filter(({ order, item, product }) =>
+      order.ref.toLowerCase().includes(search) ||
+      item.name.toLowerCase().includes(search) ||
+      (product.supplier || '').toLowerCase().includes(search)
+    );
+    document.getElementById('collectionContent').innerHTML = `
+      <div class="table-card">
+        <div class="table-head">
+          <div>
+            <div class="table-title">${filtered.length} produit(s) à collecter</div>
+            <div class="table-meta">Articles indisponibles dans des commandes en cours</div>
+          </div>
+        </div>
+        ${collectionTable(filtered)}
       </div>
-      ${collectionTable(toCollect)}
-    </div>
-  `;
+    `;
+  } else {
+    // Liste des actions de collecte (collected / unavailable / alternative)
+    let filteredRecords = records.filter(r => r.status === filter);
+    if (search) {
+      filteredRecords = filteredRecords.filter(r => {
+        const order = orders.find(o => o.id === r.orderId);
+        const product = products.find(p => p.id === r.productId);
+        return (order && order.ref.toLowerCase().includes(search)) ||
+               (product && product.name.toLowerCase().includes(search)) ||
+               (product && (product.supplier || '').toLowerCase().includes(search));
+      });
+    }
+    document.getElementById('collectionContent').innerHTML = `
+      <div class="table-card">
+        <div class="table-head">
+          <div>
+            <div class="table-title">${filteredRecords.length} article(s) ${filter === 'collected' ? 'collectés' : filter === 'unavailable' ? 'non collectés' : 'avec alternative'}</div>
+            <div class="table-meta">Historique des actions de collecte</div>
+          </div>
+        </div>
+        ${filteredRecords.length ? `
+          <div class="table-wrap"><table>
+            <thead><tr><th>Date</th><th>Commande</th><th>Produit</th><th>Variante</th><th>Fournisseur</th><th>Agent</th><th>Note</th></tr></thead>
+            <tbody>
+              ${filteredRecords.slice().reverse().map(r => {
+                const order = orders.find(o => o.id === r.orderId);
+                const product = products.find(p => p.id === r.productId);
+                const item = order?.items.find(i => i.productId === r.productId);
+                return `
+                  <tr>
+                    <td><span class="cell-muted">${fmtDate(r.at)}</span></td>
+                    <td><span class="cell-mono">${order?.ref || '—'}</span><div class="cell-muted">${order?.customer.name || ''}</div></td>
+                    <td>
+                      <div style="display:flex;align-items:center;gap:8px">
+                        ${product ? productThumb(product, 32) : ''}
+                        <span class="cell-strong">${product?.name || '—'}</span>
+                      </div>
+                    </td>
+                    <td>
+                      ${item ? `<span class="size-dot">${item.size}</span> <strong style="font-size:11px">${item.color}</strong>` : '—'}
+                    </td>
+                    <td>${product?.supplier || '—'}</td>
+                    <td>${r.byName || '—'}</td>
+                    <td style="max-width:200px;font-size:11px">${r.note || '<span class="cell-muted">—</span>'}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table></div>
+        ` : '<div class="empty"><div class="empty-icon">📋</div><h4>Aucun article</h4></div>'}
+      </div>
+    `;
+  }
 }
 
 function collectionTable(items) {
   if (!items.length) return '<div class="empty"><div class="empty-icon">✓</div><h4>Tout est en stock</h4><p>Aucune collecte nécessaire.</p></div>';
   return `
     <div class="table-wrap"><table>
-      <thead><tr><th>Commande</th><th>Produit</th><th>Variation demandée</th><th>Qté</th><th>Stock</th><th>Fournisseur</th><th>Actions</th></tr></thead>
+      <thead><tr><th>Commande</th><th>Produit</th><th>Variante</th><th>Qté</th><th>Stock</th><th>Fournisseur</th><th>Note</th><th>Actions</th></tr></thead>
       <tbody>
-        ${items.map(({ order, item, product }) => `
-          <tr>
-            <td>
-              <span class="cell-mono">${order.ref}</span>
-              <div class="cell-muted">${order.customer.name}</div>
-            </td>
-            <td>
-              <div style="display:flex;align-items:center;gap:8px">
-                ${itemThumb(item, 36)}
-                <span class="cell-strong">${item.name}</span>
-              </div>
-            </td>
-            <td>
-              <span class="size-dot">${item.size}</span>
-              <span style="margin-left:6px;font-weight:600;font-size:11px">${item.color}</span>
-            </td>
-            <td>${item.qty}</td>
-            <td>
-              <button class="action-btn" title="Voir / modifier les variantes" onclick="openProductVariantsEditor('${product.id}')" style="background:var(--orange-soft);color:var(--orange);width:auto;padding:0 10px;font-size:11px;font-weight:600">
-                Variantes
-              </button>
-            </td>
-            <td><strong>${product.supplier}</strong><div class="cell-muted">${product.origin}</div></td>
-            <td>
-              <button class="action-btn" title="Marquer collecté" onclick="markCollection('${order.id}','${item.productId}','collected')" style="background:var(--green-soft);color:var(--green)">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-              </button>
-              <button class="action-btn" title="Indisponible" onclick="markCollection('${order.id}','${item.productId}','unavailable')" style="background:var(--red-soft);color:var(--red)">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-              </button>
-              <button class="action-btn" title="Alternative trouvée" onclick="markCollection('${order.id}','${item.productId}','alternative')" style="background:var(--blue-soft);color:var(--blue)">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
-              </button>
-            </td>
-          </tr>
-        `).join('')}
+        ${items.map(({ order, item, product }, idx) => {
+          // Note pré-existante stockée dans la commande
+          const note = order.collectionNotes?.[item.productId] || '';
+          return `
+            <tr style="cursor:pointer" onclick="openCollectionItemModal('${order.id}','${item.productId}')">
+              <td>
+                <span class="cell-mono">${order.ref}</span>
+                <div class="cell-muted">${order.customer.name}</div>
+              </td>
+              <td>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span onclick="event.stopPropagation()">${itemThumb(item, 36)}</span>
+                  <span class="cell-strong">${item.name}</span>
+                </div>
+              </td>
+              <td>
+                <span class="size-dot">${item.size}</span>
+                <span style="margin-left:6px;font-weight:600;font-size:11px">${item.color}</span>
+              </td>
+              <td>${item.qty}</td>
+              <td onclick="event.stopPropagation()">
+                <button class="action-btn" title="Voir / modifier les variantes" onclick="openProductVariantsEditor('${product.id}')" style="background:var(--orange-soft);color:var(--orange);width:auto;padding:0 10px;font-size:11px;font-weight:600">
+                  Stock
+                </button>
+              </td>
+              <td><strong>${product.supplier}</strong><div class="cell-muted">${product.origin}</div></td>
+              <td style="max-width:160px;font-size:11px">${note ? `<span style="background:var(--amber-soft);color:var(--amber);padding:2px 6px;border-radius:4px">${note}</span>` : '<span class="cell-muted">—</span>'}</td>
+              <td onclick="event.stopPropagation()">
+                <button class="action-btn" title="Marquer collecté" onclick="markCollection('${order.id}','${item.productId}','collected')" style="background:var(--green-soft);color:var(--green)">
+                  <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                </button>
+                <button class="action-btn" title="Indisponible" onclick="markCollection('${order.id}','${item.productId}','unavailable')" style="background:var(--red-soft);color:var(--red)">
+                  <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+                <button class="action-btn" title="Alternative trouvée" onclick="markCollection('${order.id}','${item.productId}','alternative')" style="background:var(--blue-soft);color:var(--blue)">
+                  <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                </button>
+                ${product.images && product.images.length ? `
+                  <button class="action-btn" title="Image avec réf+taille" onclick="generateLabeledImage('${order.id}','${item.productId}')" style="background:#DCFCE7;color:#16A34A">
+                    <svg fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981z"/></svg>
+                  </button>
+                ` : ''}
+              </td>
+            </tr>
+          `;
+        }).join('')}
       </tbody>
     </table></div>
   `;
+}
+
+/* ============================================
+   COLLECTE — MODAL ITEM (note + actions détaillées)
+   ============================================ */
+function openCollectionItemModal(orderId, productId) {
+  const order = dataService.getOrders().find(o => o.id === orderId);
+  const product = dataService.getProducts().find(p => p.id === productId);
+  const item = order?.items.find(i => i.productId === productId);
+  if (!order || !product || !item) return;
+  const existingNote = order.collectionNotes?.[productId] || '';
+
+  const body = `
+    <div style="display:flex;gap:14px;margin-bottom:18px;align-items:flex-start">
+      ${product.images && product.images.length ? `
+        <img src="${product.images[0].dataUrl}" onclick="closeModal();setTimeout(()=>openImageViewer('${product.id}'),200)" style="width:120px;height:120px;object-fit:cover;border-radius:10px;cursor:zoom-in">
+      ` : `<div class="item-emoji" style="width:120px;height:120px;font-size:48px;border-radius:10px">${item.emoji||'📦'}</div>`}
+      <div style="flex:1">
+        <div style="font-family:var(--font-display);font-size:18px;font-weight:600">${product.name}</div>
+        <div style="margin-top:6px;font-size:13px">
+          Référence : <span class="cell-mono" style="color:var(--orange);font-weight:700">${order.ref}</span>
+        </div>
+        <div style="margin-top:4px;font-size:13px">
+          Variante demandée : <span class="size-dot">${item.size}</span> · <strong>${item.color}</strong> × ${item.qty}
+        </div>
+        <div style="margin-top:4px;font-size:13px">
+          Client : <strong>${order.customer.name}</strong>
+        </div>
+        <div style="margin-top:8px">
+          <strong style="color:var(--brown)">Fournisseur :</strong> ${product.supplier}
+          <div class="cell-muted" style="font-size:11px">📍 ${product.origin || '—'}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="detail-card" style="margin-bottom:14px">
+      <div class="detail-label">Note de collecte</div>
+      <textarea class="field-input" id="collectionNoteInput" placeholder="Ex: Fournisseur a promis pour vendredi, prix négocié à...">${existingNote}</textarea>
+      <button class="btn-secondary" style="margin-top:8px;font-size:11px;padding:6px 12px" onclick="saveCollectionNote('${orderId}','${productId}')">
+        💾 Enregistrer la note
+      </button>
+    </div>
+
+    <div class="detail-card">
+      <div class="detail-label">Actions rapides</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button class="btn-secondary" onclick="markCollection('${orderId}','${productId}','collected');closeModal()" style="background:var(--green-soft);color:var(--green);border-color:var(--green)">
+          ✓ Marquer collecté
+        </button>
+        <button class="btn-secondary" onclick="markCollection('${orderId}','${productId}','alternative');closeModal()" style="background:var(--blue-soft);color:var(--blue);border-color:var(--blue)">
+          ⇄ Alternative trouvée
+        </button>
+        <button class="btn-secondary" onclick="markCollection('${orderId}','${productId}','unavailable');closeModal()" style="background:var(--red-soft);color:var(--red);border-color:var(--red)">
+          ✕ Indisponible
+        </button>
+        ${product.images && product.images.length ? `
+          <button class="btn-orange" onclick="generateLabeledImage('${orderId}','${productId}')" style="margin-left:auto">
+            <svg fill="currentColor" style="width:14px;height:14px" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981z"/></svg>
+            Image étiquetée + WhatsApp
+          </button>
+        ` : ''}
+      </div>
+    </div>
+  `;
+  const footer = `<button class="btn-secondary" onclick="closeModal()">Fermer</button>`;
+  openModal('Article à collecter · ' + order.ref, body, footer, true);
+}
+
+function saveCollectionNote(orderId, productId) {
+  const note = document.getElementById('collectionNoteInput').value.trim();
+  const order = dataService.getOrders().find(o => o.id === orderId);
+  const collectionNotes = { ...(order.collectionNotes || {}) };
+  if (note) collectionNotes[productId] = note;
+  else delete collectionNotes[productId];
+  const history = [...order.history, { at: new Date().toISOString(), action: `Note collecte par ${state.user.name} : ${note || '(vide)'}`, by: state.user.email, byName: state.user.name }];
+  dataService.updateOrder(orderId, { collectionNotes, history });
+  showToast('Note enregistrée ✓', 'success');
+  closeModal();
+  renderCollectionContent();
+}
+
+/* ============================================
+   COLLECTE — IMAGE ÉTIQUETÉE (réf + taille incrustées) + WhatsApp
+   ============================================ */
+async function generateLabeledImage(orderId, productId) {
+  const order = dataService.getOrders().find(o => o.id === orderId);
+  const product = dataService.getProducts().find(p => p.id === productId);
+  const item = order?.items.find(i => i.productId === productId);
+  if (!order || !product || !item || !product.images?.length) {
+    showToast('Pas d\'image disponible', 'error');
+    return;
+  }
+
+  // Charger l'image
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  await new Promise((resolve, reject) => {
+    img.onload = resolve;
+    img.onerror = reject;
+    img.src = product.images[0].dataUrl;
+  });
+
+  // Créer canvas
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  // Limiter la taille pour performance
+  const maxSize = 1200;
+  let w = img.width;
+  let h = img.height;
+  if (w > maxSize || h > maxSize) {
+    const ratio = Math.min(maxSize / w, maxSize / h);
+    w = Math.round(w * ratio);
+    h = Math.round(h * ratio);
+  }
+  canvas.width = w;
+  canvas.height = h;
+
+  // Dessiner l'image
+  ctx.drawImage(img, 0, 0, w, h);
+
+  // Bandeau du bas avec ref + taille
+  const bandH = Math.max(80, Math.round(h * 0.13));
+  // Fond semi-transparent en bas
+  ctx.fillStyle = 'rgba(212, 84, 28, 0.95)'; // orange Zangochap
+  ctx.fillRect(0, h - bandH, w, bandH);
+
+  // Texte
+  ctx.fillStyle = 'white';
+  ctx.textBaseline = 'middle';
+
+  // Ligne 1 : Référence
+  const fontSize1 = Math.round(bandH * 0.35);
+  ctx.font = `bold ${fontSize1}px sans-serif`;
+  const refText = `RÉF : ${order.ref}`;
+  ctx.fillText(refText, 20, h - bandH + bandH * 0.32);
+
+  // Ligne 2 : Taille + couleur
+  const fontSize2 = Math.round(bandH * 0.28);
+  ctx.font = `600 ${fontSize2}px sans-serif`;
+  const detailText = `${item.size} · ${item.color} · QTÉ ${item.qty}`;
+  ctx.fillText(detailText, 20, h - bandH + bandH * 0.7);
+
+  // Logo "ZANGOCHAP" en haut à droite
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+  ctx.fillRect(w - 220, 0, 220, 50);
+  ctx.fillStyle = '#D4541C';
+  ctx.font = 'bold 24px sans-serif';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('ZANGOCHAP', w - 200, 25);
+
+  // Convertir en blob
+  canvas.toBlob(async (blob) => {
+    if (!blob) { showToast('Erreur génération image', 'error'); return; }
+
+    // Stocker l'URL pour téléchargement et partage
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+    const fileName = `zangochap_${order.ref}_${item.size}.jpg`;
+
+    // Modal pour afficher + actions
+    const body = `
+      <img src="${dataUrl}" style="max-width:100%;max-height:60vh;display:block;margin:0 auto;border-radius:8px">
+      <div style="margin-top:14px;text-align:center">
+        <strong>${product.name}</strong>
+        <div class="cell-muted" style="margin-top:2px">Réf ${order.ref} · ${item.size} · ${item.color}</div>
+      </div>
+    `;
+
+    // Stocker pour les boutons
+    window._labeledImageBlob = blob;
+    window._labeledImageDataUrl = dataUrl;
+    window._labeledImageFileName = fileName;
+    window._labeledImageOrder = order;
+    window._labeledImageProduct = product;
+    window._labeledImageItem = item;
+
+    const footer = `
+      <button class="btn-secondary" onclick="closeModal()">Fermer</button>
+      <button class="btn-secondary" onclick="downloadLabeledImage()">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+        Télécharger
+      </button>
+      <button style="padding:8px 14px;background:#16A34A;color:white;border-radius:8px;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px" onclick="shareLabeledImageWhatsApp()">
+        <svg fill="currentColor" style="width:14px;height:14px" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981z"/></svg>
+        Partager WhatsApp
+      </button>
+    `;
+    openModal('Image étiquetée', body, footer, true);
+  }, 'image/jpeg', 0.9);
+}
+
+function downloadLabeledImage() {
+  if (!window._labeledImageDataUrl) return;
+  const a = document.createElement('a');
+  a.href = window._labeledImageDataUrl;
+  a.download = window._labeledImageFileName;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  showToast('Image téléchargée ✓', 'success');
+}
+
+async function shareLabeledImageWhatsApp() {
+  if (!window._labeledImageBlob) return;
+  const order = window._labeledImageOrder;
+  const product = window._labeledImageProduct;
+  const item = window._labeledImageItem;
+
+  // Tenter Web Share API (mobile - partage direct du fichier image vers WhatsApp)
+  const file = new File([window._labeledImageBlob], window._labeledImageFileName, { type: 'image/jpeg' });
+  const shareData = {
+    files: [file],
+    title: `Zangochap ${order.ref}`,
+    text: `Réf : ${order.ref}\nProduit : ${product.name}\nTaille : ${item.size}\nCouleur : ${item.color}\nQuantité : ${item.qty}`,
+  };
+
+  if (navigator.canShare && navigator.canShare(shareData)) {
+    try {
+      await navigator.share(shareData);
+      showToast('Partagé ✓', 'success');
+      return;
+    } catch (e) {
+      if (e.name !== 'AbortError') console.warn(e);
+    }
+  }
+
+  // Fallback : télécharger image + ouvrir WhatsApp avec message texte (l'utilisateur attache l'image manuellement)
+  downloadLabeledImage();
+  const msg = `*Recherche fournisseur*\n\nRéf: ${order.ref}\nProduit: ${product.name}\nTaille: ${item.size}\nCouleur: ${item.color}\nQté: ${item.qty}\n\nImage téléchargée sur l'appareil — à attacher dans WhatsApp.`;
+  const url = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+  window.open(url, '_blank');
+  showToast('Image téléchargée. Attache-la dans WhatsApp.', 'success');
 }
 
 function markCollection(orderId, productId, status) {
@@ -2735,7 +3711,8 @@ function markCollection(orderId, productId, status) {
     if (p) dataService.updateProduct(productId, { stock: p.stock + 1 });
   }
   showToast({collected:'Marqué collecté ✓', unavailable:'Marqué indisponible', alternative:'Alternative notée'}[status], 'success');
-  renderCollectionQueue();
+  if (state.currentPage === 'collection-queue') renderCollectionContent();
+  else routes[state.currentPage]?.();
 }
 
 /* ============================================
@@ -2827,41 +3804,100 @@ function renderStockList() {
 function productsTable(products) {
   return `
     <div class="table-wrap"><table>
-      <thead><tr><th>Produit</th><th>Prix</th><th>Promo</th><th>Variations</th><th>Emplacement</th><th>Fournisseur</th><th>Stock</th><th></th></tr></thead>
+      <thead><tr><th>Produit</th><th>Prix</th><th>Stock</th><th>Statut</th><th>Campagne</th><th>Fournisseur</th><th>Actions</th></tr></thead>
       <tbody>
-        ${products.map(p => `
-          <tr>
-            <td>
-              <div style="display:flex;align-items:center;gap:10px">
-                <span style="cursor:pointer" onclick="openImageViewer('${p.id}')" title="Voir l'image en grand">${productThumb(p, 36)}</span>
-                <div>
-                  <div class="cell-strong">${p.name}</div>
-                  <div class="cell-muted">${p.material || '—'}</div>
+        ${products.map(p => {
+          const isPublished = p.published !== false; // par défaut publié pour les anciens produits
+          const inCampaign = p.campaign === true;
+          return `
+            <tr>
+              <td>
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span style="cursor:pointer" onclick="openImageViewer('${p.id}')" title="Voir l'image en grand">${productThumb(p, 36)}</span>
+                  <div>
+                    <div class="cell-strong">${p.name}</div>
+                    <div class="cell-muted">${p.material || p.cat || '—'}</div>
+                  </div>
                 </div>
-              </div>
-            </td>
-            <td><span class="cell-price">${fmtPrice(p.price)}</span></td>
-            <td>${p.oldPrice ? `<span class="cell-muted" style="text-decoration:line-through">${fmtPrice(p.oldPrice)}</span>` : '—'}</td>
-            <td>
-              <span class="cell-muted">${p.sizes.length} taille(s) · ${p.colors.length} couleur(s)</span>
-            </td>
-            <td><span class="cell-mono" style="font-size:12px">${p.location || '—'}</span></td>
-            <td><span class="cell-muted">${p.supplier}</span></td>
-            <td>
-              <strong style="color:${p.stock===0?'var(--red)':p.stock<5?'var(--amber)':'var(--green)'}">${p.stock}</strong>
-            </td>
-            <td>
-              <div class="row-actions">
-                <button class="action-btn" title="Détail" onclick="openProductDetail('${p.id}')">
-                  <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                </button>
-              </div>
-            </td>
-          </tr>
-        `).join('')}
+              </td>
+              <td>
+                <span class="cell-price">${fmtPrice(p.price)}</span>
+                ${p.oldPrice ? `<div class="cell-muted" style="text-decoration:line-through;font-size:11px">${fmtPrice(p.oldPrice)}</div>` : ''}
+              </td>
+              <td>
+                <strong style="color:${p.stock===0?'var(--red)':p.stock<5?'var(--amber)':'var(--green)'}">${p.stock}</strong>
+              </td>
+              <td>
+                ${isPublished
+                  ? '<span class="status delivered">Publié</span>'
+                  : '<span class="status cancelled" style="background:#FFE4B5;color:#8B4513">🔒 Non publié</span>'
+                }
+              </td>
+              <td>
+                ${inCampaign
+                  ? '<span class="status confirmed" style="background:#FCE7F3;color:#BE185D">🎯 En campagne</span>'
+                  : '<span class="cell-muted" style="font-size:11px">—</span>'
+                }
+              </td>
+              <td><span class="cell-muted">${p.supplier || '—'}</span></td>
+              <td>
+                <div class="row-actions">
+                  <button class="action-btn" title="Détail" onclick="openProductDetail('${p.id}')">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                  </button>
+                  <button class="action-btn" title="${isPublished?'Dépublier':'Publier'}" onclick="togglePublish('${p.id}')" style="background:${isPublished?'#FFE4B5':'var(--green-soft)'};color:${isPublished?'#8B4513':'var(--green)'}">
+                    ${isPublished
+                      ? '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>'
+                      : '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>'
+                    }
+                  </button>
+                  <button class="action-btn" title="${inCampaign?'Mettre en pause':'Lancer campagne'}" onclick="toggleCampaign('${p.id}')" style="background:${inCampaign?'var(--amber-soft)':'#FCE7F3'};color:${inCampaign?'var(--amber)':'#BE185D'}">
+                    ${inCampaign
+                      ? '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'
+                      : '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg>'
+                    }
+                  </button>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('')}
       </tbody>
     </table></div>
   `;
+}
+
+function togglePublish(productId) {
+  const p = dataService.getProducts().find(x => x.id === productId);
+  if (!p) return;
+  const nowPublished = !(p.published !== false);
+  dataService.updateProduct(productId, {
+    published: nowPublished,
+    publishedAt: nowPublished ? new Date().toISOString() : p.publishedAt,
+    publishedByName: nowPublished ? state.user.name : p.publishedByName,
+  });
+  showToast(nowPublished ? `${p.name} publié sur le site ✓` : `${p.name} dépublié`, 'success');
+  routes[state.currentPage]?.();
+}
+
+function toggleCampaign(productId) {
+  const p = dataService.getProducts().find(x => x.id === productId);
+  if (!p) return;
+  const nowInCampaign = !(p.campaign === true);
+  // Si on lance la campagne, le produit doit être publié
+  const patch = {
+    campaign: nowInCampaign,
+    campaignStartedAt: nowInCampaign ? new Date().toISOString() : p.campaignStartedAt,
+    campaignByName: nowInCampaign ? state.user.name : p.campaignByName,
+  };
+  if (nowInCampaign && p.published === false) {
+    patch.published = true;
+    patch.publishedAt = new Date().toISOString();
+    patch.publishedByName = state.user.name;
+  }
+  dataService.updateProduct(productId, patch);
+  showToast(nowInCampaign ? `🎯 ${p.name} ajouté en campagne` : `${p.name} : campagne en pause`, 'success');
+  routes[state.currentPage]?.();
 }
 
 function openProductDetail(productId) {
@@ -3058,7 +4094,7 @@ function renderStockAdd() {
         <div class="table-card" style="margin-bottom:16px">
           <div class="table-head">
             <div>
-              <div class="table-title">1. Images du produit</div>
+              <div class="table-title">1. Images du produit <span style="font-weight:400;color:var(--brown-soft);font-size:12px">(facultatif)</span></div>
               <div class="table-meta">La première image sera l'image principale</div>
             </div>
           </div>
@@ -3082,8 +4118,8 @@ function renderStockAdd() {
                 <input type="text" class="field-input" name="name" required placeholder="Ex. Sneakers cuir blanches">
               </div>
               <div class="form-row">
-                <label class="field-label">Catégorie *</label>
-                <select class="field-input" name="cat" required>
+                <label class="field-label">Catégorie</label>
+                <select class="field-input" name="cat">
                   <option value="shoes">Chaussures</option>
                   <option value="clothes">Vêtements</option>
                   <option value="watches">Montres</option>
@@ -3094,10 +4130,10 @@ function renderStockAdd() {
               </div>
               <div class="form-row">
                 <label class="field-label">Prix standard (FCFA) *</label>
-                <input type="number" class="field-input" name="price" required min="100" placeholder="12000">
+                <input type="number" class="field-input" name="price" required min="0" placeholder="12000">
               </div>
               <div class="form-row">
-                <label class="field-label">Prix promo (optionnel)</label>
+                <label class="field-label">Prix promo</label>
                 <input type="number" class="field-input" name="oldPrice" min="0" placeholder="Laissé vide si pas de promo">
                 <div class="form-help">Renseigner le prix barré si en promotion.</div>
               </div>
@@ -3114,8 +4150,8 @@ function renderStockAdd() {
                 <input type="text" class="field-input" name="origin" placeholder="Ex. Adjamé">
               </div>
               <div class="form-row">
-                <label class="field-label">Nom du fournisseur *</label>
-                <input type="text" class="field-input" name="supplier" required placeholder="Ex. Adjamé Mode">
+                <label class="field-label">Fournisseur</label>
+                <input type="text" class="field-input" name="supplier" placeholder="Ex. Adjamé Mode">
               </div>
             </div>
           </div>
@@ -3124,8 +4160,8 @@ function renderStockAdd() {
         <div class="table-card" style="margin-bottom:16px">
           <div class="table-head">
             <div>
-              <div class="table-title">3. Tailles & couleurs disponibles</div>
-              <div class="table-meta">Définis d'abord les options, puis remplis le tableau de variantes</div>
+              <div class="table-title">3. Tailles & couleurs <span style="font-weight:400;color:var(--brown-soft);font-size:12px">(facultatif)</span></div>
+              <div class="table-meta">Optionnel — pour les produits qui ont des variantes</div>
             </div>
           </div>
           <div style="padding:18px">
@@ -3155,7 +4191,7 @@ function renderStockAdd() {
         <div class="table-card" style="margin-bottom:16px">
           <div class="table-head">
             <div>
-              <div class="table-title">4. Variantes : quantité & emplacement</div>
+              <div class="table-title">4. Variantes : quantité & emplacement <span style="font-weight:400;color:var(--brown-soft);font-size:12px">(facultatif)</span></div>
               <div class="table-meta">Pour chaque combinaison taille × couleur, indique le stock et l'emplacement entrepôt</div>
             </div>
             <button type="button" class="btn-secondary" onclick="generateAllVariants()">
@@ -3164,6 +4200,24 @@ function renderStockAdd() {
             </button>
           </div>
           <div id="variantsTable" style="padding:0"></div>
+        </div>
+
+        <div class="table-card" style="margin-bottom:16px">
+          <div class="table-head"><div class="table-title">5. Statut de publication</div></div>
+          <div style="padding:18px">
+            <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;padding:14px;background:var(--cream);border:2px solid var(--line);border-radius:10px;transition:all 0.15s" id="unpublishedLabel">
+              <input type="checkbox" id="unpublishedCheckbox" style="margin-top:2px;cursor:pointer;width:18px;height:18px;accent-color:var(--orange)">
+              <div style="flex:1">
+                <div style="font-weight:600;font-size:14px;color:var(--brown);display:flex;align-items:center;gap:6px">
+                  🔒 Non publié sur le site
+                </div>
+                <div style="font-size:12px;color:var(--brown-soft);margin-top:4px">
+                  Le produit sera enregistré dans le catalogue mais <strong>pas visible par les clients</strong> sur la boutique.<br>
+                  Les commerciaux pourront créer des commandes avec ce produit. Un responsable pourra le publier après vérification.
+                </div>
+              </div>
+            </label>
+          </div>
         </div>
 
         <div style="display:flex;gap:10px;justify-content:flex-end;margin-bottom:30px">
@@ -3358,36 +4412,50 @@ function submitNewProduct(e) {
   e.preventDefault();
   const fd = new FormData(e.target);
 
-  if (!newProductState.images.length) { showToast('Ajoute au moins 1 image', 'error'); return; }
-  if (!newProductState.sizes.length) { showToast('Ajoute au moins 1 taille', 'error'); return; }
-  if (!newProductState.colors.length) { showToast('Ajoute au moins 1 couleur', 'error'); return; }
-  if (!newProductState.variants.length) { showToast('Génère les variantes', 'error'); return; }
+  // Si pas de variantes mais des tailles/couleurs définies → générer auto avec qty 0
+  if (!newProductState.variants.length && newProductState.sizes.length && newProductState.colors.length) {
+    newProductState.sizes.forEach(s => {
+      newProductState.colors.forEach(c => {
+        newProductState.variants.push({ size: s, color: c.name, qty: 0, location: '' });
+      });
+    });
+  }
+  // Si toujours rien → variante par défaut
+  if (!newProductState.variants.length) {
+    newProductState.variants = [{ size: 'Standard', color: 'Standard', qty: 0, location: '' }];
+  }
+  // Si sizes/colors vides → utiliser les variantes
+  if (!newProductState.sizes.length) newProductState.sizes = ['Standard'];
+  if (!newProductState.colors.length) newProductState.colors = [{ name: 'Standard' }];
 
   const totalStock = newProductState.variants.reduce((s,v) => s + v.qty, 0);
   const mainLocation = newProductState.variants.find(v => v.location)?.location || '';
+  const isUnpublished = document.getElementById('unpublishedCheckbox')?.checked || false;
 
   const product = {
     id: 'p' + Date.now(),
     name: fd.get('name'),
-    cat: fd.get('cat'),
-    images: [...newProductState.images], // [{name, dataUrl}]
+    cat: fd.get('cat') || 'accessories',
+    images: [...newProductState.images],
     price: parseInt(fd.get('price')),
     oldPrice: fd.get('oldPrice') ? parseInt(fd.get('oldPrice')) : null,
-    desc: fd.get('desc'),
-    material: fd.get('material'),
-    origin: fd.get('origin'),
+    desc: fd.get('desc') || '',
+    material: fd.get('material') || '',
+    origin: fd.get('origin') || '',
     sizes: [...newProductState.sizes],
-    colors: newProductState.colors.map(c => c.name), // tableau de noms
+    colors: newProductState.colors.map(c => c.name),
     variants: [...newProductState.variants],
     stock: totalStock,
     location: mainLocation,
-    supplier: fd.get('supplier'),
+    supplier: fd.get('supplier') || 'Non spécifié',
+    published: !isUnpublished,
+    campaign: false,
     createdBy: state.user.email,
     createdByName: state.user.name,
     createdAt: new Date().toISOString(),
   };
   dataService.addProduct(product);
-  showToast(`Produit ajouté (${totalStock} unités) ✓`, 'success');
+  showToast(isUnpublished ? `Produit ajouté (non publié) ✓` : `Produit ajouté (${totalStock} unités) ✓`, 'success');
   navigate('stock-list');
 }
 
@@ -4234,7 +5302,7 @@ function renderAdminTeam() {
           </div>
         </div>
         <div class="table-wrap"><table>
-          <thead><tr><th>Utilisateur</th><th>Email</th><th>Mot de passe</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Utilisateur</th><th>Email</th><th>N° de service</th><th>Mot de passe</th><th>Actions</th></tr></thead>
           <tbody>
             ${byRole[role].map(a => `
               <tr>
@@ -4245,6 +5313,7 @@ function renderAdminTeam() {
                   </div>
                 </td>
                 <td><span class="cell-mono" style="font-size:12px">${a.email}</span></td>
+                <td><span class="cell-mono" style="font-size:11px">${a.serviceNumber || '<span style="color:var(--brown-soft)">—</span>'}</span></td>
                 <td><span class="cell-mono" style="font-size:12px">${'•'.repeat(a.password.length)}</span></td>
                 <td>
                   <div class="row-actions">
@@ -4291,6 +5360,11 @@ function openNewAccountModal(role) {
           </select>
         </div>
         <div class="form-row span-2">
+          <label class="field-label">Numéro de service <span style="font-weight:400;color:var(--brown-soft);text-transform:none;letter-spacing:0">(facultatif)</span></label>
+          <input type="tel" class="field-input" name="serviceNumber" placeholder="Ex. +225 07 07 07 07 07">
+          <div class="form-help">Apparaîtra sur les reçus pour les commerciaux. Permet aux clients de joindre directement la personne qui a traité leur commande.</div>
+        </div>
+        <div class="form-row span-2">
           <label class="field-label">Mot de passe *</label>
           <input type="text" class="field-input" name="password" required minlength="4" placeholder="Mot de passe par défaut">
           <div class="form-help">L'utilisateur pourra le changer à sa connexion (en prod).</div>
@@ -4312,8 +5386,9 @@ function submitNewAccount(e) {
   const email = fd.get('email').trim().toLowerCase();
   const role = fd.get('role');
   const password = fd.get('password');
+  const serviceNumber = fd.get('serviceNumber')?.trim() || '';
   const initials = name.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase();
-  const acc = { name, email, role, password, initials };
+  const acc = { name, email, role, password, initials, serviceNumber };
   const result = dataService.addAccount(acc);
   if (!result) { showToast('Email déjà utilisé', 'error'); return; }
   closeModal();
@@ -4346,6 +5421,11 @@ function openEditAccountModal(email) {
           </select>
         </div>
         <div class="form-row span-2">
+          <label class="field-label">Numéro de service <span style="font-weight:400;color:var(--brown-soft);text-transform:none;letter-spacing:0">(facultatif)</span></label>
+          <input type="tel" class="field-input" name="serviceNumber" value="${a.serviceNumber || ''}" placeholder="Ex. +225 07 07 07 07 07">
+          <div class="form-help">Apparaîtra sur les reçus.</div>
+        </div>
+        <div class="form-row span-2">
           <label class="field-label">Nouveau mot de passe (laisser vide pour ne pas changer)</label>
           <input type="text" class="field-input" name="password" placeholder="••••">
         </div>
@@ -4366,11 +5446,17 @@ function submitEditAccount(e, oldEmail) {
     name: fd.get('name').trim(),
     email: fd.get('email').trim().toLowerCase(),
     role: fd.get('role'),
+    serviceNumber: fd.get('serviceNumber')?.trim() || '',
     initials: fd.get('name').trim().split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase(),
   };
   const pwd = fd.get('password');
   if (pwd && pwd.length >= 4) patch.password = pwd;
   dataService.updateAccount(oldEmail, patch);
+  // Si l'utilisateur édite son propre compte, on rafraîchit le state.user en mémoire
+  if (oldEmail === state.user.email) {
+    state.user = { ...state.user, ...patch };
+    sessionStorage.setItem('zc_bo_user', JSON.stringify(state.user));
+  }
   closeModal();
   showToast('Compte modifié ✓', 'success');
   renderAdminTeam();

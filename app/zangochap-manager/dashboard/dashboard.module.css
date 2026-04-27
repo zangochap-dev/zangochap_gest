@@ -1,0 +1,53 @@
+.content { padding: 24px 28px; }
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.statCard {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+}
+.statCardAccent {
+  background: linear-gradient(135deg, var(--ink), #2D211A);
+  color: white;
+  border: none;
+}
+.statHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.statLabel { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--brown-soft); font-weight: 600; }
+.statCardAccent .statLabel { color: rgba(255,255,255,0.6); }
+.statIcon { color: var(--orange); }
+.statValue { font-family: var(--font-display); font-size: 28px; font-weight: 700; margin-bottom: 6px; }
+.statTrend { font-size: 11px; font-weight: 500; }
+.statTrendUp { color: var(--green); }
+.statTrendDown { color: var(--red); }
+.statCardAccent .statTrend { color: white; opacity: 0.8; }
+
+.dashboardGrid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; }
+.chartContainer { display: flex; align-items: flex-end; justify-content: space-between; height: 200px; padding-top: 20px; }
+.chartBarWrap { display: flex; flex-direction: column; align-items: center; gap: 8px; flex: 1; }
+.chartBar { 
+  width: 30px; 
+  background: var(--orange-soft); 
+  border-radius: 6px 6px 0 0; 
+  position: relative;
+  transition: all 0.3s ease;
+}
+.chartBar:hover { background: var(--orange); }
+.chartTooltip {
+  position: absolute; top: -30px; left: 50%; transform: translateX(-50%);
+  background: var(--ink); color: white; padding: 4px 8px; border-radius: 4px;
+  font-size: 10px; opacity: 0; pointer-events: none; transition: opacity 0.2s;
+}
+.chartBar:hover .chartTooltip { opacity: 1; }
+.chartLabel { font-size: 11px; color: var(--brown-soft); }
+
+.table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.table thead th { text-align: left; font-size: 11px; padding: 10px 16px; border-bottom: 1px solid var(--line); color: var(--brown-soft); }
+.table tbody td { padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.cellMono { font-family: var(--font-mono); font-size: 11px; font-weight: 600; }
+.cellPrice { font-weight: 700; color: var(--orange); }

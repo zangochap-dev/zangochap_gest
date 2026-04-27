@@ -1,0 +1,339 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  COMMERCIAL
+  PACKING
+  COLLECTION
+  STOCK
+  CUSTOMER
+  LIVREUR
+}
+
+enum OrderStatus {
+  PENDING
+  TO_PROCESS
+  CONFIRMED
+  PACKED
+  PARTIAL
+  DELIVERED
+  CANCELLED
+  COLLECTED
+  UNAVAILABLE
+  ALTERNATIVE
+  SENT
+  ON_DELIVERY
+  RETURNED
+  EXCHANGED
+  REPROGRAMMED
+  PREPARING
+}
+
+enum MovementType {
+  SALE
+  RESTOCK
+  RETURN
+  EXCHANGE
+  ADJUSTMENT
+  DAMAGE
+  LOSS
+}
+
+enum SettlementStatus {
+  PENDING
+  COMPLETED
+  PARTIAL
+}
+
+enum PromoType {
+  PERCENT
+  FIXED
+  GIFT
+}
+
+enum PromoRule {
+  ONCE_PER_PHONE
+  ONCE_PER_CUSTOMER
+  UNLIMITED
+}
+
+model User {
+  id          String       @id @default(cuid())
+  email       String       @unique
+  phone       String?      @unique
+  name        String
+  password    String
+  role        Role         @default(COMMERCIAL)
+  initials    String?
+  orders      Order[]      @relation("CommercialOrders")
+  products    Product[]    @relation("CreatedProducts")
+  settlements Settlement[] @relation("DeliverySettlements")
+  createdAt   DateTime     @default(now())
+}
+
+model StockMovement {
+  id          String         @id @default(cuid())
+  variantId   String
+  variant     ProductVariant @relation(fields: [variantId], references: [id])
+  warehouseId String?
+  warehouse   Warehouse?     @relation(fields: [warehouseId], references: [id])
+  type        MovementType
+  quantity    Int // positive for restock, negative for sale
+  reason      String?
+  orderId     String? // if linked to an order
+  by          String // userId or email
+  byName      String
+  createdAt   DateTime       @default(now())
+}
+
+model Settlement {
+  id            String           @id @default(cuid())
+  deliverymanId String
+  deliveryman   User             @relation("DeliverySettlements", fields: [deliverymanId], references: [id])
+  amount        Int
+  ordersCount   Int
+  status        SettlementStatus @default(PENDING)
+  notes         String?
+  by            String // admin who validated
+  orders        Order[]          @relation("OrderSettlement")
+  createdAt     DateTime         @default(now())
+}
+
+model Category {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  slug      String    @unique
+  products  Product[]
+  createdAt DateTime  @default(now())
+}
+
+model Supplier {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  contact   String?
+  products  Product[]
+  createdAt DateTime  @default(now())
+}
+
+model Product {
+  id                String           @id @default(cuid())
+  name              String
+  slug              String           @unique @default(cuid())
+  ref               String?          @unique
+  emoji             String?          @default("📦")
+  description       String?
+  price             Decimal          @db.Decimal(10, 2)
+  oldPrice          Decimal?         @db.Decimal(10, 2)
+  category          Category?        @relation(fields: [categoryId], references: [id])
+  categoryId        String?
+  material          String?
+  origin            String?
+  stock             Int              @default(0)
+  lowStockThreshold Int              @default(5)
+  location          String?
+  supplier          Supplier?        @relation(fields: [supplierId], references: [id])
+  supplierId        String?
+  sentToSupplierAt  DateTime?
+  images            ProductImage[]
+  variants          ProductVariant[]
+  mainImageId       String?
+  status            ProductStatus    @default(DRAFT)
+  isFeatured        Boolean          @default(false)
+  createdBy         User             @relation("CreatedProducts", fields: [creatorId], references: [id])
+  creatorId         String
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  orderItems        OrderItem[]
+
+  @@index([categoryId])
+  @@index([supplierId])
+}
+
+enum ProductStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+  OUT_OF_STOCK
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  name      String
+  url       String   @db.Text
+  altText   String?
+  position  Int      @default(0)
+  width     Int?
+  height    Int?
+  size      Int?
+  type      ImageType @default(GALLERY)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId String
+  createdAt DateTime @default(now())
+
+  @@index([productId, position])
+}
+
+enum ImageType {
+  GALLERY
+  THUMBNAIL
+  BANNER
+  FEATURED
+}
+
+model ProductVariant {
+  id             String          @id @default(cuid())
+  size           String
+  color          String
+  stock          Int             @default(0) // Stock global (somme des StockLevels)
+  location       String?         // Emplacement par défaut
+  product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId      String
+  stockLevels    StockLevel[]
+  stockMovements StockMovement[]
+}
+
+model Warehouse {
+  id             String          @id @default(cuid())
+  name           String          @unique
+  location       String?
+  isActive       Boolean         @default(true)
+  stocks         StockLevel[]
+  stockMovements StockMovement[]
+  createdAt      DateTime        @default(now())
+}
+
+model StockLevel {
+  id          String         @id @default(cuid())
+  variantId   String
+  variant     ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  warehouseId String
+  warehouse   Warehouse      @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  quantity    Int            @default(0)
+  position    String?        // Emplacement précis dans cet entrepôt (ex: Rang B, Etagère 2)
+  
+  @@unique([variantId, warehouseId])
+}
+
+model Order {
+  id               String      @id @default(cuid())
+  ref              String      @unique
+  customerName     String
+  customerPhone    String
+  customerPhone2   String?
+  customerLocation String?
+  commune          String?
+  total            Int
+  deliveryFee      Int         @default(0)
+  deliveryNote     String?
+  type             String?     // 'Echange', 'Récupération', 'Reprogrammé', 'Express'
+  status           OrderStatus @default(PENDING)
+  commercial       User?       @relation("CommercialOrders", fields: [commercialId], references: [id])
+  commercialId     String?
+  commercialName   String?
+  items            OrderItem[]
+  promoCode        String?
+  discount         Int         @default(0)
+  notes            String?     @db.Text
+  history          Json?
+  packedBy         String?
+  packedByName     String?
+  packedAt         DateTime?
+  confirmedAt      DateTime?
+  confirmedByName  String?
+  stockDecremented Boolean     @default(false)
+  receiptSentAt    DateTime?
+  customer         Customer?   @relation(fields: [customerId], references: [id])
+  customerId       String?
+  deliveryDate     DateTime?
+  deliverymanId    String?
+  deliverymanName  String?
+  deliveredAt      String? // ISO string for simple display
+  
+  settlement       Settlement? @relation("OrderSettlement", fields: [settlementId], references: [id])
+  settlementId     String?
+
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  name      String
+  size      String
+  color     String
+  qty       Int
+  price     Int
+  emoji     String?
+  image     String?  @db.Text
+  isCustom  Boolean  @default(false)
+  isGift    Boolean  @default(false)
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId   String
+  product   Product? @relation(fields: [productId], references: [id])
+  productId String?
+}
+
+model CollectionRecord {
+  id        String   @id @default(cuid())
+  orderId   String
+  productId String
+  status    String // collected, unavailable, alternative
+  by        String
+  byName    String
+  createdAt DateTime @default(now())
+}
+
+model PromoCode {
+  code          String       @id
+  label         String?
+  type          PromoType
+  value         Int          @default(0)
+  giftProductId String?
+  rule          PromoRule    @default(UNLIMITED)
+  minAmount     Int          @default(0)
+  maxGlobalUses Int?
+  startDate     DateTime?
+  endDate       DateTime?
+  isActive      Boolean      @default(true)
+  creatorId     String
+  createdAt     DateTime     @default(now())
+  usages        PromoUsage[]
+}
+
+model PromoUsage {
+  id        String    @id @default(cuid())
+  promoCode String
+  promo     PromoCode @relation(fields: [promoCode], references: [code])
+  orderId   String
+  phone     String
+  createdAt DateTime  @default(now())
+}
+
+model Customer {
+  id               String   @id @default(cuid())
+  name             String
+  phone            String   @unique
+  phone2           String?
+  location         String?
+  commune          String?
+  orders           Order[]
+  totalOrders      Int      @default(0)
+  totalSpent       Int      @default(0)
+  lastOrderAt      DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Commune {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  deliveryFee Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}

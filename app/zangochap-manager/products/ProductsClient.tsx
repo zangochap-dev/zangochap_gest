@@ -1,0 +1,759 @@
+"use client";
+
+import React, { useState, useMemo, useTransition, useEffect, startTransition } from "react";
+import { TableCard, StatusBadge, EmptyState, DetailCard, SectionLabel, StatCard, LocationBadge } from "@/components/UI";
+import Modal from "@/components/Modal";
+import { useToast } from "@/components/Toast";
+import { updateProductVariants, markProductSent, deleteProduct, updateProduct, createProduct, fixAllProductStocks } from "@/modules/products/actions";
+import { formatPrice, formatDay, CATEGORIES } from "@/lib/constants";
+import { useRouter } from "next/navigation";
+import { Plus, Eye, Package, Trash2, Minus, Search, X, ChevronLeft, ChevronRight, RefreshCw, Copy, Edit3, Box, Maximize, LayoutDashboard, AlertTriangle, MapPin, Save, Edit2, Warehouse } from "lucide-react";
+import Topbar from "@/components/Topbar";
+
+const PRODUCTS_PER_PAGE = 30;
+
+interface ProductsClientProps {
+  initialProducts: any[];
+  user: any;
+}
+
+export default function ProductsClient({ initialProducts, user }: ProductsClientProps) {
+  const [filter, setFilter] = useState('all');
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [editingVariants, setEditingVariants] = useState<any>(null);
+  const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const { showToast } = useToast();
+  const router = useRouter();
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  // Debounced search — 300ms
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Auto-refresh every 30s
+  useEffect(() => {
+    const interval = setInterval(() => router.refresh(), 30000);
+    return () => clearInterval(interval);
+  }, [router]);
+
+  // Reset page on filter change
+  useEffect(() => { setCurrentPage(1); }, [filter]);
+
+  const filtered = useMemo(() => {
+    let result = initialProducts;
+    if (filter === 'oos') result = result.filter(p => {
+      const realStock = p.variants?.length > 0 ? p.variants.reduce((s: number, v: any) => s + (v.stock || 0), 0) : p.stock;
+      return realStock === 0;
+    });
+    if (filter === 'low') result = result.filter(p => {
+      const realStock = p.variants?.length > 0 ? p.variants.reduce((s: number, v: any) => s + (v.stock || 0), 0) : p.stock;
+      return realStock > 0 && realStock <= p.lowStockThreshold;
+    });
+    if (filter === 'in-stock') result = result.filter(p => {
+      const realStock = p.variants?.length > 0 ? p.variants.reduce((s: number, v: any) => s + (v.stock || 0), 0) : p.stock;
+      return realStock > p.lowStockThreshold;
+    });
+    if (debouncedSearch) {
+      const q = debouncedSearch.toLowerCase();
+      result = result.filter(p => p.name.toLowerCase().includes(q) || p.supplier?.toLowerCase().includes(q) || p.location?.toLowerCase().includes(q));
+    }
+    return result;
+  }, [initialProducts, filter, debouncedSearch]);
+
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PRODUCTS_PER_PAGE));
+  const paginatedProducts = useMemo(() => {
+    const start = (currentPage - 1) * PRODUCTS_PER_PAGE;
+    return filtered.slice(start, start + PRODUCTS_PER_PAGE);
+  }, [filtered, currentPage]);
+
+  const oos = initialProducts.filter(p => p.stock === 0).length;
+  const low = initialProducts.filter(p => p.stock > 0 && p.stock <= p.lowStockThreshold).length;
+  const totalUnits = initialProducts.reduce((s: number, p: any) => s + p.stock, 0);
+
+  return (
+    <>
+      <Topbar
+        title="Gestion des"
+        subtitle="produits"
+        actions={
+          <div style={{ display: 'flex', gap: 12 }}>
+            <button 
+              className="btn-secondary" 
+              onClick={async () => {
+                setIsSyncing(true);
+                try {
+                  const res = await fixAllProductStocks();
+                  showToast(`${res.count} produits synchronisés ✓`, 'success');
+                  router.refresh();
+                } catch (e) {
+                  showToast('Erreur de synchronisation', 'error');
+                } finally {
+                  setIsSyncing(false);
+                }
+              }}
+              disabled={isSyncing}
+            >
+              <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
+              {isSyncing ? 'Synchro...' : 'Sync Stocks'}
+            </button>
+            <button className="btn-orange" onClick={() => router.push('/zangochap-manager/products/new')}>
+              <Plus size={16} /> Nouveau Produit
+            </button>
+          </div>
+        }
+      />
+
+      {/* LIGHTBOX / ZOOM IMAGE */}
+      {selectedImage && (
+        <div
+          className="lightbox-overlay"
+          onClick={() => setSelectedImage(null)}
+        >
+          <div className="lightbox-content animate-zoom-in" onClick={e => e.stopPropagation()}>
+            <img src={selectedImage} alt="Preview" />
+            <button className="lightbox-close" onClick={() => setSelectedImage(null)}>
+              <X size={24} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="content animate-fade-in">
+        {/* STATS */}
+        <div className="stats-grid stats-grid-compact">
+          <StatCard label="Produits" value={initialProducts.length} compact />
+          <StatCard label="Unités en stock" value={totalUnits} compact />
+          <StatCard label="Stock faible" value={low} color="var(--amber)" trend="Seuil atteint" trendDir="down" compact />
+          <StatCard label="Ruptures" value={oos} color="var(--red)" compact />
+        </div>
+
+        {/* SEARCH */}
+        <div style={{ position: 'relative', marginBottom: 14 }}>
+          <Search size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--brown-soft)' }} />
+          <input
+            type="text"
+            className="field-input"
+            placeholder="Rechercher par nom, fournisseur, emplacement..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{ paddingLeft: 40, borderRadius: 12, height: 38, fontSize: 13, fontWeight: 500 }}
+          />
+          {search && (
+            <button onClick={() => setSearch('')} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: '#DEE2E6', border: 'none', width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--brown-soft)' }}>
+              <X size={12} />
+            </button>
+          )}
+        </div>
+
+        {/* FILTERS */}
+        <div className="filters-bar">
+          {[
+            { key: 'all', label: 'Tous' },
+            { key: 'oos', label: 'En rupture' },
+            { key: 'low', label: 'Stock faible' },
+            { key: 'in-stock', label: 'En stock' },
+          ].map(f => (
+            <button key={f.key} className={`filter-chip ${filter === f.key ? 'active' : ''}`} onClick={() => setFilter(f.key)}>
+              {f.label}
+            </button>
+          ))}
+          <div className="filter-spacer" />
+          <button className="btn-secondary" onClick={() => router.refresh()} title="Actualiser" style={{ padding: '8px 10px' }}>
+            <RefreshCw size={14} />
+          </button>
+          <a href="/products/new" className="btn-orange">
+            <Plus size={14} /> Nouveau produit
+          </a>
+        </div>
+
+        {/* TABLE */}
+        <TableCard title="Catalogue" meta={`${filtered.length} produit(s) · Page ${currentPage}/${totalPages}`}>
+          {filtered.length === 0 ? (
+            <EmptyState icon="📦" title="Aucun produit" description="Aucun produit trouvé." />
+          ) : (
+            <>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Produit</th>
+                    <th>Prix</th>
+                    <th>Promo</th>
+                    <th>Variantes</th>
+                    <th>Emplacement</th>
+                    <th>Fournisseur</th>
+                    <th>Stock</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedProducts.map(p => (
+                    <tr key={p.id}>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <div
+                            style={{ width: 48, height: 48, borderRadius: 10, overflow: 'hidden', border: '1px solid var(--line)', cursor: 'zoom-in', flexShrink: 0, background: 'var(--cream-2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            onClick={() => p.images?.[0] && setSelectedImage(p.images[0].url)}
+                            className="hover-scale"
+                          >
+                            {p.images?.[0] ? (
+                              <img
+                                src={p.images[0].url}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s' }}
+                                alt=""
+                              />
+                            ) : (
+                              <span style={{ fontSize: 20 }}>{p.emoji || '📦'}</span>
+                            )}
+                          </div>
+                          <div>
+                            <div className="cell-strong" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              {p.name}
+                              {p.isFeatured && <span title="Mis en avant" style={{ color: '#EAB308' }}>⭐</span>}
+                              {p.status !== 'PUBLISHED' && <span title="Non publié" style={{ fontSize: 10, padding: '1px 4px', background: '#FEE2E2', color: '#EF4444', borderRadius: 4, fontWeight: 700 }}>Privé</span>}
+                            </div>
+                            <div className="cell-muted">{p.material || '—'}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td><span className="cell-price">{formatPrice(Number(p.price))}</span></td>
+                      <td>{p.oldPrice ? <span className="cell-muted" style={{ textDecoration: 'line-through' }}>{formatPrice(Number(p.oldPrice))}</span> : '—'}</td>
+                      <td><span className="cell-muted">{p.variants?.length || 0} variante(s)</span></td>
+                      <td><LocationBadge location={p.location} /></td>
+                      <td><span className="cell-muted">{p.supplier?.name || '—'}</span></td>
+                      <td>
+                        {(() => {
+                          const realStock = p.variants?.length > 0 ? p.variants.reduce((s: number, v: any) => s + (v.stock || 0), 0) : p.stock;
+                          return (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{
+                                width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
+                                background: realStock === 0 ? 'var(--red)' : realStock <= p.lowStockThreshold ? 'var(--amber)' : 'var(--green)'
+                              }} />
+                              <div>
+                                <strong style={{ color: realStock === 0 ? 'var(--red)' : realStock <= p.lowStockThreshold ? 'var(--amber)' : 'var(--green)', fontSize: 14 }}>
+                                  {realStock}
+                                </strong>
+                                <div style={{ fontSize: 10, fontWeight: 600, color: realStock === 0 ? 'var(--red)' : realStock <= p.lowStockThreshold ? 'var(--amber)' : 'var(--brown-soft)' }}>
+                                  {realStock === 0 ? 'Rupture' : realStock <= p.lowStockThreshold ? 'Stock bas' : 'En stock'}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </td>
+                      <td>
+                        <div className="row-actions">
+                          <button className="action-btn" title="Détail" onClick={() => setSelectedProduct(p)}>
+                            <Eye size={14} />
+                          </button>
+                          <button className="action-btn" title="Modifier" onClick={() => setEditingProduct(p)} style={{ background: 'var(--blue-soft)', color: 'var(--blue)' }}>
+                            <Edit3 size={14} />
+                          </button>
+                          <button className="action-btn" title="Dupliquer" onClick={() => handleDuplicate(p)} style={{ background: 'var(--blue-soft)', color: 'var(--blue)' }}>
+                            <Copy size={14} />
+                          </button>
+                          <button className="action-btn" title="Stock & variantes" onClick={() => openVariantsEditor(p)} style={{ background: 'var(--orange-soft)', color: 'var(--orange)' }}>
+                            <Package size={14} />
+                          </button>
+                          <button className="action-btn" title="Supprimer" onClick={() => handleDelete(p.id)} style={{ background: 'var(--red-soft)', color: 'var(--red)' }}>
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {/* PAGINATION */}
+              {totalPages > 1 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', borderTop: '1px solid var(--line)', background: 'var(--cream)' }}>
+                  <div style={{ fontSize: 12, color: 'var(--brown-soft)', fontWeight: 500 }}>
+                    {((currentPage - 1) * PRODUCTS_PER_PAGE) + 1}–{Math.min(currentPage * PRODUCTS_PER_PAGE, filtered.length)} sur {filtered.length}
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <button className="action-btn" disabled={currentPage <= 1} onClick={() => setCurrentPage(p => Math.max(1, p - 1))} style={{ opacity: currentPage <= 1 ? 0.3 : 1 }}>
+                      <ChevronLeft size={16} />
+                    </button>
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let page: number;
+                      if (totalPages <= 5) page = i + 1;
+                      else if (currentPage <= 3) page = i + 1;
+                      else if (currentPage >= totalPages - 2) page = totalPages - 4 + i;
+                      else page = currentPage - 2 + i;
+                      return (
+                        <button key={page} onClick={() => setCurrentPage(page)} style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, cursor: 'pointer', border: 'none', background: currentPage === page ? 'var(--ink)' : 'white', color: currentPage === page ? 'white' : 'var(--brown)', boxShadow: currentPage === page ? 'none' : '0 1px 2px rgba(0,0,0,0.06)', transition: 'all 0.15s' }}>
+                          {page}
+                        </button>
+                      );
+                    })}
+                    <button className="action-btn" disabled={currentPage >= totalPages} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} style={{ opacity: currentPage >= totalPages ? 0.3 : 1 }}>
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </TableCard>
+
+        {/* PRODUCT DETAIL MODAL */}
+        {selectedProduct && (
+          <ProductDetailModal
+            product={selectedProduct}
+            onClose={() => setSelectedProduct(null)}
+            onEditVariants={() => { setSelectedProduct(null); openVariantsEditor(selectedProduct); }}
+            onShowImage={setSelectedImage}
+          />
+        )}
+
+        {/* VARIANTS EDITOR MODAL */}
+        {editingVariants && (
+          <VariantsEditorModal product={editingVariants.product} variants={editingVariants.variants} onClose={() => setEditingVariants(null)} />
+        )}
+
+        {/* PRODUCT EDIT MODAL */}
+        {editingProduct && (
+          <ProductEditModal product={editingProduct} onClose={() => setEditingProduct(null)} />
+        )}
+
+        {/* IMAGE VIEWER MODAL */}
+        {selectedImage && (
+          <Modal isOpen={true} onClose={() => setSelectedImage(null)} title="Aperçu de l'image">
+            <div style={{ textAlign: 'center' }}>
+              <img src={selectedImage} style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: 12, boxShadow: 'var(--shadow-lg)' }} />
+              <div style={{ marginTop: 16 }}>
+                <a href={selectedImage} download="produit.jpg" className="btn-orange" style={{ display: 'inline-flex' }}>
+                  Télécharger l'image
+                </a>
+              </div>
+            </div>
+          </Modal>
+        )}
+      </div>
+
+      {/* LIGHTBOX / ZOOM IMAGE */}
+      {selectedImage && (
+        <div 
+          className="lightbox-overlay"
+          onClick={() => setSelectedImage(null)}
+        >
+          <div className="lightbox-content animate-zoom-in" onClick={e => e.stopPropagation()}>
+            <img src={selectedImage} alt="Preview" />
+            <button className="lightbox-close" onClick={() => setSelectedImage(null)}>
+              <X size={24} />
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+
+  function openVariantsEditor(product: any) {
+        setEditingVariants({
+          product,
+          variants: JSON.parse(JSON.stringify(product.variants || [])),
+        });
+  }
+
+      function handleDelete(id: string) {
+    if (!confirm('Voulez-vous vraiment supprimer ce produit ? Cette action est irréversible.')) return;
+    startTransition(async () => {
+      try {
+        await deleteProduct(id);
+      showToast('Produit supprimé', 'success');
+      router.refresh();
+      } catch (e: any) {
+        showToast(e.message || 'Erreur', 'error');
+      }
+    });
+  }
+
+      function handleDuplicate(product: any) {
+    if (!confirm(`Dupliquer le produit "${product.name}" ?`)) return;
+    startTransition(async () => {
+      try {
+        await createProduct({
+          name: `${product.name} (Copie)`,
+          category: product.category,
+          price: product.price,
+          oldPrice: product.oldPrice,
+          description: product.description,
+          material: product.material,
+          origin: product.origin,
+          supplier: product.supplier,
+          location: product.location,
+          lowStockThreshold: product.lowStockThreshold,
+          variants: product.variants.map((v: any) => ({
+            size: v.size,
+            color: v.color,
+            stock: 0, // Don't duplicate stock
+            location: v.location,
+          })),
+          images: product.images.map((img: any) => ({
+            name: img.name,
+            url: img.url,
+          })),
+        });
+        showToast('Produit dupliqué ✓', 'success');
+        router.refresh();
+      } catch (e: any) {
+        showToast(e.message || 'Erreur', 'error');
+      }
+    });
+  }
+}
+
+// ============================================
+// PRODUCT DETAIL MODAL
+// ============================================
+          function ProductDetailModal({product: p, onClose, onEditVariants, onShowImage }: {product: any; onClose: () => void; onEditVariants: () => void; onShowImage: (url: string) => void }) {
+  return (
+          <Modal isOpen={true} onClose={onClose}
+            title={
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Box size={18} className="text-orange" />
+                <span>Fiche Produit</span>
+              </div>
+            }
+            footer={
+              <div style={{ display: 'flex', gap: 12, width: '100%' }}>
+                <button className="btn-secondary" style={{ flex: 1 }} onClick={onEditVariants}>
+                  <Edit3 size={16} /> Modifier le stock
+                </button>
+                <button className="btn-primary" style={{ flex: 1 }} onClick={onClose}>Fermer</button>
+              </div>
+            }
+          >
+            <div className="product-detail-modal-layout">
+              {p.images?.[0] && (
+                <div className="product-detail-image-section">
+                  <img
+                    src={p.images[0].url}
+                    className="product-detail-hero-img"
+                    onClick={() => onShowImage(p.images[0].url)}
+                  />
+                  <div className="image-zoom-hint"><Maximize size={12} /> Cliquer pour agrandir</div>
+                </div>
+              )}
+
+              <div className="product-detail-info-header">
+                <div className="category-tag">{CATEGORIES[p.category] || p.category}</div>
+                <h2 className="product-detail-name">{p.name}</h2>
+                <div className="product-detail-price-row">
+                  <span className="price-main">{formatPrice(Number(p.price))}</span>
+                  {p.oldPrice && <span className="price-old">{formatPrice(Number(p.oldPrice))}</span>}
+                </div>
+              </div>
+
+              <div className="product-detail-grid">
+                <div className="detail-item-box">
+                  <label>Fournisseur</label>
+                  <div className="detail-val">{p.supplier?.name || 'Non défini'}</div>
+                </div>
+                <div className="detail-item-box">
+                  <label>Provenance</label>
+                  <div className="detail-val">{p.origin || '—'}</div>
+                </div>
+                <div className="detail-item-box">
+                  <label>Matière</label>
+                  <div className="detail-val">{p.material || '—'}</div>
+                </div>
+                <div className="detail-item-box">
+                  <label>Stock Total</label>
+                  <div className={`detail-val stock-val ${p.stock === 0 ? 'out' : p.stock < 5 ? 'low' : ''}`}>
+                    {p.stock} unités
+                  </div>
+                </div>
+              </div>
+
+              {p.description && (
+                <div className="product-detail-desc">
+                  <label>Description</label>
+                  <p>{p.description}</p>
+                </div>
+              )}
+
+              <div className="product-detail-variants-section">
+                <div className="section-header-mini">
+                  <LayoutDashboard size={14} />
+                  <span>Variantes & Emplacements</span>
+                </div>
+
+                <div className="variants-mini-table">
+                  {p.variants?.length ? (
+                    <table>
+                      <thead>
+                        <tr><th>Taille</th><th>Couleur</th><th>Stock</th><th>Lieu</th></tr>
+                      </thead>
+                      <tbody>
+                        {p.variants.map((v: any) => (
+                          <tr key={v.id}>
+                            <td><span className="variant-tag-sm">{v.size}</span></td>
+                            <td><span className="color-label">{v.color}</span></td>
+                            <td>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                <span className={`stock-badge-sm ${v.stock === 0 ? 'red' : v.stock < 3 ? 'orange' : 'green'}`}>
+                                  Total: {v.stock}
+                                </span>
+                                {v.stockLevels?.map((sl: any) => (
+                                  <div key={sl.id} style={{ fontSize: 10, color: 'var(--brown-soft)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                    <Warehouse size={10} /> {sl.warehouse.name}: <strong>{sl.quantity}</strong>
+                                  </div>
+                                ))}
+                              </div>
+                            </td>
+                            <td><LocationBadge location={v.location} /></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div className="empty-mini">Aucune variante configurée</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </Modal>
+          );
+}
+
+          // ============================================
+          // VARIANTS EDITOR MODAL
+          // ============================================
+          function VariantsEditorModal({product, variants: initialVariants, onClose }: {product: any; variants: any[]; onClose: () => void }) {
+  const [variants, setVariants] = useState(initialVariants);
+          const [lowStockThreshold, setLowStockThreshold] = useState(product.lowStockThreshold || 5);
+          const [isPending, startTransition] = useTransition();
+          const {showToast} = useToast();
+          const router = useRouter();
+
+  const updateVariant = (idx: number, field: string, value: any) => {
+    const newVariants = [...variants];
+          newVariants[idx] = {...newVariants[idx], [field]: field === 'stock' ? Math.max(0, parseInt(value) || 0) : value };
+          setVariants(newVariants);
+  };
+
+  const totalQty = variants.reduce((s: number, v: any) => s + (parseInt(v.stock) || 0), 0);
+
+  const handleSave = () => {
+            startTransition(async () => {
+              try {
+                await updateProductVariants(product.id, variants.map(v => ({
+                  size: v.size,
+                  color: v.color,
+                  stock: parseInt(v.stock) || 0,
+                  location: v.location || '',
+                })));
+                await updateProduct(product.id, { lowStockThreshold });
+                showToast('Données mises à jour ✓', 'success');
+                router.refresh();
+                onClose();
+              } catch (e: any) {
+                showToast(e.message || 'Erreur', 'error');
+              }
+            });
+  };
+
+          return (
+          <Modal isOpen={true} onClose={onClose}
+            title={
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <RefreshCw size={18} className="text-orange" />
+                <span>Gestion du Stock</span>
+              </div>
+            }
+            large
+            footer={
+              <div style={{ display: 'flex', gap: 12, width: '100%' }}>
+                <button className="btn-secondary" style={{ flex: 1 }} onClick={onClose}>Annuler</button>
+                <button className="btn-orange" style={{ flex: 1 }} onClick={handleSave} disabled={isPending}>
+                  {isPending ? 'Sauvegarde...' : 'Enregistrer les modifications'}
+                </button>
+              </div>
+            }
+          >
+            <div className="variants-editor-header">
+              <div className="editor-product-info">
+                {product.images?.[0] ? (
+                  <img src={product.images[0].url} className="editor-thumb" />
+                ) : (
+                  <div className="editor-thumb-placeholder">📦</div>
+                )}
+                <div>
+                  <h3>{product.name}</h3>
+                  <p>Stock total : <span className={totalQty === 0 ? 'text-red' : 'text-green'}>{totalQty} unités</span></p>
+                </div>
+              </div>
+              <div className="threshold-config">
+                <label>Seuil d'alerte</label>
+                <div className="threshold-input-wrapper">
+                  <input
+                    type="number"
+                    value={lowStockThreshold}
+                    onChange={e => setLowStockThreshold(parseInt(e.target.value) || 0)}
+                  />
+                  <AlertTriangle size={14} className="threshold-icon" />
+                </div>
+              </div>
+            </div>
+
+            <div className="variants-editor-grid">
+              {variants.map((v: any, idx: number) => (
+                <div key={idx} className="variant-edit-card">
+                  <div className="v-card-header">
+                    <span className="v-card-tag">{v.size}</span>
+                    <span className="v-card-color-name">{v.color}</span>
+                  </div>
+
+                  <div className="v-card-controls">
+                    <div className="control-group">
+                      <label>Quantité en stock</label>
+                      <div className="qty-stepper">
+                        <button onClick={() => updateVariant(idx, 'stock', v.stock - 1)}><Minus size={14} /></button>
+                        <input
+                          type="number"
+                          value={v.stock}
+                          onChange={e => updateVariant(idx, 'stock', e.target.value)}
+                        />
+                        <button onClick={() => updateVariant(idx, 'stock', v.stock + 1)}><Plus size={14} /></button>
+                      </div>
+                    </div>
+
+                    <div className="control-group">
+                      <label>Emplacement (Rayon/Casier)</label>
+                      <div className="location-input-wrapper">
+                        <MapPin size={14} className="loc-icon" />
+                        <input
+                          type="text"
+                          value={v.location || ''}
+                          onChange={e => updateVariant(idx, 'location', e.target.value)}
+                          placeholder="Ex: A1-02"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Modal>
+          );
+}
+
+          // ============================================
+          // PRODUCT EDIT MODAL
+          // ============================================
+          function ProductEditModal({product, onClose}: {product: any; onClose: () => void }) {
+  const [formData, setFormData] = useState({
+            name: product.name,
+          price: Number(product.price),
+          oldPrice: product.oldPrice ? Number(product.oldPrice) : null,
+          category: product.category?.name || '',
+          description: product.description || '',
+          material: product.material || '',
+          origin: product.origin || '',
+          supplier: product.supplier?.name || '',
+          location: product.location || '',
+          isPublished: product.status === 'PUBLISHED',
+          isFeatured: product.isFeatured ?? false,
+  });
+          const [isPending, startTransition] = useTransition();
+          const {showToast} = useToast();
+          const router = useRouter();
+
+  const handleSave = () => {
+            startTransition(async () => {
+              try {
+                await updateProduct(product.id, formData);
+                showToast('Produit mis à jour ✓', 'success');
+                router.refresh();
+                onClose();
+              } catch (e: any) {
+                showToast(e.message || 'Erreur', 'error');
+              }
+            });
+  };
+
+          return (
+          <Modal isOpen={true} onClose={onClose} title={`Modifier · ${product.name}`}
+            footer={
+              <>
+                <button className="btn-secondary" onClick={onClose}>Annuler</button>
+                <button className="btn-orange" onClick={handleSave} disabled={isPending}>
+                  {isPending ? 'Sauvegarde...' : 'Enregistrer'}
+                </button>
+              </>
+            }
+          >
+            <div className="form-grid">
+              <div className="form-row">
+                <label className="field-label">Nom du produit</label>
+                <input className="field-input" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
+              </div>
+              <div className="form-row">
+                <label className="field-label">Catégorie</label>
+                <select className="field-input" value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })}>
+                  {Object.entries(CATEGORIES).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+                </select>
+              </div>
+              <div className="form-row">
+                <label className="field-label">Prix (FCFA)</label>
+                <input type="number" className="field-input" value={formData.price} onChange={e => setFormData({ ...formData, price: parseInt(e.target.value) || 0 })} />
+              </div>
+              <div className="form-row">
+                <label className="field-label">Ancien prix (optionnel)</label>
+                <input type="number" className="field-input" value={formData.oldPrice || ''} onChange={e => setFormData({ ...formData, oldPrice: parseInt(e.target.value) || null })} />
+              </div>
+              <div className="form-row">
+                <label className="field-label">Fournisseur</label>
+                <input className="field-input" value={formData.supplier} onChange={e => setFormData({ ...formData, supplier: e.target.value })} />
+              </div>
+              <div className="form-row">
+                <label className="field-label">Matière</label>
+                <input className="field-input" value={formData.material} onChange={e => setFormData({ ...formData, material: e.target.value })} placeholder="Ex. Cuir" />
+              </div>
+              <div className="form-row">
+                <label className="field-label">Provenance</label>
+                <input className="field-input" value={formData.origin} onChange={e => setFormData({ ...formData, origin: e.target.value })} placeholder="Ex. Côte d'Ivoire" />
+              </div>
+              <div className="form-row">
+                <label className="field-label">Emplacement principal</label>
+                <input className="field-input" value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} />
+              </div>
+              <div className="form-row" style={{ gridColumn: '1 / -1' }}>
+                <label className="field-label">Description</label>
+                <textarea className="field-input" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} style={{ minHeight: 80 }} />
+              </div>
+
+              <div className="form-row" style={{ gridColumn: '1 / -1', display: 'flex', gap: 20, paddingTop: 10, borderTop: '1px solid var(--line)' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+                  <input
+                    type="checkbox"
+                    checked={formData.isPublished}
+                    onChange={e => setFormData({ ...formData, isPublished: e.target.checked })}
+                  />
+                  Publié sur le site
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+                  <input
+                    type="checkbox"
+                    checked={formData.isFeatured}
+                    onChange={e => setFormData({ ...formData, isFeatured: e.target.checked })}
+                  />
+                  ⭐ Mettre en avant
+                </label>
+              </div>
+            </div>
+          </Modal>
+          );
+}

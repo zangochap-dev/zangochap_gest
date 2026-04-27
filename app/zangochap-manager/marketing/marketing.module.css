@@ -1,0 +1,37 @@
+.content { padding: 24px 28px; }
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+.statCard {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 18px 20px;
+}
+.statCardAccent { background: linear-gradient(135deg, var(--ink), #2D211A); color: white; }
+.statLabel { font-size: 11px; text-transform: uppercase; color: var(--brown-soft); font-weight: 600; margin-bottom: 6px; }
+.statCardAccent .statLabel { color: rgba(255,255,255,0.7); }
+.statValue { font-family: var(--font-display); font-size: 30px; font-weight: 700; line-height: 1; }
+
+.cellPromoCode {
+  background: var(--orange-soft);
+  color: var(--orange);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+.iconBtnSm { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; background: var(--cream); color: var(--brown-soft); }
+.iconBtnSm:hover { background: var(--line); color: var(--ink); }
+
+.table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.table thead th { text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--brown-soft); padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--cream); }
+.table tbody tr { border-bottom: 1px solid var(--line); }
+.table tbody td { padding: 12px 16px; vertical-align: middle; }
+.cellMuted { color: var(--brown-soft); font-size: 11px; }
+.actionBtn { width: 28px; height: 28px; border-radius: 7px; background: var(--cream); display: inline-flex; align-items: center; justify-content: center; color: var(--brown); margin-right: 4px; }
+.actionBtn:hover { background: var(--orange); color: white; }

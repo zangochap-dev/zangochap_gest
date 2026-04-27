@@ -92,7 +92,7 @@ export default async function HomePage() {
   const organizationSchema = getOrganizationSchema();
   const webSiteSchema = getWebSiteSchema();
   const productListSchema = getProductListSchema(
-    products.map(p => ({
+    products.map((p: any) => ({
       id: p.id,
       name: p.name,
       price: Number(p.price),

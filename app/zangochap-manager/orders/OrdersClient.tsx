@@ -30,16 +30,32 @@ interface OrdersClientProps {
   deliverymen?: any[];
   staffUsers?: any[];
   user: any;
+  totalCount: number;
+  currentPage: number;
+  pageSize: number;
 }
 
-export default function OrdersClient({ initialOrders, products, deliverymen = [], staffUsers = [], user }: OrdersClientProps) {
-  const [filter, setFilter] = useState('all');
-  const [communeFilter, setCommuneFilter] = useState('all');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
+export default function OrdersClient({ 
+  initialOrders, 
+  products, 
+  deliverymen = [], 
+  staffUsers = [], 
+  user,
+  totalCount,
+  currentPage: serverPage,
+  pageSize
+}: OrdersClientProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  // -- Sync local state with URL --
+  const [filter, setFilter] = useState(searchParams.get('status') || 'all');
+  const [communeFilter, setCommuneFilter] = useState(searchParams.get('commune') || 'all');
+  const [dateFrom, setDateFrom] = useState(searchParams.get('from') || '');
+  const [dateTo, setDateTo] = useState(searchParams.get('to') || '');
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+  const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
+  
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [orderToDuplicate, setOrderToDuplicate] = useState<any>(null);
@@ -48,76 +64,46 @@ export default function OrdersClient({ initialOrders, products, deliverymen = []
 
   const [isPending, startTransition] = useTransition();
   const { showToast } = useToast();
-  const router = useRouter();
-  const searchParams = useSearchParams();
-
-  // Pick up search from URL if present (global search)
-  useEffect(() => {
-    const q = searchParams.get('q');
-    if (q) setSearchQuery(q);
-  }, [searchParams]);
 
   // Debounced search — 300ms delay
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery);
-      setCurrentPage(1);
     }, 300);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Auto-refresh polling every 30 seconds
+  // Sync state to URL when filters change
+  const isFirstRender = useRef(true);
   useEffect(() => {
-    const interval = setInterval(() => {
-      router.refresh();
-    }, 30000);
-    return () => clearInterval(interval);
-  }, [router]);
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    const params = new URLSearchParams(searchParams.toString());
+    
+    if (filter !== 'all') params.set('status', filter); else params.delete('status');
+    if (communeFilter !== 'all') params.set('commune', communeFilter); else params.delete('commune');
+    if (dateFrom) params.set('from', dateFrom); else params.delete('from');
+    if (dateTo) params.set('to', dateTo); else params.delete('to');
+    if (debouncedSearch) params.set('q', debouncedSearch); else params.delete('q');
+    
+    // Always reset to page 1 on filter change
+    params.set('page', '1');
+    
+    router.push(`?${params.toString()}`);
+  }, [filter, communeFilter, dateFrom, dateTo, debouncedSearch, router]);
 
-  const filteredOrders = useMemo(() => {
-    let result = initialOrders;
+  // Handle page change specifically
+  const goToPage = (page: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('page', page.toString());
+    router.push(`?${params.toString()}`);
+  };
 
-    // Role-based filter: commercials see their own + website orders
-    if (user?.role === 'commercial') {
-      result = result.filter(o => o.commercialId === user.id || o.commercialName === user.name || o.commercialName === "Site Web");
-    }
-
-    if (filter !== 'all') {
-      result = result.filter(o => o.status === filter.toUpperCase());
-    }
-    if (communeFilter !== 'all') {
-      result = result.filter(o => o.commune === communeFilter);
-    }
-    if (dateFrom) {
-      result = result.filter(o => new Date(o.createdAt) >= new Date(dateFrom));
-    }
-    if (dateTo) {
-      result = result.filter(o => new Date(o.createdAt) <= new Date(dateTo + 'T23:59:59'));
-    }
-    // Text search (debounced)
-    if (debouncedSearch) {
-      const q = debouncedSearch.toLowerCase();
-      result = result.filter(o =>
-        (o.ref || '').toLowerCase().includes(q) ||
-        (o.customerName || '').toLowerCase().includes(q) ||
-        (o.customerPhone || '').includes(q) ||
-        (o.commercialName || '').toLowerCase().includes(q)
-      );
-    }
-    return result;
-  }, [initialOrders, filter, communeFilter, dateFrom, dateTo, debouncedSearch, user]);
-
-  // Pagination
-  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / ITEMS_PER_PAGE));
-  const paginatedOrders = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredOrders.slice(start, start + ITEMS_PER_PAGE);
-  }, [filteredOrders, currentPage]);
-
-  // Reset page on filter change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [filter, communeFilter, dateFrom, dateTo]);
+  const paginatedOrders = initialOrders;
+  const totalPages = Math.ceil(totalCount / pageSize);
+  const currentPage = serverPage;
 
   const handleStatusChange = useCallback((orderId: string, status: string) => {
     startTransition(async () => {
@@ -676,8 +662,8 @@ export default function OrdersClient({ initialOrders, products, deliverymen = []
       </div>
 
       {/* TABLE */}
-      <TableCard title="Commandes" meta={`${filteredOrders.length} commande(s) · Page ${currentPage}/${totalPages}`}>
-        {filteredOrders.length === 0 ? (
+      <TableCard title="Commandes" meta={`${totalCount} commande(s) · Page ${currentPage}/${totalPages}`}>
+        {paginatedOrders.length === 0 ? (
           <EmptyState icon="📦" title="Aucune commande" description="Aucune commande trouvée avec ces filtres." />
         ) : (
           <>
@@ -770,50 +756,50 @@ export default function OrdersClient({ initialOrders, products, deliverymen = []
             {totalPages > 1 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', borderTop: '1px solid var(--line)', background: 'var(--cream)' }}>
                 <div style={{ fontSize: 12, color: 'var(--brown-soft)', fontWeight: 500 }}>
-                  {((currentPage - 1) * ITEMS_PER_PAGE) + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, filteredOrders.length)} sur {filteredOrders.length}
+                  {((currentPage - 1) * pageSize) + 1}–{Math.min(currentPage * pageSize, totalCount)} sur {totalCount}
                 </div>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                   <button
                     className="action-btn"
                     disabled={currentPage <= 1}
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    onClick={() => goToPage(currentPage - 1)}
                     style={{ opacity: currentPage <= 1 ? 0.3 : 1 }}
                   >
                     <ChevronLeft size={16} />
                   </button>
                   {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    let page: number;
+                    let pageNum: number;
                     if (totalPages <= 5) {
-                      page = i + 1;
+                      pageNum = i + 1;
                     } else if (currentPage <= 3) {
-                      page = i + 1;
+                      pageNum = i + 1;
                     } else if (currentPage >= totalPages - 2) {
-                      page = totalPages - 4 + i;
+                      pageNum = totalPages - 4 + i;
                     } else {
-                      page = currentPage - 2 + i;
+                      pageNum = currentPage - 2 + i;
                     }
                     return (
                       <button
-                        key={page}
-                        onClick={() => setCurrentPage(page)}
+                        key={pageNum}
+                        onClick={() => goToPage(pageNum)}
                         style={{
                           width: 32, height: 32, borderRadius: 8,
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           fontSize: 12, fontWeight: 700, cursor: 'pointer', border: 'none',
-                          background: currentPage === page ? 'var(--ink)' : 'white',
-                          color: currentPage === page ? 'white' : 'var(--brown)',
-                          boxShadow: currentPage === page ? 'none' : '0 1px 2px rgba(0,0,0,0.06)',
+                          background: currentPage === pageNum ? 'var(--ink)' : 'white',
+                          color: currentPage === pageNum ? 'white' : 'var(--brown)',
+                          boxShadow: currentPage === pageNum ? 'none' : '0 1px 2px rgba(0,0,0,0.06)',
                           transition: 'all 0.15s'
                         }}
                       >
-                        {page}
+                        {pageNum}
                       </button>
                     );
                   })}
                   <button
                     className="action-btn"
                     disabled={currentPage >= totalPages}
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    onClick={() => goToPage(currentPage + 1)}
                     style={{ opacity: currentPage >= totalPages ? 0.3 : 1 }}
                   >
                     <ChevronRight size={16} />

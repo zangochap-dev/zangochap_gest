@@ -87,8 +87,8 @@ export default function ProductsClient({ initialProducts, user }: ProductsClient
         subtitle="produits"
         actions={
           <div style={{ display: 'flex', gap: 12 }}>
-            <button 
-              className="btn-secondary" 
+            <button
+              className="btn-secondary"
               onClick={async () => {
                 setIsSyncing(true);
                 try {
@@ -171,7 +171,7 @@ export default function ProductsClient({ initialProducts, user }: ProductsClient
           <button className="btn-secondary" onClick={() => router.refresh()} title="Actualiser" style={{ padding: '8px 10px' }}>
             <RefreshCw size={14} />
           </button>
-          <a href="/products/new" className="btn-orange">
+          <a href="/zangochap-manager/products/new" className="btn-orange">
             <Plus size={14} /> Nouveau produit
           </a>
         </div>
@@ -344,7 +344,7 @@ export default function ProductsClient({ initialProducts, user }: ProductsClient
 
       {/* LIGHTBOX / ZOOM IMAGE */}
       {selectedImage && (
-        <div 
+        <div
           className="lightbox-overlay"
           onClick={() => setSelectedImage(null)}
         >
@@ -360,26 +360,26 @@ export default function ProductsClient({ initialProducts, user }: ProductsClient
   );
 
   function openVariantsEditor(product: any) {
-        setEditingVariants({
-          product,
-          variants: JSON.parse(JSON.stringify(product.variants || [])),
-        });
+    setEditingVariants({
+      product,
+      variants: JSON.parse(JSON.stringify(product.variants || [])),
+    });
   }
 
-      function handleDelete(id: string) {
+  function handleDelete(id: string) {
     if (!confirm('Voulez-vous vraiment supprimer ce produit ? Cette action est irréversible.')) return;
     startTransition(async () => {
       try {
         await deleteProduct(id);
-      showToast('Produit supprimé', 'success');
-      router.refresh();
+        showToast('Produit supprimé', 'success');
+        router.refresh();
       } catch (e: any) {
         showToast(e.message || 'Erreur', 'error');
       }
     });
   }
 
-      function handleDuplicate(product: any) {
+  function handleDuplicate(product: any) {
     if (!confirm(`Dupliquer le produit "${product.name}" ?`)) return;
     startTransition(async () => {
       try {
@@ -417,343 +417,343 @@ export default function ProductsClient({ initialProducts, user }: ProductsClient
 // ============================================
 // PRODUCT DETAIL MODAL
 // ============================================
-          function ProductDetailModal({product: p, onClose, onEditVariants, onShowImage }: {product: any; onClose: () => void; onEditVariants: () => void; onShowImage: (url: string) => void }) {
+function ProductDetailModal({ product: p, onClose, onEditVariants, onShowImage }: { product: any; onClose: () => void; onEditVariants: () => void; onShowImage: (url: string) => void }) {
   return (
-          <Modal isOpen={true} onClose={onClose}
-            title={
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <Box size={18} className="text-orange" />
-                <span>Fiche Produit</span>
-              </div>
-            }
-            footer={
-              <div style={{ display: 'flex', gap: 12, width: '100%' }}>
-                <button className="btn-secondary" style={{ flex: 1 }} onClick={onEditVariants}>
-                  <Edit3 size={16} /> Modifier le stock
-                </button>
-                <button className="btn-primary" style={{ flex: 1 }} onClick={onClose}>Fermer</button>
-              </div>
-            }
-          >
-            <div className="product-detail-modal-layout">
-              {p.images?.[0] && (
-                <div className="product-detail-image-section">
-                  <img
-                    src={p.images[0].url}
-                    className="product-detail-hero-img"
-                    onClick={() => onShowImage(p.images[0].url)}
-                  />
-                  <div className="image-zoom-hint"><Maximize size={12} /> Cliquer pour agrandir</div>
-                </div>
-              )}
+    <Modal isOpen={true} onClose={onClose}
+      title={
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Box size={18} className="text-orange" />
+          <span>Fiche Produit</span>
+        </div>
+      }
+      footer={
+        <div style={{ display: 'flex', gap: 12, width: '100%' }}>
+          <button className="btn-secondary" style={{ flex: 1 }} onClick={onEditVariants}>
+            <Edit3 size={16} /> Modifier le stock
+          </button>
+          <button className="btn-primary" style={{ flex: 1 }} onClick={onClose}>Fermer</button>
+        </div>
+      }
+    >
+      <div className="product-detail-modal-layout">
+        {p.images?.[0] && (
+          <div className="product-detail-image-section">
+            <img
+              src={p.images[0].url}
+              className="product-detail-hero-img"
+              onClick={() => onShowImage(p.images[0].url)}
+            />
+            <div className="image-zoom-hint"><Maximize size={12} /> Cliquer pour agrandir</div>
+          </div>
+        )}
 
-              <div className="product-detail-info-header">
-                <div className="category-tag">{CATEGORIES[p.category] || p.category}</div>
-                <h2 className="product-detail-name">{p.name}</h2>
-                <div className="product-detail-price-row">
-                  <span className="price-main">{formatPrice(Number(p.price))}</span>
-                  {p.oldPrice && <span className="price-old">{formatPrice(Number(p.oldPrice))}</span>}
-                </div>
-              </div>
+        <div className="product-detail-info-header">
+          <div className="category-tag">{CATEGORIES[p.category] || p.category}</div>
+          <h2 className="product-detail-name">{p.name}</h2>
+          <div className="product-detail-price-row">
+            <span className="price-main">{formatPrice(Number(p.price))}</span>
+            {p.oldPrice && <span className="price-old">{formatPrice(Number(p.oldPrice))}</span>}
+          </div>
+        </div>
 
-              <div className="product-detail-grid">
-                <div className="detail-item-box">
-                  <label>Fournisseur</label>
-                  <div className="detail-val">{p.supplier?.name || 'Non défini'}</div>
-                </div>
-                <div className="detail-item-box">
-                  <label>Provenance</label>
-                  <div className="detail-val">{p.origin || '—'}</div>
-                </div>
-                <div className="detail-item-box">
-                  <label>Matière</label>
-                  <div className="detail-val">{p.material || '—'}</div>
-                </div>
-                <div className="detail-item-box">
-                  <label>Stock Total</label>
-                  <div className={`detail-val stock-val ${p.stock === 0 ? 'out' : p.stock < 5 ? 'low' : ''}`}>
-                    {p.stock} unités
-                  </div>
-                </div>
-              </div>
-
-              {p.description && (
-                <div className="product-detail-desc">
-                  <label>Description</label>
-                  <p>{p.description}</p>
-                </div>
-              )}
-
-              <div className="product-detail-variants-section">
-                <div className="section-header-mini">
-                  <LayoutDashboard size={14} />
-                  <span>Variantes & Emplacements</span>
-                </div>
-
-                <div className="variants-mini-table">
-                  {p.variants?.length ? (
-                    <table>
-                      <thead>
-                        <tr><th>Taille</th><th>Couleur</th><th>Stock</th><th>Lieu</th></tr>
-                      </thead>
-                      <tbody>
-                        {p.variants.map((v: any) => (
-                          <tr key={v.id}>
-                            <td><span className="variant-tag-sm">{v.size}</span></td>
-                            <td><span className="color-label">{v.color}</span></td>
-                            <td>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                <span className={`stock-badge-sm ${v.stock === 0 ? 'red' : v.stock < 3 ? 'orange' : 'green'}`}>
-                                  Total: {v.stock}
-                                </span>
-                                {v.stockLevels?.map((sl: any) => (
-                                  <div key={sl.id} style={{ fontSize: 10, color: 'var(--brown-soft)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                                    <Warehouse size={10} /> {sl.warehouse.name}: <strong>{sl.quantity}</strong>
-                                  </div>
-                                ))}
-                              </div>
-                            </td>
-                            <td><LocationBadge location={v.location} /></td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  ) : (
-                    <div className="empty-mini">Aucune variante configurée</div>
-                  )}
-                </div>
-              </div>
+        <div className="product-detail-grid">
+          <div className="detail-item-box">
+            <label>Fournisseur</label>
+            <div className="detail-val">{p.supplier?.name || 'Non défini'}</div>
+          </div>
+          <div className="detail-item-box">
+            <label>Provenance</label>
+            <div className="detail-val">{p.origin || '—'}</div>
+          </div>
+          <div className="detail-item-box">
+            <label>Matière</label>
+            <div className="detail-val">{p.material || '—'}</div>
+          </div>
+          <div className="detail-item-box">
+            <label>Stock Total</label>
+            <div className={`detail-val stock-val ${p.stock === 0 ? 'out' : p.stock < 5 ? 'low' : ''}`}>
+              {p.stock} unités
             </div>
-          </Modal>
-          );
+          </div>
+        </div>
+
+        {p.description && (
+          <div className="product-detail-desc">
+            <label>Description</label>
+            <p>{p.description}</p>
+          </div>
+        )}
+
+        <div className="product-detail-variants-section">
+          <div className="section-header-mini">
+            <LayoutDashboard size={14} />
+            <span>Variantes & Emplacements</span>
+          </div>
+
+          <div className="variants-mini-table">
+            {p.variants?.length ? (
+              <table>
+                <thead>
+                  <tr><th>Taille</th><th>Couleur</th><th>Stock</th><th>Lieu</th></tr>
+                </thead>
+                <tbody>
+                  {p.variants.map((v: any) => (
+                    <tr key={v.id}>
+                      <td><span className="variant-tag-sm">{v.size}</span></td>
+                      <td><span className="color-label">{v.color}</span></td>
+                      <td>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <span className={`stock-badge-sm ${v.stock === 0 ? 'red' : v.stock < 3 ? 'orange' : 'green'}`}>
+                            Total: {v.stock}
+                          </span>
+                          {v.stockLevels?.map((sl: any) => (
+                            <div key={sl.id} style={{ fontSize: 10, color: 'var(--brown-soft)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <Warehouse size={10} /> {sl.warehouse.name}: <strong>{sl.quantity}</strong>
+                            </div>
+                          ))}
+                        </div>
+                      </td>
+                      <td><LocationBadge location={v.location} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="empty-mini">Aucune variante configurée</div>
+            )}
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
 }
 
-          // ============================================
-          // VARIANTS EDITOR MODAL
-          // ============================================
-          function VariantsEditorModal({product, variants: initialVariants, onClose }: {product: any; variants: any[]; onClose: () => void }) {
+// ============================================
+// VARIANTS EDITOR MODAL
+// ============================================
+function VariantsEditorModal({ product, variants: initialVariants, onClose }: { product: any; variants: any[]; onClose: () => void }) {
   const [variants, setVariants] = useState(initialVariants);
-          const [lowStockThreshold, setLowStockThreshold] = useState(product.lowStockThreshold || 5);
-          const [isPending, startTransition] = useTransition();
-          const {showToast} = useToast();
-          const router = useRouter();
+  const [lowStockThreshold, setLowStockThreshold] = useState(product.lowStockThreshold || 5);
+  const [isPending, startTransition] = useTransition();
+  const { showToast } = useToast();
+  const router = useRouter();
 
   const updateVariant = (idx: number, field: string, value: any) => {
     const newVariants = [...variants];
-          newVariants[idx] = {...newVariants[idx], [field]: field === 'stock' ? Math.max(0, parseInt(value) || 0) : value };
-          setVariants(newVariants);
+    newVariants[idx] = { ...newVariants[idx], [field]: field === 'stock' ? Math.max(0, parseInt(value) || 0) : value };
+    setVariants(newVariants);
   };
 
   const totalQty = variants.reduce((s: number, v: any) => s + (parseInt(v.stock) || 0), 0);
 
   const handleSave = () => {
-            startTransition(async () => {
-              try {
-                await updateProductVariants(product.id, variants.map(v => ({
-                  size: v.size,
-                  color: v.color,
-                  stock: parseInt(v.stock) || 0,
-                  location: v.location || '',
-                })));
-                await updateProduct(product.id, { lowStockThreshold });
-                showToast('Données mises à jour ✓', 'success');
-                router.refresh();
-                onClose();
-              } catch (e: any) {
-                showToast(e.message || 'Erreur', 'error');
-              }
-            });
+    startTransition(async () => {
+      try {
+        await updateProductVariants(product.id, variants.map(v => ({
+          size: v.size,
+          color: v.color,
+          stock: parseInt(v.stock) || 0,
+          location: v.location || '',
+        })));
+        await updateProduct(product.id, { lowStockThreshold });
+        showToast('Données mises à jour ✓', 'success');
+        router.refresh();
+        onClose();
+      } catch (e: any) {
+        showToast(e.message || 'Erreur', 'error');
+      }
+    });
   };
 
-          return (
-          <Modal isOpen={true} onClose={onClose}
-            title={
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <RefreshCw size={18} className="text-orange" />
-                <span>Gestion du Stock</span>
-              </div>
-            }
-            large
-            footer={
-              <div style={{ display: 'flex', gap: 12, width: '100%' }}>
-                <button className="btn-secondary" style={{ flex: 1 }} onClick={onClose}>Annuler</button>
-                <button className="btn-orange" style={{ flex: 1 }} onClick={handleSave} disabled={isPending}>
-                  {isPending ? 'Sauvegarde...' : 'Enregistrer les modifications'}
-                </button>
-              </div>
-            }
-          >
-            <div className="variants-editor-header">
-              <div className="editor-product-info">
-                {product.images?.[0] ? (
-                  <img src={product.images[0].url} className="editor-thumb" />
-                ) : (
-                  <div className="editor-thumb-placeholder">📦</div>
-                )}
-                <div>
-                  <h3>{product.name}</h3>
-                  <p>Stock total : <span className={totalQty === 0 ? 'text-red' : 'text-green'}>{totalQty} unités</span></p>
-                </div>
-              </div>
-              <div className="threshold-config">
-                <label>Seuil d'alerte</label>
-                <div className="threshold-input-wrapper">
+  return (
+    <Modal isOpen={true} onClose={onClose}
+      title={
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <RefreshCw size={18} className="text-orange" />
+          <span>Gestion du Stock</span>
+        </div>
+      }
+      large
+      footer={
+        <div style={{ display: 'flex', gap: 12, width: '100%' }}>
+          <button className="btn-secondary" style={{ flex: 1 }} onClick={onClose}>Annuler</button>
+          <button className="btn-orange" style={{ flex: 1 }} onClick={handleSave} disabled={isPending}>
+            {isPending ? 'Sauvegarde...' : 'Enregistrer les modifications'}
+          </button>
+        </div>
+      }
+    >
+      <div className="variants-editor-header">
+        <div className="editor-product-info">
+          {product.images?.[0] ? (
+            <img src={product.images[0].url} className="editor-thumb" />
+          ) : (
+            <div className="editor-thumb-placeholder">📦</div>
+          )}
+          <div>
+            <h3>{product.name}</h3>
+            <p>Stock total : <span className={totalQty === 0 ? 'text-red' : 'text-green'}>{totalQty} unités</span></p>
+          </div>
+        </div>
+        <div className="threshold-config">
+          <label>Seuil d'alerte</label>
+          <div className="threshold-input-wrapper">
+            <input
+              type="number"
+              value={lowStockThreshold}
+              onChange={e => setLowStockThreshold(parseInt(e.target.value) || 0)}
+            />
+            <AlertTriangle size={14} className="threshold-icon" />
+          </div>
+        </div>
+      </div>
+
+      <div className="variants-editor-grid">
+        {variants.map((v: any, idx: number) => (
+          <div key={idx} className="variant-edit-card">
+            <div className="v-card-header">
+              <span className="v-card-tag">{v.size}</span>
+              <span className="v-card-color-name">{v.color}</span>
+            </div>
+
+            <div className="v-card-controls">
+              <div className="control-group">
+                <label>Quantité en stock</label>
+                <div className="qty-stepper">
+                  <button onClick={() => updateVariant(idx, 'stock', v.stock - 1)}><Minus size={14} /></button>
                   <input
                     type="number"
-                    value={lowStockThreshold}
-                    onChange={e => setLowStockThreshold(parseInt(e.target.value) || 0)}
+                    value={v.stock}
+                    onChange={e => updateVariant(idx, 'stock', e.target.value)}
                   />
-                  <AlertTriangle size={14} className="threshold-icon" />
+                  <button onClick={() => updateVariant(idx, 'stock', v.stock + 1)}><Plus size={14} /></button>
+                </div>
+              </div>
+
+              <div className="control-group">
+                <label>Emplacement (Rayon/Casier)</label>
+                <div className="location-input-wrapper">
+                  <MapPin size={14} className="loc-icon" />
+                  <input
+                    type="text"
+                    value={v.location || ''}
+                    onChange={e => updateVariant(idx, 'location', e.target.value)}
+                    placeholder="Ex: A1-02"
+                  />
                 </div>
               </div>
             </div>
-
-            <div className="variants-editor-grid">
-              {variants.map((v: any, idx: number) => (
-                <div key={idx} className="variant-edit-card">
-                  <div className="v-card-header">
-                    <span className="v-card-tag">{v.size}</span>
-                    <span className="v-card-color-name">{v.color}</span>
-                  </div>
-
-                  <div className="v-card-controls">
-                    <div className="control-group">
-                      <label>Quantité en stock</label>
-                      <div className="qty-stepper">
-                        <button onClick={() => updateVariant(idx, 'stock', v.stock - 1)}><Minus size={14} /></button>
-                        <input
-                          type="number"
-                          value={v.stock}
-                          onChange={e => updateVariant(idx, 'stock', e.target.value)}
-                        />
-                        <button onClick={() => updateVariant(idx, 'stock', v.stock + 1)}><Plus size={14} /></button>
-                      </div>
-                    </div>
-
-                    <div className="control-group">
-                      <label>Emplacement (Rayon/Casier)</label>
-                      <div className="location-input-wrapper">
-                        <MapPin size={14} className="loc-icon" />
-                        <input
-                          type="text"
-                          value={v.location || ''}
-                          onChange={e => updateVariant(idx, 'location', e.target.value)}
-                          placeholder="Ex: A1-02"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Modal>
-          );
+          </div>
+        ))}
+      </div>
+    </Modal>
+  );
 }
 
-          // ============================================
-          // PRODUCT EDIT MODAL
-          // ============================================
-          function ProductEditModal({product, onClose}: {product: any; onClose: () => void }) {
+// ============================================
+// PRODUCT EDIT MODAL
+// ============================================
+function ProductEditModal({ product, onClose }: { product: any; onClose: () => void }) {
   const [formData, setFormData] = useState({
-            name: product.name,
-          price: Number(product.price),
-          oldPrice: product.oldPrice ? Number(product.oldPrice) : null,
-          category: product.category?.name || '',
-          description: product.description || '',
-          material: product.material || '',
-          origin: product.origin || '',
-          supplier: product.supplier?.name || '',
-          location: product.location || '',
-          isPublished: product.status === 'PUBLISHED',
-          isFeatured: product.isFeatured ?? false,
+    name: product.name,
+    price: Number(product.price),
+    oldPrice: product.oldPrice ? Number(product.oldPrice) : null,
+    category: product.category?.name || '',
+    description: product.description || '',
+    material: product.material || '',
+    origin: product.origin || '',
+    supplier: product.supplier?.name || '',
+    location: product.location || '',
+    isPublished: product.status === 'PUBLISHED',
+    isFeatured: product.isFeatured ?? false,
   });
-          const [isPending, startTransition] = useTransition();
-          const {showToast} = useToast();
-          const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const { showToast } = useToast();
+  const router = useRouter();
 
   const handleSave = () => {
-            startTransition(async () => {
-              try {
-                await updateProduct(product.id, formData);
-                showToast('Produit mis à jour ✓', 'success');
-                router.refresh();
-                onClose();
-              } catch (e: any) {
-                showToast(e.message || 'Erreur', 'error');
-              }
-            });
+    startTransition(async () => {
+      try {
+        await updateProduct(product.id, formData);
+        showToast('Produit mis à jour ✓', 'success');
+        router.refresh();
+        onClose();
+      } catch (e: any) {
+        showToast(e.message || 'Erreur', 'error');
+      }
+    });
   };
 
-          return (
-          <Modal isOpen={true} onClose={onClose} title={`Modifier · ${product.name}`}
-            footer={
-              <>
-                <button className="btn-secondary" onClick={onClose}>Annuler</button>
-                <button className="btn-orange" onClick={handleSave} disabled={isPending}>
-                  {isPending ? 'Sauvegarde...' : 'Enregistrer'}
-                </button>
-              </>
-            }
-          >
-            <div className="form-grid">
-              <div className="form-row">
-                <label className="field-label">Nom du produit</label>
-                <input className="field-input" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
-              </div>
-              <div className="form-row">
-                <label className="field-label">Catégorie</label>
-                <select className="field-input" value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })}>
-                  {Object.entries(CATEGORIES).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
-                </select>
-              </div>
-              <div className="form-row">
-                <label className="field-label">Prix (FCFA)</label>
-                <input type="number" className="field-input" value={formData.price} onChange={e => setFormData({ ...formData, price: parseInt(e.target.value) || 0 })} />
-              </div>
-              <div className="form-row">
-                <label className="field-label">Ancien prix (optionnel)</label>
-                <input type="number" className="field-input" value={formData.oldPrice || ''} onChange={e => setFormData({ ...formData, oldPrice: parseInt(e.target.value) || null })} />
-              </div>
-              <div className="form-row">
-                <label className="field-label">Fournisseur</label>
-                <input className="field-input" value={formData.supplier} onChange={e => setFormData({ ...formData, supplier: e.target.value })} />
-              </div>
-              <div className="form-row">
-                <label className="field-label">Matière</label>
-                <input className="field-input" value={formData.material} onChange={e => setFormData({ ...formData, material: e.target.value })} placeholder="Ex. Cuir" />
-              </div>
-              <div className="form-row">
-                <label className="field-label">Provenance</label>
-                <input className="field-input" value={formData.origin} onChange={e => setFormData({ ...formData, origin: e.target.value })} placeholder="Ex. Côte d'Ivoire" />
-              </div>
-              <div className="form-row">
-                <label className="field-label">Emplacement principal</label>
-                <input className="field-input" value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} />
-              </div>
-              <div className="form-row" style={{ gridColumn: '1 / -1' }}>
-                <label className="field-label">Description</label>
-                <textarea className="field-input" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} style={{ minHeight: 80 }} />
-              </div>
+  return (
+    <Modal isOpen={true} onClose={onClose} title={`Modifier · ${product.name}`}
+      footer={
+        <>
+          <button className="btn-secondary" onClick={onClose}>Annuler</button>
+          <button className="btn-orange" onClick={handleSave} disabled={isPending}>
+            {isPending ? 'Sauvegarde...' : 'Enregistrer'}
+          </button>
+        </>
+      }
+    >
+      <div className="form-grid">
+        <div className="form-row">
+          <label className="field-label">Nom du produit</label>
+          <input className="field-input" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
+        </div>
+        <div className="form-row">
+          <label className="field-label">Catégorie</label>
+          <select className="field-input" value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })}>
+            {Object.entries(CATEGORIES).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+          </select>
+        </div>
+        <div className="form-row">
+          <label className="field-label">Prix (FCFA)</label>
+          <input type="number" className="field-input" value={formData.price} onChange={e => setFormData({ ...formData, price: parseInt(e.target.value) || 0 })} />
+        </div>
+        <div className="form-row">
+          <label className="field-label">Ancien prix (optionnel)</label>
+          <input type="number" className="field-input" value={formData.oldPrice || ''} onChange={e => setFormData({ ...formData, oldPrice: parseInt(e.target.value) || null })} />
+        </div>
+        <div className="form-row">
+          <label className="field-label">Fournisseur</label>
+          <input className="field-input" value={formData.supplier} onChange={e => setFormData({ ...formData, supplier: e.target.value })} />
+        </div>
+        <div className="form-row">
+          <label className="field-label">Matière</label>
+          <input className="field-input" value={formData.material} onChange={e => setFormData({ ...formData, material: e.target.value })} placeholder="Ex. Cuir" />
+        </div>
+        <div className="form-row">
+          <label className="field-label">Provenance</label>
+          <input className="field-input" value={formData.origin} onChange={e => setFormData({ ...formData, origin: e.target.value })} placeholder="Ex. Côte d'Ivoire" />
+        </div>
+        <div className="form-row">
+          <label className="field-label">Emplacement principal</label>
+          <input className="field-input" value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} />
+        </div>
+        <div className="form-row" style={{ gridColumn: '1 / -1' }}>
+          <label className="field-label">Description</label>
+          <textarea className="field-input" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} style={{ minHeight: 80 }} />
+        </div>
 
-              <div className="form-row" style={{ gridColumn: '1 / -1', display: 'flex', gap: 20, paddingTop: 10, borderTop: '1px solid var(--line)' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
-                  <input
-                    type="checkbox"
-                    checked={formData.isPublished}
-                    onChange={e => setFormData({ ...formData, isPublished: e.target.checked })}
-                  />
-                  Publié sur le site
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
-                  <input
-                    type="checkbox"
-                    checked={formData.isFeatured}
-                    onChange={e => setFormData({ ...formData, isFeatured: e.target.checked })}
-                  />
-                  ⭐ Mettre en avant
-                </label>
-              </div>
-            </div>
-          </Modal>
-          );
+        <div className="form-row" style={{ gridColumn: '1 / -1', display: 'flex', gap: 20, paddingTop: 10, borderTop: '1px solid var(--line)' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+            <input
+              type="checkbox"
+              checked={formData.isPublished}
+              onChange={e => setFormData({ ...formData, isPublished: e.target.checked })}
+            />
+            Publié sur le site
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+            <input
+              type="checkbox"
+              checked={formData.isFeatured}
+              onChange={e => setFormData({ ...formData, isFeatured: e.target.checked })}
+            />
+            ⭐ Mettre en avant
+          </label>
+        </div>
+      </div>
+    </Modal>
+  );
 }

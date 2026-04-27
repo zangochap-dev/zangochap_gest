@@ -100,6 +100,7 @@ export async function createProduct(data: {
     location?: string;
   }>;
   images?: Array<{ name: string; dataUrl: string }>;
+  warehouseId?: string;
 }) {
   const session = await getSession();
   if (!session) throw new Error("Non authentifié");
@@ -165,14 +166,14 @@ export async function createProduct(data: {
     include: { variants: true, images: true },
   });
 
-  // Initialize stock levels in default warehouse
-  const defaultWarehouse = await getOrCreateDefaultWarehouse();
+  // Initialize stock levels in selected or default warehouse
+  const targetWarehouseId = data.warehouseId || (await getOrCreateDefaultWarehouse()).id;
   await Promise.all(product.variants.map(v => {
     const initialQty = data.variants.find(dv => dv.size === v.size && dv.color === v.color)?.stock || 0;
     return prisma.stockLevel.create({
       data: {
         variantId: v.id,
-        warehouseId: defaultWarehouse.id,
+        warehouseId: targetWarehouseId,
         quantity: initialQty,
         position: v.location || null
       }

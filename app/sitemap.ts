@@ -39,7 +39,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     select: { id: true, updatedAt: true },
   });
 
-  const productPages: MetadataRoute.Sitemap = products.map((product) => ({
+  const productPages: MetadataRoute.Sitemap = products.map((product: { id: string; updatedAt: Date }) => ({
     url: `${SITE_URL}/product/${product.id}`,
     lastModified: product.updatedAt,
     changeFrequency: "weekly" as const,
@@ -51,7 +51,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     select: { name: true },
   });
 
-  const categoryPages: MetadataRoute.Sitemap = categories.map((cat) => ({
+  const categoryPages: MetadataRoute.Sitemap = categories.map((cat: { name: string }) => ({
     url: `${SITE_URL}/search?q=${encodeURIComponent(cat.name)}`,
     lastModified: new Date(),
     changeFrequency: "weekly" as const,

@@ -5,13 +5,15 @@ import { formatPrice } from "@/lib/constants";
 import Link from "next/link";
 import { ArrowRight, Zap, Sparkles, Tag } from "lucide-react";
 
+import { Product, Category } from "@/lib/types";
+
 export default function HomeClient({ products, categories, latestPromo }: {
-  products: any[],
-  categories: any[],
+  products: Product[],
+  categories: Category[],
   latestPromo: any
 }) {
   // Logic
-  const flashSales = products.filter(p => p.oldPrice && Number(p.oldPrice) > Number(p.price)).slice(0, 4);
+  const flashSales = products.filter((p: Product) => p.oldPrice && Number(p.oldPrice) > Number(p.price)).slice(0, 4);
   const newArrivals = products.slice(0, 6);
 
   return (
@@ -41,7 +43,7 @@ export default function HomeClient({ products, categories, latestPromo }: {
           <h2>NOS CATÉGORIES</h2>
         </div>
         <div className="categories-grid">
-          {categories.map((cat) => (
+          {categories.map((cat: Category) => (
             <Link href={`/search?q=${cat.name}`} key={cat.id} className="category-item">
               <div className="cat-icon-box">
                 {cat.name.charAt(0)}
@@ -64,7 +66,7 @@ export default function HomeClient({ products, categories, latestPromo }: {
             <p>Offres à durée limitée</p>
           </div>
           <div className="product-grid">
-            {flashSales.map((p) => (
+            {flashSales.map((p: Product) => (
               <ProductCard p={p} key={p.id} />
             ))}
           </div>
@@ -81,7 +83,7 @@ export default function HomeClient({ products, categories, latestPromo }: {
           <p>Les dernières pièces de la collection</p>
         </div>
         <div className="product-grid">
-          {newArrivals.map((p) => (
+          {newArrivals.map((p: Product) => (
             <ProductCard p={p} key={p.id} />
           ))}
         </div>

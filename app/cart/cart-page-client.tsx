@@ -8,8 +8,9 @@ import Link from "next/link";
 import { createOrder } from "@/modules/orders/actions";
 import { useToast } from "@/components/Toast";
 import { useRouter } from "next/navigation";
+import { Commune } from "@/lib/types";
 
-export default function CartPageClient({ communes = [] }: { communes?: any[] }) {
+export default function CartPageClient({ communes = [] }: { communes?: Commune[] }) {
   const { cart, removeFromCart, total, clearCart } = useCart();
   const { showToast } = useToast();
   const router = useRouter();
@@ -113,7 +114,7 @@ export default function CartPageClient({ communes = [] }: { communes?: any[] }) 
       <div className="cart-layout">
         {/* ═══ ITEMS ═══ */}
         <div className="cart-items">
-          {cart.map((item) => (
+          {cart.map((item: any) => (
             <div key={item.variantId} className="cart-item">
               <div className="item-img">
                 {item.image ? <img src={item.image} alt="" /> : <span className="item-placeholder">Z</span>}
@@ -150,7 +151,7 @@ export default function CartPageClient({ communes = [] }: { communes?: any[] }) 
               <label>COMMUNE</label>
               <select value={commune} onChange={e => setCommune(e.target.value)} required>
                 <option value="">Sélectionner</option>
-                {communes.map(c => <option key={c.id} value={c.name}>{c.name} (+{c.deliveryFee.toLocaleString()} F)</option>)}
+                {communes.map((c: Commune) => <option key={c.id} value={c.name}>{c.name} (+{c.deliveryFee.toLocaleString()} F)</option>)}
               </select>
             </div>
             <div className="field">

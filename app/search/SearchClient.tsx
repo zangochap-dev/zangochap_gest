@@ -1,15 +1,18 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { formatPrice } from "@/lib/constants";
 import Link from "next/link";
+import { Product } from "@/lib/types";
 
 interface SearchClientProps {
   query: string;
-  products: any[];
+  products: Product[];
 }
 
 export default function SearchClient({ query, products }: SearchClientProps) {
+  const [search, setSearch] = useState("");
+
   return (
     <div className="search-page">
       <div className="search-header">
@@ -21,7 +24,7 @@ export default function SearchClient({ query, products }: SearchClientProps) {
       </div>
 
       <div className="product-grid">
-        {products.map((p) => (
+        {products.map((p: Product) => (
           <Link
             href={`/product/${p.id}`}
             key={p.id}

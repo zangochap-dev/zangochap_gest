@@ -4,10 +4,11 @@ import React, { useState, useMemo } from "react";
 import { formatPrice } from "@/lib/constants";
 import Link from "next/link";
 import { Filter, X, ChevronDown, SlidersHorizontal } from "lucide-react";
+import { Product, Category } from "@/lib/types";
 
 export default function ShopClient({ initialProducts, categories }: { 
-  initialProducts: any[], 
-  categories: any[] 
+  initialProducts: Product[], 
+  categories: Category[] 
 }) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [priceRange, setPriceRange] = useState<number>(500000);
@@ -73,13 +74,13 @@ export default function ShopClient({ initialProducts, categories }: {
                 >
                   Tout voir
                 </button>
-                {categories.map(cat => (
+                {categories.map((cat: Category) => (
                   <button 
                     key={cat.id}
                     className={selectedCategory === cat.name ? "active" : ""}
                     onClick={() => { setSelectedCategory(cat.name); setCurrentPage(1); }}
                   >
-                    {cat.name} <span>({cat._count.products})</span>
+                    {cat.name} <span>({cat._count?.products})</span>
                   </button>
                 ))}
               </div>
@@ -108,7 +109,7 @@ export default function ShopClient({ initialProducts, categories }: {
           <main className="main-grid">
             <div className="results-count">{filteredProducts.length} PRODUITS TROUVÉS</div>
             <div className="product-grid">
-              {paginatedProducts.map(p => (
+              {paginatedProducts.map((p: Product) => (
                 <ProductCard p={p} key={p.id} />
               ))}
             </div>
@@ -161,7 +162,7 @@ export default function ShopClient({ initialProducts, categories }: {
            <div className="filter-group">
               <h3>CATÉGORIES</h3>
               <div className="mobile-cat-grid">
-                {categories.map(cat => (
+                {categories.map((cat: Category) => (
                   <button 
                     key={cat.id}
                     className={selectedCategory === cat.name ? "active" : ""}
@@ -283,7 +284,7 @@ export default function ShopClient({ initialProducts, categories }: {
   );
 }
 
-function ProductCard({ p }: { p: any }) {
+function ProductCard({ p }: { p: Product }) {
   const discount = p.oldPrice ? Math.round((1 - Number(p.price) / Number(p.oldPrice)) * 100) : 0;
 
   return (

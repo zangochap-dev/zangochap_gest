@@ -33,6 +33,7 @@ enum OrderStatus {
   EXCHANGED
   REPROGRAMMED
   PREPARING
+  PARTIALLY_DELIVERED
 }
 
 enum MovementType {
@@ -71,6 +72,8 @@ model User {
   password    String
   role        Role         @default(COMMERCIAL)
   initials    String?
+  phone2      String?      // Second numéro
+  serviceLabel String?     // Libellé si numéro de service
   orders      Order[]      @relation("CommercialOrders")
   products    Product[]    @relation("CreatedProducts")
   settlements Settlement[] @relation("DeliverySettlements")
@@ -97,6 +100,8 @@ model Settlement {
   deliverymanId String
   deliveryman   User             @relation("DeliverySettlements", fields: [deliverymanId], references: [id])
   amount        Int
+  productsAmount Int           @default(0)
+  deliveryFeesAmount Int        @default(0)
   ordersCount   Int
   status        SettlementStatus @default(PENDING)
   notes         String?
@@ -254,10 +259,14 @@ model Order {
   deliverymanId    String?
   deliverymanName  String?
   deliveredAt      String? // ISO string for simple display
+  paymentMethod    String? // MTN, Orange, Wave, etc.
   
   settlement       Settlement? @relation("OrderSettlement", fields: [settlementId], references: [id])
   settlementId     String?
 
+  isCommercialContacted Boolean     @default(false)
+  returnReason          String?
+  
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 }
@@ -275,6 +284,7 @@ model OrderItem {
   isGift    Boolean  @default(false)
   isVerified Boolean  @default(false)
   verifiedAt DateTime?
+  isDelivered Boolean  @default(true)
   order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   orderId   String
   product   Product? @relation(fields: [productId], references: [id])

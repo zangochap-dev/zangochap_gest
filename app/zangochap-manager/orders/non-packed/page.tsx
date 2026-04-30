@@ -12,8 +12,10 @@ import NonPackedClient from "./NonPackedClient";
 export default async function NonPackedOrdersPage() {
   const user = await getSession();
 
-  // Non-packed = confirmed but not yet packed
-  const where: any = { status: { in: ['CONFIRMED', 'PENDING', 'TO_PROCESS'] } };
+  // Non-packed follow-up: orders with issues or explicitly marked partial
+  const where: any = { 
+    status: { in: ['CONFIRMED', 'PENDING', 'TO_PROCESS', 'PARTIAL'] } 
+  };
   
   // Commercials only see their own
   if (user?.role === 'commercial') {
@@ -29,28 +31,46 @@ export default async function NonPackedOrdersPage() {
     include: { items: true },
   });
 
-  // Split orders: standard vs with alternatives
   const notPacked: any[] = [];
   const withAlternatives: any[] = [];
 
   allOrders.forEach(o => {
     const history = Array.isArray(o.history) ? (o.history as any[]) : [];
+    
+    // Check if packers explicitly signaled an issue
+    const hasLogIssue = history.some(h => {
+      const act = h.action.toLowerCase();
+      return act.includes('propose') || 
+             act.includes('alternative') || 
+             act.includes('indispo') || 
+             act.includes('manque') || 
+             act.includes('pas en stock') || 
+             act.includes('note') || 
+             act.includes('problème');
+    });
+
+    // Explicitly include PARTIAL orders even without specific logs (though they should have logs)
+    if (!hasLogIssue && o.status !== 'PARTIAL') return;
+
     const hasAlt = history.some(h => 
       h.action.toLowerCase().includes('propose') || 
       h.action.toLowerCase().includes('alternative')
     );
     
     // Extract motif
-    const lastLogEvent = [...history].reverse().find(h => 
-      h.action.toLowerCase().includes('note') || 
-      h.action.toLowerCase().includes('indispo') || 
-      h.action.toLowerCase().includes('propose') || 
-      h.action.toLowerCase().includes('alternative')
-    );
+    const lastLogEvent = [...history].reverse().find(h => {
+      const act = h.action.toLowerCase();
+      return act.includes('note') || 
+             act.includes('indispo') || 
+             act.includes('propose') || 
+             act.includes('alternative') ||
+             act.includes('manque') ||
+             act.includes('pas en stock');
+    });
     
     const orderWithMotif = {
       ...o,
-      motif: lastLogEvent ? lastLogEvent.action : 'En attente d\'emballage'
+      motif: lastLogEvent ? lastLogEvent.action : (o.status === 'PARTIAL' ? 'Emballage partiel' : 'Signalement emballeur')
     };
 
     if (hasAlt) {

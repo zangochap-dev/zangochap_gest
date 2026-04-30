@@ -9,16 +9,20 @@ export const dynamic = "force-dynamic";
 export default async function CollectionPage() {
   const user = await getSession();
 
+  const categories = await prisma.category.findMany({ orderBy: { name: 'asc' } });
+  const warehouses = await prisma.warehouse.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } });
+
   const orders = await prisma.order.findMany({
     where: {
-      status: { in: ['CONFIRMED', 'TO_PROCESS', 'PENDING'] }
+      status: { in: ['CONFIRMED', 'TO_PROCESS', 'PENDING', 'PACKED', 'PARTIAL'] }
     },
     include: { items: true },
-    orderBy: { createdAt: 'desc' }
+    orderBy: { createdAt: 'desc' },
+    take: 300 // Limit for performance, but enough for recent logistics
   });
 
   const products = await prisma.product.findMany({
-    include: { variants: true },
+    include: { variants: { include: { stockLevels: { include: { warehouse: true } } } }, category: true },
   });
 
   // Build toCollect items
@@ -32,26 +36,23 @@ export default async function CollectionPage() {
       const product = productMap.get(item.productId);
       if (!product) continue;
 
-      // Check specific variant stock
-      const variant = product.variants.find((v: any) => v.size === item.size && v.color === item.color);
-
-      // If variant exists and stock is 0, OR if no variants and global stock is 0
-      const isOutOfStock = variant ? variant.stock <= 0 : product.stock <= 0;
-
-      if (isOutOfStock) {
-        toCollect.push({
-          order: JSON.parse(JSON.stringify(order)),
-          item: JSON.parse(JSON.stringify(item)),
-          product: JSON.parse(JSON.stringify(product)),
-        });
-      }
+      toCollect.push({
+        order: JSON.parse(JSON.stringify(order)),
+        item: JSON.parse(JSON.stringify(item)),
+        product: JSON.parse(JSON.stringify(product)),
+      });
     }
   }
 
   return (
     <>
-      <Topbar title="À" subtitle="collecter" />
-      <CollectionClient toCollect={toCollect} user={user} />
+      <Topbar title="Logistique" subtitle="Collecte" />
+      <CollectionClient 
+        toCollect={toCollect} 
+        user={user} 
+        categories={categories} 
+        warehouses={warehouses}
+      />
     </>
   );
 }

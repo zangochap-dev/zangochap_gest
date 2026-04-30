@@ -44,8 +44,8 @@ export async function loginAction(formData: FormData) {
     maxAge: 60 * 60 * 24 * 7, // 7 days
   });
 
-  if (user.role === 'LIVREUR') {
-    redirect("/zangochap-manager/delivery");
+  if (user.role.toUpperCase() === 'LIVREUR') {
+    redirect("/zangochap-rider");
   } else {
     redirect("/zangochap-manager/dashboard");
   }
@@ -77,6 +77,8 @@ export async function createAccount(data: {
   name: string;
   email: string;
   phone?: string;
+  phone2?: string;
+  serviceLabel?: string;
   password: string;
   role: string;
 }) {
@@ -91,6 +93,8 @@ export async function createAccount(data: {
       email: data.email.toLowerCase(),
       name: data.name,
       phone: data.phone,
+      phone2: data.phone2,
+      serviceLabel: data.serviceLabel,
       password: hashedPassword,
       role: data.role.toUpperCase() as any,
       initials,
@@ -98,6 +102,7 @@ export async function createAccount(data: {
   });
 
   revalidatePath("/zangochap-manager/admin/team");
+  revalidatePath("/zangochap-manager/directory");
   return { success: true };
 }
 
@@ -105,6 +110,8 @@ export async function updateAccount(email: string, data: {
   name?: string;
   email?: string;
   phone?: string;
+  phone2?: string;
+  serviceLabel?: string;
   role?: string;
   password?: string;
 }) {
@@ -115,6 +122,8 @@ export async function updateAccount(email: string, data: {
   }
   if (data.email) updateData.email = data.email.toLowerCase();
   if (data.phone) updateData.phone = data.phone;
+  if (data.phone2 !== undefined) updateData.phone2 = data.phone2;
+  if (data.serviceLabel !== undefined) updateData.serviceLabel = data.serviceLabel;
   if (data.role) updateData.role = data.role.toUpperCase();
   if (data.password && data.password.length >= 4) {
     updateData.password = await bcrypt.hash(data.password, 10);
@@ -126,6 +135,7 @@ export async function updateAccount(email: string, data: {
   });
 
   revalidatePath("/zangochap-manager/admin/team");
+  revalidatePath("/zangochap-manager/directory");
   return { success: true };
 }
 

@@ -2,232 +2,223 @@
 
 import React, { useState, useTransition, useMemo, useCallback } from 'react';
 import { TableCard, StatCard, EmptyState } from '@/components/UI';
+import Modal from '@/components/Modal';
 import {
   Truck, CheckCircle, Search, ArrowUpRight, User, Banknote,
   Calendar, ChevronDown, ChevronUp, Package, Clock, History,
-  Wallet, X, Eye
+  Wallet, X, Eye, PhoneCall, CheckCircle2, RotateCcw, Filter, ArrowRight,
+  ShoppingBag, Tag, Info
 } from 'lucide-react';
 import { formatPrice, formatDate } from '@/lib/constants';
-import { createSettlement } from '@/modules/orders/actions';
-import { useRouter } from 'next/navigation';
+import { createSettlement, toggleCommercialContacted } from '@/modules/orders/actions';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/components/Toast';
 
 interface Props {
   pendingOrders: any[];
   history: any[];
+  riderStats: { riders: any[], orders: any[] };
+  initialFrom?: string;
+  initialTo?: string;
+  initialRiderId?: string;
 }
 
-export default function SettlementClient({ pendingOrders, history }: Props) {
+export default function SettlementClient({ 
+  pendingOrders, 
+  history, 
+  riderStats,
+  initialFrom,
+  initialTo,
+  initialRiderId 
+}: Props) {
   const [isPending, startTransition] = useTransition();
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<"pending" | "history">("pending");
-  const [expandedRider, setExpandedRider] = useState<string | null>(null);
+  const [selectedRiderData, setSelectedRiderData] = useState<any | null>(null);
+  
+  const [from, setFrom] = useState(initialFrom || "");
+  const [to, setTo] = useState(initialTo || "");
+  
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { showToast } = useToast();
 
+  const handleFilter = (f?: string, t?: string, r?: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (f) params.set("from", f); else params.delete("from");
+    if (t) params.set("to", t); else params.delete("to");
+    if (r) params.set("riderId", r); else params.delete("riderId");
+    router.push(`?${params.toString()}`);
+  };
+
   const groups = useMemo(() => {
-    const acc: Record<string, any> = {};
-    pendingOrders.forEach(order => {
-      const key = order.deliverymanId || 'unknown';
-      if (!acc[key]) acc[key] = { id: key, name: order.deliverymanName || 'Inconnu', orders: [], total: 0 };
-      acc[key].orders.push(order);
-      acc[key].total += (order.total + order.deliveryFee - (order.discount || 0));
-    });
-    return Object.values(acc).sort((a: any, b: any) => b.total - a.total) as any[];
-  }, [pendingOrders]);
+    return riderStats.riders;
+  }, [riderStats]);
 
-  const totalPending = useMemo(() =>
-    pendingOrders.reduce((s, o) => s + (o.total + o.deliveryFee - (o.discount || 0)), 0),
-  [pendingOrders]);
+  const totalGrandTotal = useMemo(() =>
+    riderStats.riders.reduce((s, r) => s + r.totalGrandTotal, 0),
+  [riderStats]);
 
-  const totalSettled = useMemo(() =>
-    history.reduce((s: number, h: any) => s + h.amount, 0),
-  [history]);
+  const totalProducts = useMemo(() =>
+    riderStats.riders.reduce((s, r) => s + r.totalProducts, 0),
+  [riderStats]);
 
-  const filteredOrders = useMemo(() =>
-    pendingOrders.filter(o =>
-      o.ref?.toLowerCase().includes(search.toLowerCase()) ||
-      o.customerName?.toLowerCase().includes(search.toLowerCase()) ||
-      o.deliverymanName?.toLowerCase().includes(search.toLowerCase())
-    ), [pendingOrders, search]);
+  const totalDeliveryFees = useMemo(() =>
+    riderStats.riders.reduce((s, r) => s + r.totalDeliveryFees, 0),
+  [riderStats]);
 
   const handleSettle = useCallback((dId: string, orders: any[]) => {
-    const total = orders.reduce((s: number, o: any) => s + (o.total + o.deliveryFee - (o.discount || 0)), 0);
+    const deliverableOrders = orders.filter(o => ['DELIVERED', 'PARTIALLY_DELIVERED'].includes(o.status));
+    if (deliverableOrders.length === 0) {
+      showToast("Aucune commande livrée à régler pour ce livreur.", "default");
+      return;
+    }
+
+    const total = deliverableOrders.reduce((s: number, o: any) => s + (o.total + o.deliveryFee - (o.discount || 0)), 0);
     const name = orders[0]?.deliverymanName || "Livreur";
+    
     if (!confirm(`Valider l'encaissement de ${formatPrice(total)} de ${name} ?`)) return;
+    
     startTransition(async () => {
       try {
-        await createSettlement(dId, orders.map(o => o.id), total);
+        await createSettlement(dId, deliverableOrders.map(o => o.id), total);
         showToast(`Règlement de ${name} validé ✓`, 'success');
+        setSelectedRiderData(null);
         router.refresh();
       } catch (e: any) { showToast(e.message || "Erreur", 'error'); }
     });
   }, [router, showToast]);
 
-  const toggleExpand = useCallback((id: string) => {
-    setExpandedRider(prev => prev === id ? null : id);
-  }, []);
+  const handleToggleContacted = (orderId: string, current: boolean) => {
+    startTransition(async () => {
+      try {
+        await toggleCommercialContacted(orderId, !current);
+        showToast("Statut mis à jour", "success");
+        // Update local state if modal is open
+        if (selectedRiderData) {
+          const updatedOrders = selectedRiderData.orders.map((o: any) => 
+            o.id === orderId ? { ...o, isCommercialContacted: !current } : o
+          );
+          setSelectedRiderData({ ...selectedRiderData, orders: updatedOrders });
+        }
+        router.refresh();
+      } catch (e: any) {
+        showToast(e.message, "error");
+      }
+    });
+  };
+
+  const openRiderDetails = (rider: any) => {
+    setSelectedRiderData(rider);
+  };
 
   return (
     <div className="content animate-fade-in">
       {/* STATS */}
       <div className="stats-grid">
-        <StatCard label="En attente" value={formatPrice(totalPending)} icon={<Wallet size={20} />} accent />
-        <StatCard label="Livreurs" value={groups.length} icon={<Truck size={20} />} color="var(--blue)" />
-        <StatCard label="Commandes" value={pendingOrders.length} icon={<Package size={20} />} color="var(--amber)" />
-        <StatCard label="Déjà réglé" value={formatPrice(totalSettled)} icon={<CheckCircle size={20} />} color="var(--green)" />
+        <StatCard label="Montant Global" value={formatPrice(totalGrandTotal)} icon={<Wallet size={20} />} accent />
+        <StatCard label="Total Produits" value={formatPrice(totalProducts)} icon={<ShoppingBag size={20} />} color="var(--orange)" />
+        <StatCard label="Total Livraison" value={formatPrice(totalDeliveryFees)} icon={<Truck size={20} />} color="var(--blue)" />
+        <StatCard label="Livreurs" value={groups.length} icon={<User size={20} />} color="var(--ink)" />
       </div>
 
-      {/* TABS */}
-      <div className="filters-bar" style={{ marginBottom: 20 }}>
-        <button
-          className={`filter-chip ${activeTab === 'pending' ? 'active' : ''}`}
-          onClick={() => setActiveTab('pending')}
-        >
-          <Banknote size={14} /> À encaisser
-        </button>
-        <button
-          className={`filter-chip ${activeTab === 'history' ? 'active' : ''}`}
-          onClick={() => setActiveTab('history')}
-        >
-          <History size={14} /> Historique
-        </button>
+      {/* FILTERS & TABS */}
+      <div className="filters-container">
+        <div className="filters-bar">
+          <button
+            className={`filter-chip ${activeTab === 'pending' ? 'active' : ''}`}
+            onClick={() => setActiveTab('pending')}
+          >
+            <Banknote size={14} /> Règlements en cours
+          </button>
+          <button
+            className={`filter-chip ${activeTab === 'history' ? 'active' : ''}`}
+            onClick={() => setActiveTab('history')}
+          >
+            <History size={14} /> Historique détaillé
+          </button>
+        </div>
+
+        <div className="date-filters">
+          <div className="date-input-group">
+            <Calendar size={14} />
+            <input type="date" value={from} onChange={e => setFrom(e.target.value)} />
+          </div>
+          <ArrowRight size={14} className="range-sep" />
+          <div className="date-input-group">
+            <Calendar size={14} />
+            <input type="date" value={to} onChange={e => setTo(e.target.value)} />
+          </div>
+          <button className="apply-btn-sm" onClick={() => handleFilter(from, to, initialRiderId)}>
+            <Filter size={14} />
+          </button>
+        </div>
       </div>
 
       {/* === PENDING TAB === */}
       {activeTab === "pending" && (
-        <>
-          {/* RIDER CARDS */}
-          <div className="settle-grid">
-            {groups.length === 0 ? (
-              <div style={{ gridColumn: '1 / -1' }}>
-                <EmptyState icon="✅" title="Tout est à jour" description="Aucun encaissement en attente." />
-              </div>
-            ) : groups.map((d: any) => {
-              const isExpanded = expandedRider === d.id;
-              const initials = d.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2);
-              return (
-                <div key={d.id} className="settle-card">
-                  {/* CARD HEADER */}
-                  <div className="settle-card-top">
-                    <div className="settle-avatar">{initials}</div>
-                    <div className="settle-info">
-                      <div className="cell-strong">{d.name}</div>
-                      <div className="cell-muted">{d.orders.length} commande(s)</div>
-                    </div>
+        <div className="settle-grid">
+          {groups.length === 0 ? (
+            <div style={{ gridColumn: '1 / -1' }}>
+              <EmptyState icon="✅" title="Aucune donnée" description="Sélectionnez une période ou attendez de nouvelles livraisons." />
+            </div>
+          ) : groups.map((d: any) => {
+            const initials = d.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2);
+            const uncontactedReturns = d.orders.filter((o: any) => ['RETURNED', 'CANCELLED'].includes(o.status) && !o.isCommercialContacted);
+            
+            return (
+              <div key={d.id} className={`settle-card-simple ${uncontactedReturns.length > 0 ? 'has-warning' : ''}`}>
+                {uncontactedReturns.length > 0 && (
+                  <div className="warning-banner">
+                    <PhoneCall size={12} /> {uncontactedReturns.length} retour(s) non validé(s) par le bureau
                   </div>
-
-                  {/* AMOUNT */}
-                  <div className="settle-amount">
-                    <div className="settle-amount-label">MONTANT À ENCAISSER</div>
-                    <div className="settle-amount-value">{formatPrice(d.total)}</div>
+                )}
+                <div className="settle-card-top">
+                  <div className="settle-avatar">{initials}</div>
+                  <div className="settle-info">
+                    <div className="cell-strong">{d.name}</div>
+                    <div className="cell-muted">{d.orders.length} mission(s)</div>
                   </div>
-
-                  {/* EXPAND TOGGLE */}
-                  <button className="settle-expand-btn" onClick={() => toggleExpand(d.id)}>
-                    {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                    {isExpanded ? "Masquer" : "Voir les commandes"}
+                  <button className="btn-icon-only" onClick={() => openRiderDetails(d)}>
+                    <Eye size={18} />
                   </button>
+                </div>
 
-                  {/* EXPANDED ORDERS */}
-                  {isExpanded && (
-                    <div className="settle-orders-list">
-                      {d.orders.map((o: any, i: number) => (
-                        <div key={o.id} className="settle-order-row" style={{
-                          borderBottom: i < d.orders.length - 1 ? '1px solid var(--line)' : 'none'
-                        }}>
-                          <div>
-                            <span className="cell-mono" style={{ marginRight: 10 }}>
-                              #{o.ref?.split("-").pop()}
-                            </span>
-                            <span className="cell-strong">{o.customerName}</span>
-                            <div className="cell-muted">{o.commune}</div>
-                          </div>
-                          <span className="cell-price">
-                            {formatPrice(o.total + o.deliveryFee - (o.discount || 0))}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* CTA */}
-                  <div className="settle-cta">
-                    <button
-                      className="btn-orange"
-                      style={{ width: '100%', justifyContent: 'center' }}
-                      onClick={() => handleSettle(d.id, d.orders)}
-                      disabled={isPending}
-                    >
-                      {isPending ? "Traitement..." : "Valider l'encaissement"}
-                      {!isPending && <ArrowUpRight size={16} />}
-                    </button>
+                <div className="settle-amounts-row-simple" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                  <div className="simple-amount">
+                    <span className="label">GLOBAL</span>
+                    <span className="val" style={{ fontWeight: 900 }}>{formatPrice(d.totalGrandTotal)}</span>
+                  </div>
+                  <div className="simple-amount">
+                    <span className="label">PRODUITS</span>
+                    <span className="val">{formatPrice(d.totalProducts)}</span>
+                  </div>
+                  <div className="simple-amount">
+                    <span className="label">LIVRAISON</span>
+                    <span className="val" style={{ color: 'var(--blue)' }}>{formatPrice(d.totalDeliveryFees)}</span>
                   </div>
                 </div>
-              );
-            })}
-          </div>
 
-          {/* DETAILED TABLE */}
-          <div style={{ marginTop: 32 }}>
-            <div style={{ position: 'relative', marginBottom: 14 }}>
-              <Search size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--brown-soft)' }} />
-              <input
-                type="text"
-                className="field-input"
-                placeholder="Rechercher par réf, client ou livreur..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                style={{ paddingLeft: 40, borderRadius: 12, height: 44, fontSize: 14, fontWeight: 500 }}
-              />
-              {search && (
-                <button
-                  onClick={() => setSearch('')}
-                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: '#DEE2E6', border: 'none', width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--brown-soft)' }}
-                >
-                  <X size={12} />
-                </button>
-              )}
-            </div>
-
-            <TableCard title="Détail des commandes non réglées" meta={`${filteredOrders.length} commande(s)`}>
-              {filteredOrders.length === 0 ? (
-                <EmptyState icon="📦" title="Aucune commande" description="Aucune commande trouvée." />
-              ) : (
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Réf.</th>
-                      <th>Livreur</th>
-                      <th>Client</th>
-                      <th>Date</th>
-                      <th>Montant</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredOrders.map(o => (
-                      <tr key={o.id}>
-                        <td><span className="cell-mono">{o.ref?.split('-').pop()}</span></td>
-                        <td><div className="cell-strong">{o.deliverymanName}</div></td>
-                        <td>
-                          <div className="cell-strong">{o.customerName}</div>
-                          <div className="cell-muted">{o.commune}</div>
-                        </td>
-                        <td><div className="cell-muted">{formatDate(o.createdAt)}</div></td>
-                        <td><div className="cell-price">{formatPrice(o.total + o.deliveryFee - (o.discount || 0))}</div></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </TableCard>
-          </div>
-        </>
+                <div className="settle-cta">
+                  <button
+                    className="btn-orange"
+                    style={{ width: '100%', justifyContent: 'center' }}
+                    onClick={() => handleSettle(d.id, d.orders)}
+                    disabled={isPending || d.totalGrandTotal === 0}
+                  >
+                    Valider le règlement
+                    <ArrowUpRight size={16} />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
 
       {/* === HISTORY TAB === */}
       {activeTab === "history" && (
-        <TableCard title="Historique des règlements" meta={`${history.length} règlement(s)`}>
+        <TableCard title="Historique détaillé des règlements" meta={`${history.length} règlement(s)`}>
           {history.length === 0 ? (
             <EmptyState icon="📋" title="Aucun historique" description="Les règlements validés apparaîtront ici." />
           ) : (
@@ -236,7 +227,9 @@ export default function SettlementClient({ pendingOrders, history }: Props) {
                 <tr>
                   <th>Livreur</th>
                   <th>Commandes</th>
-                  <th>Montant</th>
+                  <th>Montant Total</th>
+                  <th>Produits</th>
+                  <th>Livraison</th>
                   <th>Validé par</th>
                   <th>Date</th>
                 </tr>
@@ -247,6 +240,8 @@ export default function SettlementClient({ pendingOrders, history }: Props) {
                     <td><div className="cell-strong">{s.deliveryman?.name || "—"}</div></td>
                     <td><span className="source-badge">{s.ordersCount} cmd</span></td>
                     <td><div className="cell-price">{formatPrice(s.amount)}</div></td>
+                    <td><div className="cell-price" style={{ color: 'var(--orange)', fontSize: '13px' }}>{formatPrice(s.productsAmount || 0)}</div></td>
+                    <td><div className="cell-price" style={{ color: 'var(--blue)', fontSize: '13px' }}>{formatPrice(s.deliveryFeesAmount || 0)}</div></td>
                     <td><div className="cell-muted">{s.by}</div></td>
                     <td><div className="cell-muted">{formatDate(s.createdAt)}</div></td>
                   </tr>
@@ -257,106 +252,136 @@ export default function SettlementClient({ pendingOrders, history }: Props) {
         </TableCard>
       )}
 
-      <style jsx>{`
-        .settle-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-          gap: 20px;
-          margin-bottom: 8px;
-        }
-        .settle-card {
-          background: white;
-          border-radius: var(--radius-lg);
-          border: 1px solid var(--line);
-          overflow: hidden;
-          transition: box-shadow 0.2s;
-        }
-        .settle-card:hover {
-          box-shadow: var(--shadow-md);
-        }
-        .settle-card-top {
-          display: flex;
-          align-items: center;
-          gap: 14px;
-          padding: 20px 20px 0;
-        }
-        .settle-avatar {
-          width: 48px;
-          height: 48px;
-          border-radius: 12px;
-          background: var(--orange);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: white;
-          font-family: var(--font-display);
-          font-weight: 700;
-          font-size: 16px;
-          flex-shrink: 0;
-          box-shadow: 0 4px 10px rgba(212, 84, 28, 0.2);
-        }
-        .settle-info {
-          flex: 1;
-        }
-        .settle-amount {
-          margin: 16px 20px;
-          padding: 14px 16px;
-          background: var(--cream);
-          border-radius: var(--radius-md);
-          border: 1px solid var(--line);
-        }
-        .settle-amount-label {
-          font-size: 10px;
-          font-weight: 700;
-          color: var(--brown-soft);
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-          margin-bottom: 4px;
-        }
-        .settle-amount-value {
-          font-size: 22px;
-          font-weight: 800;
-          color: var(--green);
-          font-family: var(--font-display);
-          letter-spacing: -0.02em;
-        }
-        .settle-expand-btn {
-          width: 100%;
-          background: var(--cream);
-          border: none;
-          border-top: 1px solid var(--line);
-          padding: 10px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-          cursor: pointer;
-          color: var(--brown-soft);
-          font-size: 12px;
-          font-weight: 600;
-          transition: background 0.15s;
-        }
-        .settle-expand-btn:hover {
-          background: var(--cream-2);
-        }
-        .settle-orders-list {
-          border-top: 1px solid var(--line);
-        }
-        .settle-order-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 12px 20px;
-        }
-        .settle-cta {
-          padding: 16px 20px;
-          border-top: 1px solid var(--line);
-        }
+      {/* === DETAILS MODAL === */}
+      <Modal 
+        isOpen={!!selectedRiderData} 
+        onClose={() => setSelectedRiderData(null)}
+        title={`Détails : ${selectedRiderData?.name}`}
+        large
+      >
+        {selectedRiderData && (
+          <div className="modal-rider-details">
+            <div className="modal-summary-grid">
+              <div className="modal-summary-card">
+                <span className="label">Montant Global</span>
+                <span className="value">{formatPrice(selectedRiderData.totalGrandTotal)}</span>
+              </div>
+              <div className="modal-summary-card">
+                <span className="label">Produits</span>
+                <span className="value" style={{ color: 'var(--orange)' }}>{formatPrice(selectedRiderData.totalProducts)}</span>
+              </div>
+              <div className="modal-summary-card">
+                <span className="label">Frais Livraison</span>
+                <span className="value" style={{ color: 'var(--blue)' }}>{formatPrice(selectedRiderData.totalDeliveryFees)}</span>
+              </div>
+            </div>
 
-        @media (max-width: 640px) {
-          .settle-grid {
-            grid-template-columns: 1fr;
-          }
+            <div className="modal-sections">
+              <div className="modal-section">
+                <h4 className="section-title"><Truck size={16} /> Livraisons ({selectedRiderData.orders.filter((o: any) => ['DELIVERED', 'PARTIALLY_DELIVERED'].includes(o.status)).length})</h4>
+                <div className="modal-order-list">
+                  {selectedRiderData.orders.filter((o: any) => ['DELIVERED', 'PARTIALLY_DELIVERED'].includes(o.status)).map((o: any) => (
+                    <div key={o.id} className="modal-order-row">
+                      <div className="order-info">
+                        <span className="ref">#{o.ref?.split("-").pop()}</span>
+                        <span className="cust">{o.customerName}</span>
+                        <div className="meta">{o.paymentMethod} • Livraison: {formatPrice(o.deliveryFee)}</div>
+                      </div>
+                      <div className="order-price">
+                        <div className="total">{formatPrice(o.total + o.deliveryFee - (o.discount || 0))}</div>
+                        <div className="prod">Prod: {formatPrice(o.total - (o.discount || 0))}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="modal-section">
+                <h4 className="section-title"><RotateCcw size={16} /> Retours ({selectedRiderData.orders.filter((o: any) => ['RETURNED', 'CANCELLED'].includes(o.status)).length})</h4>
+                <div className="modal-returned-list">
+                  {selectedRiderData.orders.filter((o: any) => ['RETURNED', 'CANCELLED'].includes(o.status)).map((o: any) => (
+                    <div key={o.id} className="modal-returned-card">
+                      <div className="card-header">
+                        <span className="ref">#{o.ref?.split("-").pop()}</span>
+                        <button 
+                          className={`contact-toggle ${o.isCommercialContacted ? 'active' : ''}`}
+                          onClick={() => handleToggleContacted(o.id, o.isCommercialContacted)}
+                          disabled={isPending}
+                        >
+                          {o.isCommercialContacted ? <CheckCircle2 size={12} /> : <PhoneCall size={12} />}
+                          {o.isCommercialContacted ? 'Contacté' : 'Marquer Contacté'}
+                        </button>
+                      </div>
+                      <div className="card-reason">
+                        <Info size={12} />
+                        <span><strong>Motif:</strong> {o.returnReason || "Non spécifié"}</span>
+                      </div>
+                    </div>
+                  ))}
+                  {selectedRiderData.orders.filter((o: any) => ['RETURNED', 'CANCELLED'].includes(o.status)).length === 0 && (
+                    <div className="empty-mini">Aucun retour pour cette période.</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <style jsx>{`
+        .filters-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; gap: 16px; flex-wrap: wrap; }
+        .date-filters { display: flex; align-items: center; gap: 10px; background: white; padding: 6px 12px; border-radius: 12px; border: 1px solid var(--line); }
+        .date-input-group { display: flex; align-items: center; gap: 6px; color: var(--brown-soft); }
+        .date-input-group input { border: none; outline: none; font-size: 12px; font-weight: 600; color: var(--ink); background: transparent; }
+        .apply-btn-sm { width: 32px; height: 32px; border-radius: 8px; background: var(--ink); color: white; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+
+        .settle-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        .settle-card-simple { background: white; border-radius: 16px; border: 1px solid var(--line); padding: 16px; transition: all 0.2s; position: relative; overflow: hidden; }
+        .settle-card-simple.has-warning { border-color: var(--orange); }
+        .warning-banner { background: var(--orange); color: white; font-size: 9px; font-weight: 800; text-align: center; padding: 4px; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; justify-content: center; gap: 6px; margin: -16px -16px 12px -16px; }
+        .settle-card-simple:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+        .settle-card-top { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; position: relative; }
+        .btn-icon-only { position: absolute; right: 0; top: 0; width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--line); background: var(--cream); color: var(--brown-soft); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .settle-avatar { width: 40px; height: 40px; border-radius: 10px; background: var(--orange-soft); color: var(--orange); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; }
+        .settle-amounts-row-simple { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px; background: var(--cream); border-radius: 12px; margin-bottom: 16px; }
+        .simple-amount { display: flex; flex-direction: column; gap: 2px; }
+        .simple-amount .label { font-size: 8px; font-weight: 800; color: var(--brown-soft); text-transform: uppercase; }
+        .simple-amount .val { font-size: 14px; font-weight: 900; color: var(--ink); }
+        .settle-cta { border-top: 1px dashed var(--line); pt: 16px; }
+
+        /* Modal Styles */
+        .modal-rider-details { display: flex; flex-direction: column; gap: 24px; }
+        .modal-summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+        .modal-summary-card { background: var(--cream); padding: 16px; border-radius: 16px; border: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; }
+        .modal-summary-card .label { font-size: 11px; font-weight: 700; color: var(--brown-soft); }
+        .modal-summary-card .value { font-size: 20px; font-weight: 900; color: var(--ink); }
+
+        .modal-sections { display: grid; grid-template-columns: 1.5fr 1fr; gap: 24px; }
+        .section-title { font-size: 14px; font-weight: 800; color: var(--ink); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+        
+        .modal-order-list { display: flex; flex-direction: column; gap: 10px; max-height: 400px; overflow-y: auto; padding-right: 8px; }
+        .modal-order-row { padding: 12px; border-radius: 12px; border: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; }
+        .modal-order-row:hover { background: var(--cream-2); }
+        .order-info { display: flex; flex-direction: column; }
+        .order-info .ref { font-weight: 800; font-size: 13px; color: var(--orange); }
+        .order-info .cust { font-weight: 700; font-size: 13px; color: var(--ink); }
+        .order-info .meta { font-size: 10px; color: var(--brown-soft); }
+        .order-price { text-align: right; }
+        .order-price .total { font-weight: 800; font-size: 14px; color: var(--ink); }
+        .order-price .prod { font-size: 11px; color: var(--blue); font-weight: 600; }
+
+        .modal-returned-list { display: flex; flex-direction: column; gap: 12px; }
+        .modal-returned-card { padding: 12px; border-radius: 12px; background: var(--red-soft); border: 1px solid rgba(255,0,0,0.1); }
+        .modal-returned-card .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .modal-returned-card .ref { font-weight: 800; font-size: 13px; }
+        .contact-toggle { padding: 6px 10px; border-radius: 8px; font-size: 10px; font-weight: 700; display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: white; cursor: pointer; transition: all 0.2s; }
+        .contact-toggle.active { background: var(--green); color: white; border-color: var(--green); }
+        .card-reason { font-size: 12px; color: var(--brown); display: flex; gap: 8px; line-height: 1.4; }
+        .empty-mini { padding: 20px; text-align: center; color: var(--brown-soft); font-size: 13px; font-style: italic; background: var(--cream); border-radius: 12px; }
+
+        @media (max-width: 900px) {
+          .modal-sections { grid-template-columns: 1fr; }
+          .modal-summary-grid { grid-template-columns: 1fr; }
         }
       `}</style>
     </div>

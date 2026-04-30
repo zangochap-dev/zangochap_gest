@@ -42,21 +42,23 @@ export default function NewOrderClient({ products, user }: NewOrderClientProps) 
   const [orderType, setOrderType] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [receiptOrder, setReceiptOrder] = useState<any>(null);
-  
+
   const getDefaultDeliveryDate = () => {
     const now = new Date();
     const target = new Date(now);
     target.setDate(now.getDate() + 1);
-    
+
     // 0 is Sunday, 6 is Saturday. If tomorrow is Sunday, move to Monday.
     if (target.getDay() === 0) {
       target.setDate(target.getDate() + 1);
     }
-    
+
     return target.toISOString().split('T')[0];
   };
 
   const [deliveryDate, setDeliveryDate] = useState(getDefaultDeliveryDate());
+  const [paymentMethod, setPaymentMethod] = useState('');
+  const [customPaymentMethod, setCustomPaymentMethod] = useState('');
 
   const searchParams = useSearchParams();
 
@@ -100,7 +102,7 @@ export default function NewOrderClient({ products, user }: NewOrderClientProps) 
 
   // CRM Search Logic
   useEffect(() => {
-    const query = customerPhone.length >= 3 ? customerPhone : (customerName.length >= 3 ? customerName : '');
+    const query = customerName.length >= 3 ? customerName : '';
     if (!query) {
       setCustomerSuggestions([]);
       return;
@@ -120,7 +122,7 @@ export default function NewOrderClient({ products, user }: NewOrderClientProps) 
     }, 400);
 
     return () => clearTimeout(timer);
-  }, [customerName, customerPhone]);
+  }, [customerName]);
 
   const selectCustomer = (c: any) => {
     setCustomerId(c.id);
@@ -308,7 +310,38 @@ export default function NewOrderClient({ products, user }: NewOrderClientProps) 
 
   const handleWhatsApp = (order: any) => {
     const phone = order.customerPhone.replace(/\s+/g, '');
-    const msg = `Bonjour ${order.customerName}, voici le récapitulatif de votre commande Zangochap #${order.ref}. Merci de votre confiance !`;
+    const names = (order.customerName || "").trim().split(/\s+/);
+    const lastName = names[0] || "";
+    const firstName = names.slice(1).join(" ") || "—";
+    const totalAmount = Number(order.total || 0) + Number(order.deliveryFee || 0);
+
+    const itemsList = order.items.map((i: any) => `${i.name} (${i.size}/${i.color}) x${i.qty}`).join("\n");
+
+    const msg = `🎉 *Votre commande est validée !*
+Veuillez vérifier vos informations enregistrées pour la commande
+Nom: ${lastName}
+Prenom: ${firstName}
+
+Numéro joignable 1: ${order.customerPhone}
+
+Numéro joignable 2 : ${order.customerPhone2 || '—'}
+
+Lieu de livraison : ${order.customerLocation} (${order.commune})
+
+Nom du produit : 
+${itemsList}
+
+Prix total: ${totalAmount.toLocaleString('fr-FR')} FCFA
+
+1️⃣ Téléchargez l’application dès maintenant en cliquant ici 👇🏾:
+📲 *Android* : https://play.google.com/store/apps/details?id=com.zangochap.zangochap&pcampaignid=web_share
+
+🍏 iPhone : https://apps.apple.com/ci/app/zangochap/id6737241287
+
+2️⃣ Envoyez-nous une capture d’écran de l’application installée pour activer votre surprise .
+
+Ne passez pas à côté de cette belle surprise ! 😍🔥`;
+
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
@@ -325,6 +358,14 @@ export default function NewOrderClient({ products, user }: NewOrderClientProps) 
 
     startTransition(async () => {
       try {
+        const finalPaymentMethod = paymentMethod === 'Autres' ? customPaymentMethod : paymentMethod;
+        
+        // Validation for Hors Abidjan
+        if (commune === 'Hors Abidjan' && !finalPaymentMethod) {
+          showToast('Veuillez préciser le mode de règlement pour une expédition', 'error');
+          return;
+        }
+
         const order = await createOrder({
           customerId: customerId || undefined,
           customerName,
@@ -337,6 +378,7 @@ export default function NewOrderClient({ products, user }: NewOrderClientProps) 
           items,
           type: orderType || undefined,
           deliveryDate,
+          paymentMethod: finalPaymentMethod || undefined,
         });
         showToast('Commande créée ✓', 'success');
         setReceiptOrder(order);
@@ -359,14 +401,14 @@ export default function NewOrderClient({ products, user }: NewOrderClientProps) 
           <div>
             <h1>{orderType === 'Echange' ? 'Échange de produit' : 'Nouvelle Vente'}</h1>
             <p>{orderType === 'Echange' ? 'Sélectionnez les nouveaux articles' : 'Point de Vente Zangochap'}</p>
-      </div>
-    </div>
+          </div>
+        </div>
 
         {orderType === 'Echange' && (
           <div style={{ background: 'var(--orange-soft)', padding: '8px 16px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 10, border: '1px solid var(--orange)', color: 'var(--orange)', fontWeight: 700, fontSize: 13 }}>
             <RotateCcw size={16} />
             MODE ÉCHANGE ACTIVÉ : Les informations client sont déjà remplies.
-      </div>
+          </div>
         )}
 
         <button className="pos-custom-item-btn" onClick={() => setShowCustomItem(true)}>
@@ -383,14 +425,14 @@ export default function NewOrderClient({ products, user }: NewOrderClientProps) 
             onChange={e => setSearch(e.target.value)}
           />
           {search && <button className="pos-search-clear" onClick={() => setSearch('')}><X size={14} /></button>}
-    </div>
+        </div>
 
         <div className="pos-header-right">
           <div className="pos-user-badge">
             <div className="pos-user-avatar">{user?.name?.charAt(0) || 'U'}</div>
             <span>{user?.name || 'Vendeur'}</span>
-      </div>
-    </div>
+          </div>
+        </div>
       </header>
 
       <main className="pos-main">
@@ -435,9 +477,9 @@ export default function NewOrderClient({ products, user }: NewOrderClientProps) 
               <div className="pos-empty-catalog">
                 <Package size={48} />
                 <p>Aucun produit trouvé</p>
-          </div>
+              </div>
             )}
-      </div>
+          </div>
         </section>
 
         {/* RIGHT PANEL: CART */}
@@ -446,9 +488,9 @@ export default function NewOrderClient({ products, user }: NewOrderClientProps) 
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <ShoppingCart size={20} />
               <h2 style={{ fontSize: 18, fontWeight: 700 }}>Panier</h2>
-        </div>
+            </div>
             <span className="pos-cart-count">{items.length} articles</span>
-      </div>
+          </div>
 
           {/* CUSTOMER SELECTOR */}
           <div className="pos-sidebar-customer">
@@ -457,11 +499,11 @@ export default function NewOrderClient({ products, user }: NewOrderClientProps) 
                 <div className="pos-customer-info">
                   <div className="pos-customer-name">{customerName}</div>
                   <div className="pos-customer-phone">{customerPhone}</div>
-            </div>
+                </div>
                 <button className="pos-customer-remove" onClick={() => { setCustomerId(null); setCustomerName(''); setCustomerPhone(''); setCustomerPhone2(''); setCustomerLocation(''); setCommune(''); setDeliveryFee(0); }}>
                   <X size={14} />
                 </button>
-          </div>
+              </div>
             ) : (
               <button className="pos-select-customer-btn" onClick={() => setShowCheckout(true)}>
                 <User size={16} />
@@ -469,14 +511,14 @@ export default function NewOrderClient({ products, user }: NewOrderClientProps) 
                 <Plus size={14} />
               </button>
             )}
-      </div>
+          </div>
 
           <div className="pos-cart-items">
             {items.length === 0 ? (
               <div className="pos-cart-empty">
                 <div className="pos-cart-empty-icon">🛒</div>
                 <p>Votre panier est vide</p>
-          </div>
+              </div>
             ) : (
               items.map((item, idx) => (
                 <div key={idx} className="pos-cart-item">
@@ -488,44 +530,44 @@ export default function NewOrderClient({ products, user }: NewOrderClientProps) 
                       title={item.image ? "Voir en grand" : ""}
                     >
                       {item.image ? (<img src={item.image} style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : (<span style={{ fontSize: 20 }}>{item.emoji}</span>)}
-                </div>
+                    </div>
                     <div className="pos-cart-item-info">
                       <div className="pos-cart-item-name">
                         {item.name}
                         {item.isCustom && <span style={{ marginLeft: 6, background: 'var(--blue)', color: 'white', fontSize: 9, padding: '2px 6px', borderRadius: 4, fontWeight: 700, textTransform: 'uppercase' as const }}>Perso</span>}
-                  </div>
+                      </div>
                       <div className="pos-cart-item-meta">{item.size} · {item.color}</div>
                       <div className="pos-cart-item-price">{formatPrice(item.price)}</div>
-                </div>
-              </div>
+                    </div>
+                  </div>
                   <div className="pos-cart-item-actions">
                     <div className="pos-qty-control">
                       <button onClick={() => updateQty(idx, -1)}><Minus size={14} /></button>
                       <span>{item.qty}</span>
                       <button onClick={() => updateQty(idx, 1)}><Plus size={14} /></button>
-                </div>
+                    </div>
                     <button className="pos-item-remove" onClick={() => updateQty(idx, -999)}>
                       <Trash2 size={14} />
                     </button>
-              </div>
-            </div>
+                  </div>
+                </div>
               ))
             )}
-      </div>
+          </div>
 
           <div className="pos-cart-footer">
             <div className="pos-summary-row">
               <span>Sous-total</span>
               <span>{formatPrice(total)}</span>
-        </div>
+            </div>
             <div className="pos-summary-row">
               <span>Livraison</span>
               <span>{formatPrice(deliveryFee)}</span>
-        </div>
+            </div>
             <div className="pos-summary-total">
               <span>Total à payer</span>
               <span>{formatPrice(total + deliveryFee)}</span>
-        </div>
+            </div>
 
             <button
               className="pos-checkout-btn"
@@ -535,7 +577,7 @@ export default function NewOrderClient({ products, user }: NewOrderClientProps) 
               <CreditCard size={18} />
               Valider la commande
             </button>
-      </div>
+          </div>
         </aside>
       </main>
 
@@ -546,20 +588,20 @@ export default function NewOrderClient({ products, user }: NewOrderClientProps) 
           style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(5px)', cursor: 'zoom-out' }}
         >
           <div className="lightbox-content animate-zoom-in" onClick={e => e.stopPropagation()} style={{ position: 'relative', maxWidth: '90%', maxHeight: '90%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <img 
-              src={previewImage} 
-              alt="Preview" 
-              style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 12, boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }} 
+            <img
+              src={previewImage}
+              alt="Preview"
+              style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 12, boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}
             />
-            <button 
-              className="lightbox-close" 
+            <button
+              className="lightbox-close"
               onClick={() => setPreviewImage(null)}
               style={{ position: 'absolute', top: -40, right: 0, background: 'transparent', border: 'none', color: 'white', cursor: 'pointer' }}
             >
               <X size={24} />
             </button>
-      </div>
-    </div>,
+          </div>
+        </div>,
         document.body
       )}
 
@@ -587,7 +629,7 @@ export default function NewOrderClient({ products, user }: NewOrderClientProps) 
           title={
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <User size={20} /> Informations Client
-        </div>
+            </div>
           }
           large
           footer={
@@ -612,30 +654,21 @@ export default function NewOrderClient({ products, user }: NewOrderClientProps) 
                         <div key={c.id} className="crm-suggestion-item" onClick={() => selectCustomer(c)}>
                           <div className="sug-name">{c.name}</div>
                           <div className="sug-phone">{c.phone} · {c.commune || 'Sans commune'}</div>
-                    </div>
+                        </div>
                       ))}
-                </div>
+                    </div>
                   )}
-            </div>
+                </div>
                 <div className="form-row" style={{ position: 'relative' }}>
                   <label className="field-label-sm">TÉLÉPHONE</label>
-                  <input className="field-input" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} placeholder="07 07 07 07 07" />
+                  <input className="field-input" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} placeholder="07 07 07 07 07" autoComplete="off" />
 
-                  {customerSuggestions.length > 0 && customerPhone.length >= 3 && (
-                    <div className="crm-suggestions">
-                      {customerSuggestions.map(c => (
-                        <div key={c.id} className="crm-suggestion-item" onClick={() => selectCustomer(c)}>
-                          <div className="sug-name">{c.name}</div>
-                          <div className="sug-phone">{c.phone}</div>
-                    </div>
-                      ))}
+
                 </div>
-                  )}
-            </div>
                 <div className="form-row">
                   <label className="field-label-sm">TÉLÉPHONE SECONDAIRE</label>
                   <input className="field-input" value={customerPhone2} onChange={e => setCustomerPhone2(e.target.value)} placeholder="Facultatif" />
-            </div>
+                </div>
                 <div className="form-row">
                   <label className="field-label-sm">COMMUNE</label>
                   <select className="field-input" value={commune} onChange={e => {
@@ -650,34 +683,57 @@ export default function NewOrderClient({ products, user }: NewOrderClientProps) 
                       <option key={name} value={name}>{name} ({prefix as string})</option>
                     ))}
                   </select>
-            </div>
+                </div>
                 <div className="form-row">
                   <label className="field-label-sm">ADRESSE DE LIVRAISON</label>
                   <textarea className="field-input" style={{ minHeight: 70 }} value={customerLocation} onChange={e => setCustomerLocation(e.target.value)} placeholder="Quartier, rue, repère..." />
-            </div>
+                </div>
                 <div className="form-row">
                   <label className="field-label-sm">FRAIS DE LIVRAISON (FCFA)</label>
                   <input className="field-input" type="number" value={deliveryFee} onChange={e => setDeliveryFee(parseInt(e.target.value) || 0)} />
-            </div>
+                </div>
                 <div className="form-row">
                   <label className="field-label-sm">NOTE LIVRAISON</label>
                   <input className="field-input" value={deliveryNote} onChange={e => setDeliveryNote(e.target.value)} placeholder="Ex. Appeler avant de venir" />
                 </div>
+
+                {commune === 'Hors Abidjan' && (
+                  <>
+                    <div className="form-row" style={{ gridColumn: '1 / -1' }}>
+                      <label className="field-label-sm" style={{ color: 'var(--orange)', fontWeight: 800 }}>SOLDER PAR (OBLIGATOIRE) *</label>
+                      <select className="field-input" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} style={{ border: '2.5px solid var(--orange-soft)', fontWeight: 800 }}>
+                        <option value="">Sélectionner le mode de règlement...</option>
+                        <option value="MTN Money">MTN Money</option>
+                        <option value="Orange Money">Orange Money</option>
+                        <option value="Moov Money">Moov Money</option>
+                        <option value="Wave">Wave</option>
+                        <option value="Virement">Virement bancaire</option>
+                        <option value="Autres">Autres (Préciser)</option>
+                      </select>
+                    </div>
+                    {paymentMethod === 'Autres' && (
+                      <div className="form-row" style={{ gridColumn: '1 / -1' }}>
+                        <label className="field-label-sm">PRÉCISER LE MODE DE RÈGLEMENT</label>
+                        <input className="field-input" value={customPaymentMethod} onChange={e => setCustomPaymentMethod(e.target.value)} placeholder="Ex. Western Union, Ria..." />
+                      </div>
+                    )}
+                  </>
+                )}
                 <div className="form-row">
                   <label className="field-label-sm" style={{ color: 'var(--orange)', fontWeight: 700 }}>DATE DE LIVRAISON PRÉVUE</label>
-                  <input 
-                    type="date" 
-                    className="field-input" 
-                    value={deliveryDate} 
-                    onChange={e => setDeliveryDate(e.target.value)} 
+                  <input
+                    type="date"
+                    className="field-input"
+                    value={deliveryDate}
+                    onChange={e => setDeliveryDate(e.target.value)}
                     style={{ border: '1.5px solid var(--orange-soft)', fontWeight: 700 }}
                   />
                   <div style={{ fontSize: 10, color: 'var(--brown-soft)', marginTop: 4 }}>
                     Par défaut : Demain (ou Lundi si on est samedi).
                   </div>
                 </div>
-          </div>
-        </div>
+              </div>
+            </div>
             <div className="pos-checkout-summary">
               <h3>Résumé de la vente</h3>
               <div className="pos-checkout-items-mini">
@@ -685,22 +741,22 @@ export default function NewOrderClient({ products, user }: NewOrderClientProps) 
                   <div key={idx} className="pos-mini-item" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <div style={{ width: 32, height: 32, borderRadius: 6, overflow: 'hidden', flexShrink: 0, background: 'var(--cream-2)', border: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       {i.image ? <img src={i.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span>{i.emoji || '📦'}</span>}
-                </div>
+                    </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 12, fontWeight: 600 }}>{i.name}</div>
                       <div style={{ fontSize: 10, color: 'var(--brown-soft)' }}>{i.qty} × {i.size} · {i.color}</div>
-                </div>
+                    </div>
                     <span style={{ fontWeight: 700, fontSize: 12 }}>{formatPrice(i.price * i.qty)}</span>
-              </div>
+                  </div>
                 ))}
-          </div>
+              </div>
               <div className="pos-mini-totals">
                 <div className="mini-row"><span>Articles</span> <span>{formatPrice(total)}</span></div>
                 <div className="mini-row"><span>Livraison</span> <span>{formatPrice(deliveryFee)}</span></div>
                 <div className="mini-row total"><span>Total</span> <span>{formatPrice(total + deliveryFee)}</span></div>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
         </Modal>
       )}
 
@@ -712,7 +768,7 @@ export default function NewOrderClient({ products, user }: NewOrderClientProps) 
           title={
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <Sparkles size={20} /> Article personnalisé
-        </div>
+            </div>
           }
           footer={
             <>
@@ -723,32 +779,32 @@ export default function NewOrderClient({ products, user }: NewOrderClientProps) 
         >
           <div style={{ background: 'var(--blue-soft)', borderLeft: '3px solid var(--blue)', padding: '10px 14px', borderRadius: 6, marginBottom: 16, fontSize: 12, color: 'var(--brown)' }}>
             Pour les articles non encore ajoutés au catalogue. L'article sera attaché uniquement à cette commande.
-      </div>
+          </div>
           <div className="form-grid" style={{ gap: 14 }}>
             <div className="form-row" style={{ gridColumn: '1 / -1' }}>
               <label className="field-label-sm">NOM DU PRODUIT *</label>
               <input className="field-input" value={customName} onChange={e => setCustomName(e.target.value)} placeholder="Ex. Veste sur mesure rouge" />
-        </div>
+            </div>
             <div className="form-row">
               <label className="field-label-sm">PRIX UNITAIRE (FCFA) *</label>
               <input className="field-input" type="number" value={customPrice} onChange={e => setCustomPrice(e.target.value)} placeholder="15000" />
-        </div>
+            </div>
             <div className="form-row">
               <label className="field-label-sm">QUANTITÉ</label>
               <input className="field-input" type="number" min="1" value={customQty} onChange={e => setCustomQty(e.target.value)} />
-        </div>
+            </div>
             <div className="form-row">
               <label className="field-label-sm">TAILLE</label>
               <input className="field-input" value={customSize} onChange={e => setCustomSize(e.target.value)} placeholder="Ex. M ou Standard" />
-        </div>
+            </div>
             <div className="form-row">
               <label className="field-label-sm">COULEUR</label>
               <input className="field-input" value={customColor} onChange={e => setCustomColor(e.target.value)} placeholder="Ex. Rouge bordeaux" />
-        </div>
+            </div>
             <div className="form-row" style={{ gridColumn: '1 / -1' }}>
               <label className="field-label-sm">DESCRIPTION (optionnel)</label>
               <textarea className="field-input" value={customDesc} onChange={e => setCustomDesc(e.target.value)} placeholder="Détails, notes pour l'emballage..." style={{ minHeight: 60 }} />
-        </div>
+            </div>
             <div className="form-row" style={{ gridColumn: '1 / -1' }}>
               <label className="field-label-sm">IMAGE (facultatif)</label>
               <div
@@ -758,7 +814,7 @@ export default function NewOrderClient({ products, user }: NewOrderClientProps) 
                 <div style={{ fontSize: 24, marginBottom: 4 }}>📸</div>
                 <div style={{ fontWeight: 600, color: 'var(--brown)', fontSize: 12 }}>Cliquer pour ajouter une image</div>
                 <div style={{ fontSize: 10, color: 'var(--brown-soft)', marginTop: 2 }}>JPG, PNG — facultatif</div>
-          </div>
+              </div>
               <input
                 type="file"
                 id="customImageInput"
@@ -788,10 +844,10 @@ export default function NewOrderClient({ products, user }: NewOrderClientProps) 
                   >
                     <X size={12} />
                   </button>
-            </div>
+                </div>
               )}
-        </div>
-      </div>
+            </div>
+          </div>
         </Modal>
       )}
 

@@ -1,6 +1,6 @@
 // Communes Abidjan → préfixes commande
 export const COMMUNES: Record<string, string> = {
-  'Cocody': 'CD',
+  'Cocody': 'BJ',
   'Port-Bouët': 'PB',
   'Marcory': 'MA',
   'Koumassi': 'KM',

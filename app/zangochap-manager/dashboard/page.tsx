@@ -30,6 +30,11 @@ export default async function DashboardPage() {
     stock: StockDashboard,
   };
 
+  if (user?.role?.toUpperCase() === 'LIVREUR') {
+    const { redirect } = await import("next/navigation");
+    redirect("/zangochap-rider");
+  }
+
   const DashboardView = dashboards[user?.role] || AdminDashboard;
 
   return (

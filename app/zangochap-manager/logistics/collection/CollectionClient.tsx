@@ -9,24 +9,32 @@ import { useRouter } from "next/navigation";
 import { Check, X, ArrowLeftRight, Package, Warehouse } from "lucide-react";
 import Modal from "@/components/Modal";
 
-export default function CollectionClient({ toCollect, user }: { toCollect: any[]; user: any }) {
+export default function CollectionClient({ toCollect, user, categories = [], warehouses = [] }: { toCollect: any[]; user: any; categories?: any[]; warehouses?: any[] }) {
   const [isPending, startTransition] = useTransition();
   const [editingVariants, setEditingVariants] = useState<any>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+
+  // Filters State
   const [filter, setFilter] = useState('all');
+  const [search, setSearch] = useState('');
+  const [categoryId, setCategoryId] = useState('all');
+  const [warehouseId, setWarehouseId] = useState('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+
   const { showToast } = useToast();
   const router = useRouter();
 
-  // Auto-refresh every 15s for collection queue (real-time critical)
+  // Auto-refresh every 15s for collection queue
   useEffect(() => {
-    const interval = setInterval(() => router.refresh(), 15000);
+    const interval = setInterval(() => router.refresh(), 30000); // 30s is enough with manual refresh
     return () => clearInterval(interval);
   }, [router]);
 
-  const handleMark = (orderId: string, productId: string, status: string, orderItemId?: string) => {
+  const handleMark = (orderId: string, productId: string, status: string, orderItemId?: string, note?: string) => {
     startTransition(async () => {
       try {
-        await markCollection(orderId, productId, status, orderItemId);
+        await markCollection(orderId, productId, status, orderItemId, note);
         const labels: Record<string, string> = {
           collected: 'Marqué collecté ✓',
           unavailable: 'Marqué indisponible',
@@ -40,116 +48,293 @@ export default function CollectionClient({ toCollect, user }: { toCollect: any[]
     });
   };
 
-  const filteredToCollect = React.useMemo(() => {
-    if (filter === 'all') return toCollect;
-    return toCollect.filter(tc => {
-      const h = tc.order.history || [];
-      if (filter === 'collected') return h.some((log: any) => log.action.includes('Marqué collecté'));
-      if (filter === 'unavailable') return h.some((log: any) => log.action.includes('Marqué indisponible'));
-      if (filter === 'alternative') return h.some((log: any) => log.action.includes('Alternative proposée'));
+  // Date Presets
+  const setDatePreset = (preset: string) => {
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+
+    if (preset === 'today') {
+      setDateFrom(today);
+      setDateTo(today);
+    } else if (preset === 'yesterday') {
+      const yesterday = new Date();
+      yesterday.setDate(now.getDate() - 1);
+      const d = yesterday.toISOString().split('T')[0];
+      setDateFrom(d);
+      setDateTo(d);
+    } else if (preset === 'week') {
+      const weekAgo = new Date();
+      weekAgo.setDate(now.getDate() - 7);
+      setDateFrom(weekAgo.toISOString().split('T')[0]);
+      setDateTo(today);
+    } else {
+      setDateFrom('');
+      setDateTo('');
+    }
+  };
+
+  const processedData = React.useMemo(() => {
+    const counts = { all: 0, collected: 0, unavailable: 0, alternative: 0 };
+
+    const filtered = toCollect.filter(tc => {
+      const h = Array.isArray(tc.order.history) ? tc.order.history : [];
+
+      // Find the latest collection-related log for this specific item
+      // We look for logs containing the item name and any of our keywords
+      const relevantLogs = h
+        .filter((log: any) => {
+          const action = log.action.toLowerCase();
+          return (action.includes('collecté') || action.includes('indisponible') || action.includes('alternative')) &&
+            action.includes(tc.item.name.toLowerCase());
+        })
+        .sort((a: any, b: any) => new Date(b.at).getTime() - new Date(a.at).getTime());
+
+      const latestLog = relevantLogs[0];
+      const latestAction = latestLog?.action.toLowerCase() || '';
+
+      const hasCollected = latestAction.includes('collecté') && !latestAction.includes('alternative');
+      const hasUnavailable = latestAction.includes('indisponible');
+      const hasAlternative = latestAction.includes('alternative');
+
+      // 1. Stock Check
+      const variant = tc.product.variants.find((v: any) => v.size === tc.item.size && v.color === tc.item.color);
+      const isOutOfStock = variant ? variant.stock <= 0 : tc.product.stock <= 0;
+
+      const isProcessed = !!latestLog;
+      if (!isProcessed && !isOutOfStock) return false;
+
+      // 2. Base Counts (before status filter)
+      if (!isProcessed) counts.all++;
+      else {
+        if (hasCollected) counts.collected++;
+        if (hasUnavailable) counts.unavailable++;
+        if (hasAlternative) counts.alternative++;
+      }
+
+      // 3. Status Filter
+      if (filter === 'all') {
+        if (isProcessed) return false;
+      } else {
+        if (filter === 'collected' && !hasCollected) return false;
+        if (filter === 'unavailable' && !hasUnavailable) return false;
+        if (filter === 'alternative' && !hasAlternative) return false;
+      }
+
+      // 4. Category Filter
+      if (categoryId !== 'all' && tc.product.categoryId !== categoryId) return false;
+
+      // 5. Warehouse Filter
+      if (warehouseId !== 'all') {
+        const hasInWarehouse = tc.product.variants.some((v: any) =>
+          v.size === tc.item.size && v.color === tc.item.color &&
+          v.stockLevels?.some((sl: any) => sl.warehouseId === warehouseId)
+        );
+        if (!hasInWarehouse) return false;
+      }
+
+      // 6. Search Filter
+      if (search) {
+        const s = search.toLowerCase();
+        const matches = tc.order.ref.toLowerCase().includes(s) ||
+          tc.item.name.toLowerCase().includes(s) ||
+          tc.order.customerName.toLowerCase().includes(s);
+        if (!matches) return false;
+      }
+
+      // 7. Date Filter
+      if (dateFrom || dateTo) {
+        const orderDate = new Date(tc.order.createdAt);
+        if (dateFrom && orderDate < new Date(dateFrom)) return false;
+        if (dateTo) {
+          const end = new Date(dateTo);
+          end.setHours(23, 59, 59);
+          if (orderDate > end) return false;
+        }
+      }
+
       return true;
     });
-  }, [toCollect, filter]);
+
+    return { filtered, counts };
+  }, [toCollect, filter, search, categoryId, warehouseId, dateFrom, dateTo]);
+
+  const { filtered: filteredToCollect, counts } = processedData;
+
+  const stats = React.useMemo(() => {
+    return {
+      total: toCollect.length,
+      filtered: filteredToCollect.length
+    };
+  }, [toCollect, filteredToCollect]);
 
   return (
     <div className="content animate-fade-in">
-      <div className="filters-bar" style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
-        <button className={`filter-chip ${filter === 'all' ? 'active' : ''}`} onClick={() => setFilter('all')}>Tous</button>
-        <button className={`filter-chip ${filter === 'collected' ? 'active' : ''}`} onClick={() => setFilter('collected')}>Collectés</button>
-        <button className={`filter-chip ${filter === 'unavailable' ? 'active' : ''}`} onClick={() => setFilter('unavailable')}>Indisponibles</button>
-        <button className={`filter-chip ${filter === 'alternative' ? 'active' : ''}`} onClick={() => setFilter('alternative')}>Alternatives</button>
+      {/* SUMMARY STATS */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
+        <div className="stat-card" style={{ background: 'white', padding: 20, borderRadius: 16, border: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--orange-soft)', color: 'var(--orange)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Package size={22} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: 'var(--brown-soft)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Articles en cours</div>
+            <div style={{ fontSize: 24, fontWeight: 800 }}>{stats.filtered} <span style={{ fontSize: 14, color: 'var(--brown-soft)', fontWeight: 400 }}>/ {stats.total}</span></div>
+          </div>
+        </div>
       </div>
 
-      <TableCard title={`${filteredToCollect.length} produit(s) à collecter`} meta="Groupés par fournisseur">
+      {/* COMMAND CENTER (FILTERS) */}
+      <div className="command-center" style={{
+        background: 'white',
+        borderRadius: 24,
+        border: '1px solid var(--line)',
+        boxShadow: '0 10px 30px -10px rgba(0,0,0,0.05)',
+        marginBottom: 24,
+        overflow: 'hidden'
+      }}>
+        {/* Top Row: Search & Primary Selects */}
+        <div style={{ display: 'flex', gap: 12, padding: 20, borderBottom: '1px solid var(--line)', flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ position: 'relative', flex: 2, minWidth: 250 }}>
+            <input
+              type="text"
+              className="field-input"
+              placeholder="Rechercher par réf, produit ou client..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{ paddingLeft: 40, height: 48, borderRadius: 14, fontSize: 14, border: '2px solid var(--cream-2)', background: 'var(--cream-2)' }}
+            />
+            <div style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}>
+              <Package size={18} />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 10, flex: 1, minWidth: 300 }}>
+            <select
+              className="field-input"
+              style={{ height: 48, borderRadius: 14, border: '2px solid var(--cream-2)', background: 'var(--cream-2)', fontWeight: 600 }}
+              value={categoryId}
+              onChange={e => setCategoryId(e.target.value)}
+            >
+              <option value="all">📁 Toutes catégories</option>
+              {categories.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+
+            <select
+              className="field-input"
+              style={{ height: 48, borderRadius: 14, border: '2px solid var(--cream-2)', background: 'var(--cream-2)', fontWeight: 600 }}
+              value={warehouseId}
+              onChange={e => setWarehouseId(e.target.value)}
+            >
+              <option value="all">🏢 Tous entrepôts</option>
+              {warehouses.map((w: any) => <option key={w.id} value={w.id}>{w.name}</option>)}
+            </select>
+          </div>
+        </div>
+
+        {/* Middle Row: Dates & Presets */}
+        <div style={{ display: 'flex', gap: 20, padding: '12px 20px', background: 'var(--cream-soft)', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--brown-soft)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Période :</div>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', background: 'white', padding: '4px 8px', borderRadius: 10, border: '1px solid var(--line)' }}>
+              <input type="date" style={{ border: 'none', fontSize: 12, fontWeight: 600, outline: 'none' }} value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+              <span style={{ opacity: 0.3 }}>→</span>
+              <input type="date" style={{ border: 'none', fontSize: 12, fontWeight: 600, outline: 'none' }} value={dateTo} onChange={e => setDateTo(e.target.value)} />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 6 }}>
+            {['today', 'yesterday', 'week'].map(p => (
+              <button
+                key={p}
+                onClick={() => setDatePreset(p)}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: 8,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  background: 'white',
+                  border: '1px solid var(--line)',
+                  cursor: 'pointer',
+                  transition: '0.2s'
+                }}
+                onMouseOver={e => e.currentTarget.style.background = 'var(--cream-2)'}
+                onMouseOut={e => e.currentTarget.style.background = 'white'}
+              >
+                {p === 'today' ? "Aujourd'hui" : p === 'yesterday' ? "Hier" : "7 jours"}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ flex: 1 }}></div>
+
+          {(search || categoryId !== 'all' || warehouseId !== 'all' || dateFrom || dateTo) && (
+            <button
+              onClick={() => { setSearch(''); setCategoryId('all'); setWarehouseId('all'); setDateFrom(''); setDateTo(''); setFilter('all'); }}
+              style={{ background: 'var(--red-soft)', color: 'var(--red)', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 800, cursor: 'pointer' }}
+            >
+              RÉINITIALISER LES FILTRES
+            </button>
+          )}
+        </div>
+
+        {/* Bottom Row: Status Tabs */}
+        <div style={{ display: 'flex', gap: 4, padding: '12px 20px', background: 'white' }}>
+          {[
+            { id: 'all', label: 'À collecter', count: counts.all, color: 'var(--orange)' },
+            { id: 'collected', label: 'Collectés', count: counts.collected, color: 'var(--green)' },
+            { id: 'unavailable', label: 'Indisponibles', count: counts.unavailable, color: 'var(--red)' },
+            { id: 'alternative', label: 'Alternatives', count: counts.alternative, color: 'var(--blue)' }
+          ].map(t => (
+            <button
+              key={t.id}
+              onClick={() => setFilter(t.id)}
+              style={{
+                flex: 1,
+                padding: '12px',
+                borderRadius: 12,
+                border: 'none',
+                background: filter === t.id ? `${t.color}-soft` : 'transparent',
+                color: filter === t.id ? t.color : 'var(--brown-soft)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 4,
+                cursor: 'pointer',
+                transition: '0.3s all cubic-bezier(0.4, 0, 0.2, 1)',
+                position: 'relative'
+              }}
+            >
+              <div style={{ fontSize: 14, fontWeight: filter === t.id ? 800 : 600 }}>{t.label}</div>
+              <div style={{ fontSize: 11, opacity: 0.7, fontWeight: 700 }}>{t.count} article(s)</div>
+              {filter === t.id && <div style={{ position: 'absolute', bottom: 0, width: 20, height: 3, background: t.color, borderRadius: '3px 3px 0 0' }} />}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <TableCard title={`${filteredToCollect.length} produit(s)`} meta="Liste détaillée">
         {filteredToCollect.length === 0 ? (
-          <EmptyState icon="✓" title="Tout est en stock" description="Aucune collecte nécessaire." />
+          <EmptyState icon="🔍" title="Aucun résultat" description="Essayez de modifier vos filtres." />
         ) : (
           <table>
             <thead>
               <tr>
                 <th>Commande</th>
                 <th>Produit</th>
-                <th>Variation demandée</th>
+                <th>Variation</th>
                 <th>Qté</th>
-                <th>Fournisseur</th>
-                <th>Stock</th>
+                <th>Emplacement</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filteredToCollect.map(({ order, item, product }, i) => (
-                <tr key={i}>
-                  <td>
-                    <span className="cell-mono" style={{ fontWeight: 800 }}>{order.ref}</span>
-                    <div className="cell-muted">{order.customerName}</div>
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div
-                        onClick={() => setPreviewImage(item.image || product.images?.[0]?.url)}
-                        style={{ width: 48, height: 48, background: 'var(--cream-2)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, flexShrink: 0, overflow: 'hidden', border: '1px solid var(--line)', cursor: 'zoom-in', transition: 'transform 0.2s' }}
-                        className="hover-scale"
-                      >
-                        {item.image || product.images?.[0]?.url ? (
-                          <img src={item.image || product.images[0].url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        ) : (
-                          item.emoji || '📦'
-                        )}
-                      </div>
-                      <div>
-                        <span className="cell-strong" style={{ fontSize: 13 }}>{item.name}</span>
-                        <div style={{ fontSize: 10, color: 'var(--brown-soft)', marginTop: 2 }}>{product.category?.name || 'Article'}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span className="size-dot">{item.size}</span>
-                      <strong style={{ fontSize: 12, color: 'var(--brown)' }}>{item.color}</strong>
-                    </div>
-                  </td>
-                  <td><strong style={{ fontSize: 14 }}>{item.qty}</strong></td>
-                  <td>
-                    <div style={{ fontWeight: 700, fontSize: 13 }}>{product.supplier?.name || product.supplier}</div>
-                    <div className="cell-muted" style={{ fontSize: 11 }}>{product.origin || '—'}</div>
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      {product.variants.find((v: any) => v.size === item.size && v.color === item.color)?.stockLevels?.map((sl: any) => (
-                        <div key={sl.id} style={{ fontSize: 10, color: 'var(--brown-soft)', display: 'flex', alignItems: 'center', gap: 4, background: 'var(--cream-2)', padding: '2px 6px', borderRadius: 4 }}>
-                          <Warehouse size={10} className="text-orange" />
-                          <span>{sl.warehouse.name}</span>
-                          {sl.position && <span style={{ fontWeight: 800, color: 'var(--ink)' }}>• {sl.position}</span>}
-                        </div>
-                      ))}
-                      {!product.variants.find((v: any) => v.size === item.size && v.color === item.color) && (
-                        <div style={{ fontSize: 10, color: 'var(--red)', fontWeight: 700 }}>Variante non trouvée</div>
-                      )}
-                    </div>
-                  </td>
-                  <td>
-                    <div className="row-actions">
-                      <button
-                        className="action-btn"
-                        title="Marqué collecté"
-                        disabled={isPending}
-                        onClick={() => handleMark(order.id, product.id, 'collected', item.id)}
-                        style={{ background: 'var(--green-soft)', color: 'var(--green)' }}
-                      >
-                        <Check size={14} />
-                      </button>
-                      <button
-                        className="action-btn"
-                        title="Indisponible"
-                        disabled={isPending}
-                        onClick={() => handleMark(order.id, product.id, 'unavailable', item.id)}
-                        style={{ background: 'var(--red-soft)', color: 'var(--red)' }}
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+              {filteredToCollect.map((tc, i) => (
+                <CollectionRow
+                  key={i}
+                  {...tc}
+                  isPending={isPending}
+                  onMark={handleMark}
+                  onPreview={setPreviewImage}
+                />
               ))}
             </tbody>
           </table>
@@ -183,7 +368,6 @@ export default function CollectionClient({ toCollect, user }: { toCollect: any[]
       <style jsx>{`
         .hover-scale:hover { transform: scale(1.05); }
       `}</style>
-
       {/* VARIANTS EDITOR MODAL */}
       {editingVariants && (
         <VariantsEditorModal
@@ -205,6 +389,120 @@ export default function CollectionClient({ toCollect, user }: { toCollect: any[]
         />
       )}
     </div>
+  );
+}
+
+function CollectionRow({ order, item, product, isPending, onMark, onPreview, compact = false }: any) {
+  return (
+    <tr>
+      <td style={compact ? { width: 140 } : undefined}>
+        <div className="cell-mono" style={{ fontWeight: 800 }}>{order.ref}</div>
+        {!compact && (
+          <>
+            <div className="cell-muted" style={{ fontSize: 11 }}>{order.customerName}</div>
+            <div style={{ fontSize: 10, color: 'var(--orange)', fontWeight: 700, marginTop: 2 }}><span style={{ color: 'var(--brown)' }}>Valider par:</span>
+              {order.commercialName || '—'}
+            </div>
+          </>
+        )}
+      </td>
+      <td>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div
+            onClick={() => onPreview(item.image || product.images?.[0]?.url)}
+            style={{ width: 44, height: 44, background: 'var(--cream-2)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0, overflow: 'hidden', border: '1px solid var(--line)', cursor: 'zoom-in' }}
+          >
+            {item.image || product.images?.[0]?.url ? (
+              <img src={item.image || product.images[0].url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              item.emoji || '📦'
+            )}
+          </div>
+          <div>
+            <span className="cell-strong" style={{ fontSize: 13 }}>{item.name}</span>
+            <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
+              <div style={{ fontSize: 10, color: 'var(--brown-soft)' }}>{product.category?.name || 'Article'}</div>
+              {(() => {
+                const h = Array.isArray(order.history) ? order.history : [];
+                const relevant = h
+                  .filter((log: any) => {
+                    const a = log.action.toLowerCase();
+                    return (a.includes('collecté') || a.includes('indisponible') || a.includes('alternative')) &&
+                      a.includes(item.name.toLowerCase());
+                  })
+                  .sort((a: any, b: any) => new Date(b.at).getTime() - new Date(a.at).getTime());
+
+                const latest = relevant[0]?.action || '';
+                const latestLower = latest.toLowerCase();
+                if (latestLower.includes('collecté') && !latestLower.includes('alternative')) return <span className="status collected" style={{ fontSize: 9, padding: '1px 4px' }}>✓ Collecté</span>;
+                if (latestLower.includes('indisponible')) return <span className="status unavailable" style={{ fontSize: 9, padding: '1px 4px' }}>✕ Indisponible</span>;
+                if (latestLower.includes('alternative')) {
+                  const altMatch = latest.match(/\(([^)]+)\)/);
+                  const altText = altMatch ? altMatch[1] : 'Alternative';
+                  return <span className="status alternative" style={{ fontSize: 9, padding: '1px 4px' }} title={altText}>⌥ {altText}</span>;
+                }
+                return null;
+              })()}
+            </div>
+          </div>
+        </div>
+      </td>
+      <td>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span className="size-dot">{item.size}</span>
+          <strong style={{ fontSize: 12, color: 'var(--brown)' }}>{item.color}</strong>
+        </div>
+      </td>
+      <td><strong style={{ fontSize: 14 }}>x{item.qty}</strong></td>
+      <td>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {product.variants.find((v: any) => v.size === item.size && v.color === item.color)?.stockLevels?.map((sl: any) => (
+            <div key={sl.id} style={{ fontSize: 9, color: 'var(--brown-soft)', display: 'flex', alignItems: 'center', gap: 4, background: 'var(--cream-2)', padding: '2px 6px', borderRadius: 4 }}>
+              <Warehouse size={10} className="text-orange" />
+              <span>{sl.warehouse.name}</span>
+              {sl.position && <span style={{ fontWeight: 800, color: 'var(--ink)' }}>• {sl.position}</span>}
+            </div>
+          ))}
+          {!product.variants.find((v: any) => v.size === item.size && v.color === item.color) && (
+            <div style={{ fontSize: 9, color: 'var(--red)', fontWeight: 700 }}>Variante non trouvée</div>
+          )}
+        </div>
+      </td>
+      <td style={{ width: 120 }}>
+        <div className="row-actions">
+          <button
+            className="action-btn"
+            title="Marqué collecté"
+            disabled={isPending}
+            onClick={() => onMark(order.id, product.id, 'collected', item.id)}
+            style={{ background: 'var(--green-soft)', color: 'var(--green)', width: 36, height: 36, borderRadius: 10 }}
+          >
+            <Check size={16} />
+          </button>
+          <button
+            className="action-btn"
+            title="Alternative"
+            disabled={isPending}
+            onClick={() => {
+              const note = window.prompt(`Alternative pour "${item.name}" :`, "");
+              if (note) onMark(order.id, product.id, 'alternative', item.id, note);
+            }}
+            style={{ background: 'var(--orange-soft)', color: 'var(--orange)', width: 36, height: 36, borderRadius: 10 }}
+          >
+            <ArrowLeftRight size={16} />
+          </button>
+          <button
+            className="action-btn"
+            title="Indisponible"
+            disabled={isPending}
+            onClick={() => onMark(order.id, product.id, 'unavailable', item.id)}
+            style={{ background: 'var(--red-soft)', color: 'var(--red)', width: 36, height: 36, borderRadius: 10 }}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      </td>
+    </tr>
   );
 }
 

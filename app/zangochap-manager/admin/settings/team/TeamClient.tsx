@@ -337,6 +337,8 @@ export default function TeamClient({ accounts, currentUser }: { accounts: any[];
     const [name, setName] = useState(account?.name || '');
     const [email, setEmail] = useState(account?.email || '');
     const [phone, setPhone] = useState(account?.phone || '');
+    const [phone2, setPhone2] = useState(account?.phone2 || '');
+    const [serviceLabel, setServiceLabel] = useState(account?.serviceLabel || '');
     const [role, setRole] = useState(account?.role?.toLowerCase() || '');
     const [password, setPassword] = useState('');
     const [isPending, startTransition] = useTransition();
@@ -346,11 +348,11 @@ export default function TeamClient({ accounts, currentUser }: { accounts: any[];
       startTransition(async () => {
         try {
           if (account) {
-            await updateAccount(account.email, { name, email, phone, role, password: password || undefined });
+            await updateAccount(account.email, { name, email, phone, phone2, serviceLabel, role, password: password || undefined });
             showToast('Compte mis à jour ✓', 'success');
           } else {
             if (!password) { showToast('Mot de passe requis', 'error'); return; }
-            const result = await createAccount({ name, email, phone, password, role });
+            const result = await createAccount({ name, email, phone, phone2, serviceLabel, password, role });
             if (!result.success) { showToast(result.error || 'Erreur', 'error'); return; }
             showToast('Nouveau membre ajouté ✓', 'success');
           }
@@ -400,6 +402,14 @@ export default function TeamClient({ accounts, currentUser }: { accounts: any[];
             <div className="form-row">
               <label className="field-label">Numéro WhatsApp</label>
               <input className="field-input" value={phone} onChange={e => setPhone(e.target.value)} placeholder="07 00 00 00 00" />
+            </div>
+            <div className="form-row">
+              <label className="field-label">Second numéro / Service</label>
+              <input className="field-input" value={phone2} onChange={e => setPhone2(e.target.value)} placeholder="01 00 00 00 00" />
+            </div>
+            <div className="form-row span-2">
+              <label className="field-label">Libellé du service (si applicable)</label>
+              <input className="field-input" value={serviceLabel} onChange={e => setServiceLabel(e.target.value)} placeholder="Ex. Service Client, Support Tech..." />
             </div>
             <div className="form-row span-2">
               <label className="field-label">{account ? 'Nouveau mot de passe (optionnel)' : 'Mot de passe temporaire *'}</label>

@@ -15,6 +15,7 @@ interface PageProps {
     q?: string;
     from?: string;
     to?: string;
+    scope?: string;
   }>;
 }
 
@@ -25,6 +26,8 @@ export default async function OrdersPage({ searchParams }: PageProps) {
   const page = parseInt(params.page || "1");
   const limit = 50;
   const skip = (page - 1) * limit;
+
+  const scope = params.scope || (user?.role === 'commercial' ? 'mine' : 'all');
 
   // Build filters
   const where: any = {};
@@ -54,8 +57,8 @@ export default async function OrdersPage({ searchParams }: PageProps) {
   }
 
   // Role-based restrictions
-  if (user?.role === 'commercial') {
-    // Commercials see their own OR website orders
+  if (user?.role === 'commercial' && scope === 'mine') {
+    // Commercials see their own OR website orders by default
     where.OR = [
       ...(where.OR || []),
       { commercialId: user.id },

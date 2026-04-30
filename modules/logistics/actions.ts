@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/modules/auth/actions";
 import { syncProductStock } from "@/lib/stock-sync";
-import { getOrCreateDefaultWarehouse } from "@/modules/orders/actions";
+import { getOrCreateDefaultWarehouse, updateOrderStatus } from "@/modules/orders/actions";
 
 // ============ COLLECTION RECORDS ============
 export async function getCollectionRecords(filters?: { byName?: string }) {
@@ -17,7 +17,7 @@ export async function getCollectionRecords(filters?: { byName?: string }) {
   });
 }
 
-export async function markCollection(orderId: string, productId: string, status: string, orderItemId?: string) {
+export async function markCollection(orderId: string, productId: string, status: string, orderItemId?: string, note?: string) {
   const session = await getSession();
   if (!session) throw new Error("Non authentifié");
 
@@ -39,7 +39,7 @@ export async function markCollection(orderId: string, productId: string, status:
     const labelMap: Record<string, string> = {
       collected: 'collecté',
       unavailable: 'marqué indisponible chez fournisseur',
-      alternative: 'collecté en alternative',
+      alternative: `collecté en alternative (${note || 'non spécifiée'})`,
     };
     const history = Array.isArray(order.history) ? [...(order.history as any[])] : [];
     history.push({
@@ -99,21 +99,8 @@ export async function markCollection(orderId: string, productId: string, status:
       });
 
       if (allAvailable) {
-        const history = Array.isArray(updatedOrder.history) ? [...(updatedOrder.history as any[])] : [];
-        history.push({
-          at: new Date().toISOString(),
-          action: "Système : Tous les articles sont disponibles. Statut → Emballée (Auto)",
-          by: "system",
-          byName: "Automation",
-        });
-
-        await prisma.order.update({
-          where: { id: orderId },
-          data: { 
-            status: 'PACKED',
-            history
-          }
-        });
+        // Utiliser la fonction standard pour déclencher le déstockage et la cohérence des statuts
+        await updateOrderStatus(orderId, 'PACKED', 'Système : Tous les articles sont disponibles (Auto)');
       }
     }
   }
@@ -146,12 +133,7 @@ export async function getItemsToCollect() {
       if (!item.productId) continue;
       const product = productMap.get(item.productId);
       if (product) {
-        const variant = product.variants.find((v: any) => v.size === item.size && v.color === item.color);
-        const variantStock = variant ? variant.stock : product.stock;
-        
-        if (variantStock === 0) {
-          toCollect.push({ order, item, product });
-        }
+        toCollect.push({ order, item, product });
       }
     }
   }

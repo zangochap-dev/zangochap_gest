@@ -41,3 +41,18 @@ export interface Commune {
   name: string;
   deliveryFee: number;
 }
+
+export interface StockMovement {
+  id: string;
+  variantId: string;
+  warehouseId?: string | null;
+  type: 'SALE' | 'RESTOCK' | 'RETURN' | 'EXCHANGE' | 'ADJUSTMENT' | 'DAMAGE' | 'LOSS';
+  quantity: number;
+  reason?: string | null;
+  orderId?: string | null;
+  by: string;
+  byName: string;
+  createdAt: string | Date;
+  variant: ProductVariant & { product: Product };
+  warehouse?: { id: string; name: string } | null;
+}

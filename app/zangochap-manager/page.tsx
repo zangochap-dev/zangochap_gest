@@ -6,8 +6,8 @@ export default async function LoginPage() {
   const session = await getSession();
 
   if (session) {
-    if (session.role === 'livreur') {
-      redirect("/zangochap-manager/delivery");
+    if (session.role.toLowerCase() === 'livreur') {
+      redirect("/zangochap-rider");
     } else {
       redirect("/zangochap-manager/dashboard");
     }

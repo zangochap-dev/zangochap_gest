@@ -10,6 +10,45 @@ import Modal from "@/components/Modal";
 export default function DashboardRecentOrders({ orders }: { orders: any[] }) {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
 
+  const handleWhatsApp = (order: any) => {
+    const totalAmount = Number(order.total || 0) + Number(order.deliveryFee || 0) - Number(order.discount || 0);
+    const names = (order.customerName || "").trim().split(/\s+/);
+    const lastName = names[0] || "";
+    const firstName = names.slice(1).join(" ") || "—";
+    const itemsList = order.items.map((i: any) => `${i.name} (${i.size}/${i.color}) x${i.qty}`).join("\n");
+
+    const msg = `🎉 *Votre commande est validée !*
+Veuillez vérifier vos informations enregistrées pour la commande
+Nom: ${lastName}
+Prenom: ${firstName}
+
+Numéro joignable 1: ${order.customerPhone}
+
+Numéro joignable 2 : ${order.customerPhone2 || '—'}
+
+Lieu de livraison : ${order.customerLocation} (${order.commune})
+
+Nom du produit : 
+${itemsList}
+
+Prix total: ${totalAmount.toLocaleString('fr-FR')} FCFA
+
+1️⃣ Téléchargez l’application dès maintenant en cliquant ici 👇🏾:
+📲 *Android* : https://play.google.com/store/apps/details?id=com.zangochap.zangochap&pcampaignid=web_share
+
+🍏 iPhone : https://apps.apple.com/ci/app/zangochap/id6737241287
+
+2️⃣ Envoyez-nous une capture d’écran de l’application installée pour activer votre surprise .
+
+Ne passez pas à côté de cette belle surprise ! 😍🔥`;
+
+    let phone = order.customerPhone.replace(/[^0-9]/g, '');
+    if (phone.startsWith('0')) phone = '225' + phone.substring(1);
+    else if (!phone.startsWith('225') && phone.length === 10) phone = '225' + phone;
+
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+  };
+
   return (
     <>
       <TableCard
@@ -46,7 +85,7 @@ export default function DashboardRecentOrders({ orders }: { orders: any[] }) {
                     </td>
                     <td>
                       <div style={{ fontSize: 11, lineHeight: 1.4, color: 'var(--brown-soft)' }}>
-                        {new Date(order.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}.<br/>
+                        {new Date(order.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}.<br />
                         <span style={{ opacity: 0.7 }}>{new Date(order.createdAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
                       </div>
                     </td>
@@ -67,7 +106,7 @@ export default function DashboardRecentOrders({ orders }: { orders: any[] }) {
                       <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
                         <button onClick={() => setSelectedOrder(order)} style={{ background: 'var(--cream-2)', border: 'none', cursor: 'pointer', fontSize: 13, padding: '4px 6px', borderRadius: 6 }} title="Détails">👁️</button>
                         <Link href={`/zangochap-manager/logistics/packing?order=${order.ref}`} style={{ textDecoration: 'none', fontSize: 13, background: 'var(--cream-2)', padding: '4px 6px', borderRadius: 6 }} title="Imprimer">📄</Link>
-                        <a href={`https://wa.me/${order.customerPhone.replace(/\s/g, '')}`} target="_blank" style={{ textDecoration: 'none', fontSize: 13, background: '#E7FCEF', padding: '4px 6px', borderRadius: 6 }} title="WhatsApp">💬</a>
+                        <button onClick={() => handleWhatsApp(order)} style={{ border: 'none', fontSize: 13, background: '#E7FCEF', padding: '4px 6px', borderRadius: 6, cursor: 'pointer' }} title="WhatsApp">💬</button>
                       </div>
                     </td>
                   </tr>
@@ -80,58 +119,58 @@ export default function DashboardRecentOrders({ orders }: { orders: any[] }) {
 
       {selectedOrder && (
         <Modal isOpen={true} onClose={() => setSelectedOrder(null)} title={`Commande ${selectedOrder.ref}`} large>
-           <div className="order-details-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-              <div>
-                <h4 style={{ fontSize: 12, textTransform: 'uppercase', opacity: 0.5, marginBottom: 12 }}>Informations Client</h4>
-                <div style={{ background: 'var(--cream)', padding: 16, borderRadius: 12 }}>
-                   <div style={{ fontWeight: 700, fontSize: 16 }}>{selectedOrder.customerName}</div>
-                   <div style={{ fontSize: 14, marginTop: 4 }}>{selectedOrder.customerPhone}</div>
-                   <div style={{ fontSize: 14, color: 'var(--brown-soft)', marginTop: 8 }}>
-                     📍 {selectedOrder.customerLocation} ({selectedOrder.commune})
-                   </div>
+          <div className="order-details-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+            <div>
+              <h4 style={{ fontSize: 12, textTransform: 'uppercase', opacity: 0.5, marginBottom: 12 }}>Informations Client</h4>
+              <div style={{ background: 'var(--cream)', padding: 16, borderRadius: 12 }}>
+                <div style={{ fontWeight: 700, fontSize: 16 }}>{selectedOrder.customerName}</div>
+                <div style={{ fontSize: 14, marginTop: 4 }}>{selectedOrder.customerPhone}</div>
+                <div style={{ fontSize: 14, color: 'var(--brown-soft)', marginTop: 8 }}>
+                  📍 {selectedOrder.customerLocation} ({selectedOrder.commune})
                 </div>
               </div>
-              <div>
-                <h4 style={{ fontSize: 12, textTransform: 'uppercase', opacity: 0.5, marginBottom: 12 }}>Détails Commande</h4>
-                <div style={{ background: 'var(--cream)', padding: 16, borderRadius: 12 }}>
-                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                     <span>Statut :</span>
-                     <StatusBadge status={selectedOrder.status} />
-                   </div>
-                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                     <span>Date :</span>
-                     <span>{formatDate(selectedOrder.createdAt)}</span>
-                   </div>
-                   <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, borderTop: '1px solid var(--line)', paddingTop: 8 }}>
-                     <span>Total :</span>
-                     <span style={{ color: 'var(--orange)' }}>{formatPrice(selectedOrder.total)}</span>
-                   </div>
+            </div>
+            <div>
+              <h4 style={{ fontSize: 12, textTransform: 'uppercase', opacity: 0.5, marginBottom: 12 }}>Détails Commande</h4>
+              <div style={{ background: 'var(--cream)', padding: 16, borderRadius: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <span>Statut :</span>
+                  <StatusBadge status={selectedOrder.status} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <span>Date :</span>
+                  <span>{formatDate(selectedOrder.createdAt)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, borderTop: '1px solid var(--line)', paddingTop: 8 }}>
+                  <span>Total :</span>
+                  <span style={{ color: 'var(--orange)' }}>{formatPrice(selectedOrder.total)}</span>
                 </div>
               </div>
-              <div style={{ gridColumn: 'span 2' }}>
-                <h4 style={{ fontSize: 12, textTransform: 'uppercase', opacity: 0.5, marginBottom: 12 }}>Articles</h4>
-                <table className="simple-table">
-                  <thead>
-                    <tr>
-                      <th>Produit</th>
-                      <th>Variant</th>
-                      <th>Qty</th>
-                      <th>Prix</th>
+            </div>
+            <div style={{ gridColumn: 'span 2' }}>
+              <h4 style={{ fontSize: 12, textTransform: 'uppercase', opacity: 0.5, marginBottom: 12 }}>Articles</h4>
+              <table className="simple-table">
+                <thead>
+                  <tr>
+                    <th>Produit</th>
+                    <th>Variant</th>
+                    <th>Qty</th>
+                    <th>Prix</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedOrder.items.map((item: any, i: number) => (
+                    <tr key={i}>
+                      <td>{item.name}</td>
+                      <td>{item.size} / {item.color}</td>
+                      <td>x{item.qty}</td>
+                      <td>{formatPrice(item.price)}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {selectedOrder.items.map((item: any, i: number) => (
-                      <tr key={i}>
-                        <td>{item.name}</td>
-                        <td>{item.size} / {item.color}</td>
-                        <td>x{item.qty}</td>
-                        <td>{formatPrice(item.price)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-           </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </Modal>
       )}
 

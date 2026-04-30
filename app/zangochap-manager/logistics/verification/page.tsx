@@ -25,6 +25,7 @@ function VerificationClient() {
   const [isPending, startTransition] = useTransition();
   const [search, setSearch] = useState("");
   const [verificationFilter, setVerificationFilter] = useState("all"); // all, checked, unchecked
+  const [orderStatusFilter, setOrderStatusFilter] = useState("all");
   const { showToast } = useToast();
 
   const loadOrders = async () => {
@@ -39,10 +40,22 @@ function VerificationClient() {
     setLoading(false);
   };
 
-  // Load on mount
+  // Load on mount and when date changes
   useEffect(() => {
     loadOrders();
-  }, []);
+  }, [date]);
+
+  const setToday = () => setDate(new Date().toISOString().split('T')[0]);
+  const setYesterday = () => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    setDate(d.toISOString().split('T')[0]);
+  };
+  const setTomorrow = () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    setDate(d.toISOString().split('T')[0]);
+  };
 
   const handleToggleCheck = (itemId: string, currentStatus: boolean) => {
     startTransition(async () => {
@@ -77,11 +90,15 @@ function VerificationClient() {
                             item.name.toLowerCase().includes(search.toLowerCase());
       
       const isChecked = !!item.isVerified;
-      if (verificationFilter === 'checked') return matchesSearch && isChecked;
-      if (verificationFilter === 'unchecked') return matchesSearch && !isChecked;
-      return matchesSearch;
+      const matchesVerification = verificationFilter === 'all' || 
+                                 (verificationFilter === 'checked' && isChecked) ||
+                                 (verificationFilter === 'unchecked' && !isChecked);
+                                 
+      const matchesStatus = orderStatusFilter === 'all' || item.order.status === orderStatusFilter;
+
+      return matchesSearch && matchesVerification && matchesStatus;
     });
-  }, [allItems, search, verificationFilter]);
+  }, [allItems, search, verificationFilter, orderStatusFilter]);
 
   const totalItems = allItems.length;
   const checkedCount = allItems.filter(i => i.isVerified).length;
@@ -92,11 +109,13 @@ function VerificationClient() {
       {/* CONTROLS */}
       <div className="filters-bar no-print" style={{ display: 'flex', flexWrap: 'wrap', gap: 12, background: 'white', padding: '16px 20px', borderRadius: 16, marginBottom: 24, border: '1px solid var(--line)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--brown)' }}>Date :</label>
-          <input type="date" className="filter-date" value={date} onChange={e => setDate(e.target.value)} />
-          <button className="btn-orange" onClick={loadOrders} disabled={loading} style={{ height: 38 }}>
-            {loading ? <Loader2 size={16} className="animate-spin" /> : 'Charger'}
-          </button>
+          <div className="quick-filters" style={{ display: 'flex', gap: 6 }}>
+            <button className={`filter-chip ${date === new Date().toISOString().split('T')[0] ? 'active' : ''}`} onClick={setToday}>Auj.</button>
+            <button className={`filter-chip`} onClick={setYesterday}>Hier</button>
+            <button className={`filter-chip`} onClick={setTomorrow}>Dem.</button>
+          </div>
+          <input type="date" className="filter-date" value={date} onChange={e => setDate(e.target.value)} style={{ border: '1.5px solid var(--orange-soft)', fontWeight: 700 }} />
+          {loading && <Loader2 size={18} className="animate-spin text-orange" />}
         </div>
         
         <div style={{ position: 'relative', flex: 1, minWidth: 250 }}>
@@ -109,6 +128,21 @@ function VerificationClient() {
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <select 
+            className="filter-date" 
+            style={{ width: 150, fontWeight: 700 }}
+            value={orderStatusFilter}
+            onChange={e => setOrderStatusFilter(e.target.value)}
+          >
+            <option value="all">Tous les états</option>
+            <option value="CONFIRMED">Confirmées</option>
+            <option value="PACKED">Emballées</option>
+            <option value="ON_DELIVERY">En livraison</option>
+            <option value="DELIVERED">Livrées</option>
+          </select>
         </div>
 
         <div style={{ display: 'flex', gap: 6 }}>

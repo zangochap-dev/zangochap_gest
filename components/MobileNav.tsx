@@ -32,7 +32,7 @@ export default function MobileNav({ user }: MobileNavProps) {
   }
  
   if (isLivreur) {
-    items.push({ label: 'Mes courses', href: '/zangochap-manager/delivery', icon: <Truck size={22} /> });
+    items.push({ label: 'Mes courses', href: '/zangochap-rider', icon: <Truck size={22} /> });
   }
  
   if (isAdmin) {

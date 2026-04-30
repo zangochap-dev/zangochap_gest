@@ -46,6 +46,7 @@ const NAV_FOR_ROLE: Record<string, (counts?: any) => NavSection[]> = {
     {
       items: [
         { label: 'Vue globale', href: '/zangochap-manager/dashboard', icon: <LayoutDashboard size={18} /> },
+        { label: 'Répertoire', href: '/zangochap-manager/directory', icon: <Users size={18} /> },
       ]
     },
     {
@@ -69,6 +70,7 @@ const NAV_FOR_ROLE: Record<string, (counts?: any) => NavSection[]> = {
     {
       items: [
         { label: 'Vue globale', href: '/zangochap-manager/dashboard', icon: <LayoutDashboard size={18} /> },
+        { label: 'Répertoire', href: '/zangochap-manager/directory', icon: <Users size={18} /> },
       ]
     },
     {
@@ -90,6 +92,7 @@ const NAV_FOR_ROLE: Record<string, (counts?: any) => NavSection[]> = {
     {
       items: [
         { label: 'Vue globale', href: '/zangochap-manager/dashboard', icon: <LayoutDashboard size={18} /> },
+        { label: 'Répertoire', href: '/zangochap-manager/directory', icon: <Users size={18} /> },
       ]
     },
     {
@@ -104,6 +107,7 @@ const NAV_FOR_ROLE: Record<string, (counts?: any) => NavSection[]> = {
     {
       items: [
         { label: 'Vue globale', href: '/zangochap-manager/dashboard', icon: <LayoutDashboard size={18} /> },
+        { label: 'Répertoire', href: '/zangochap-manager/directory', icon: <Users size={18} /> },
       ]
     },
     {
@@ -122,6 +126,7 @@ const NAV_FOR_ROLE: Record<string, (counts?: any) => NavSection[]> = {
     {
       items: [
         { label: 'Vue globale', href: '/zangochap-manager/dashboard', icon: <LayoutDashboard size={18} /> },
+        { label: 'Répertoire', href: '/zangochap-manager/directory', icon: <Users size={18} /> },
       ]
     },
     {
@@ -154,6 +159,7 @@ const NAV_FOR_ROLE: Record<string, (counts?: any) => NavSection[]> = {
     {
       title: 'Analyse',
       items: [
+        { label: 'Rapports règlements', href: '/zangochap-manager/admin/settlements', icon: <Wallet size={18} /> },
         { label: 'Performance équipe', href: '/zangochap-manager/admin/performance', icon: <BarChart3 size={18} /> },
         { label: 'Top produits', href: '/zangochap-manager/admin/top-products', icon: <BarChart3 size={18} /> },
         { label: 'CRM Clients', href: '/zangochap-manager/admin/crm', icon: <Users size={18} /> },
@@ -162,7 +168,7 @@ const NAV_FOR_ROLE: Record<string, (counts?: any) => NavSection[]> = {
     {
       title: 'Administration',
       items: [
-        { label: 'Gestion livraisons', href: '/zangochap-manager/admin/delivery', icon: <Truck size={18} /> },
+        { label: 'Gestion livraisons', href: '/zangochap-rider', icon: <Truck size={18} /> },
         { label: 'Configuration', href: '/zangochap-manager/admin/settings', icon: <Settings size={18} /> },
         { label: 'Importer données', href: '/zangochap-manager/admin/import', icon: <Upload size={18} /> },
       ]
@@ -172,7 +178,8 @@ const NAV_FOR_ROLE: Record<string, (counts?: any) => NavSection[]> = {
   livreur: (counts) => [
     {
       items: [
-        { label: 'Mes Livraisons', href: '/zangochap-manager/delivery', icon: <Truck size={18} />, badge: counts?.myDeliveries },
+        { label: 'Mes Livraisons', href: '/zangochap-rider', icon: <Truck size={18} />, badge: counts?.myDeliveries },
+        { label: 'Répertoire', href: '/zangochap-manager/directory', icon: <Users size={18} /> },
       ]
     },
   ],

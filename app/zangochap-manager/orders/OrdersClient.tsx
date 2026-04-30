@@ -8,7 +8,7 @@ import { useToast } from "@/components/Toast";
 import { updateOrderStatus, duplicateOrder, deleteOrder, createOrder, addOrderHistoryEntry, updateOrderDetails, assignOrderToDeliveryman, reprogramOrder } from "@/modules/orders/actions";
 import { COMMUNES, STATUS_LABELS, formatPrice, formatDate, formatDay } from "@/lib/constants";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, Eye, Package, Trash2, Minus, Search, X, ChevronLeft, ChevronRight, RefreshCw, Copy, Edit3, Maximize, AlertTriangle, Phone, Save, Edit2, Download, MessageCircle, Printer, Truck, Check, ArrowLeftRight, Ban, Users, Calendar } from "lucide-react";
+import { Plus, Eye, Package, Trash2, Minus, Search, X, ChevronLeft, ChevronRight, RefreshCw, Copy, Edit3, Maximize, AlertTriangle, Phone, Save, Edit2, Download, MessageCircle, Printer, Truck, Check, ArrowLeftRight, Ban, Users, Calendar, CreditCard } from "lucide-react";
 import Link from "next/link";
 import Script from "next/script";
 import VariantSelectionModal from "@/components/VariantSelectionModal";
@@ -35,11 +35,11 @@ interface OrdersClientProps {
   pageSize: number;
 }
 
-export default function OrdersClient({ 
-  initialOrders, 
-  products, 
-  deliverymen = [], 
-  staffUsers = [], 
+export default function OrdersClient({
+  initialOrders,
+  products,
+  deliverymen = [],
+  staffUsers = [],
   user,
   totalCount,
   currentPage: serverPage,
@@ -47,15 +47,16 @@ export default function OrdersClient({
 }: OrdersClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   // -- Sync local state with URL --
   const [filter, setFilter] = useState(searchParams.get('status') || 'all');
   const [communeFilter, setCommuneFilter] = useState(searchParams.get('commune') || 'all');
+  const [scope, setScope] = useState(searchParams.get('scope') || (user?.role === 'commercial' ? 'mine' : 'all'));
   const [dateFrom, setDateFrom] = useState(searchParams.get('from') || '');
   const [dateTo, setDateTo] = useState(searchParams.get('to') || '');
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
-  
+
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [orderToDuplicate, setOrderToDuplicate] = useState<any>(null);
@@ -81,18 +82,19 @@ export default function OrdersClient({
       return;
     }
     const params = new URLSearchParams(searchParams.toString());
-    
+
     if (filter !== 'all') params.set('status', filter); else params.delete('status');
     if (communeFilter !== 'all') params.set('commune', communeFilter); else params.delete('commune');
+    if (scope !== (user?.role === 'commercial' ? 'mine' : 'all')) params.set('scope', scope); else params.delete('scope');
     if (dateFrom) params.set('from', dateFrom); else params.delete('from');
     if (dateTo) params.set('to', dateTo); else params.delete('to');
     if (debouncedSearch) params.set('q', debouncedSearch); else params.delete('q');
-    
+
     // Always reset to page 1 on filter change
     params.set('page', '1');
-    
+
     router.push(`?${params.toString()}`);
-  }, [filter, communeFilter, dateFrom, dateTo, debouncedSearch, router]);
+  }, [filter, communeFilter, scope, dateFrom, dateTo, debouncedSearch, router]);
 
   // Handle page change specifically
   const goToPage = (page: number) => {
@@ -196,29 +198,37 @@ export default function OrdersClient({
       return;
     }
 
-    const totalPayer = (order.total || 0) + (order.deliveryFee || 0) - (order.discount || 0);
-    const itemsText = order.items.map((i: any) =>
-      `• *${i.name}*\n  ${i.size} · ${i.color} | Qté: ${i.qty} — ${formatPrice(i.price * i.qty)}`
-    ).join('\n\n');
+    const totalAmount = (order.total || 0) + (order.deliveryFee || 0) - (order.discount || 0);
+    const names = (order.customerName || "").trim().split(/\s+/);
+    const lastName = names[0] || "";
+    const firstName = names.slice(1).join(" ") || "—";
 
-    const msg = `🛍️ *ZANGOCHAP — RÉCAPITULATIF DE COMMANDE*\n\n` +
-      `Bonjour *${order.customerName}*,\n\n` +
-      `Voici le récapitulatif de votre commande :\n\n` +
-      `📋 *RÉFÉRENCE :* ${order.ref}\n` +
-      `📍 *LIVRAISON :* ${order.customerLocation} (${order.commune})\n\n` +
-      `*ARTICLES COMMANDÉS*\n` +
-      `━━━━━━━━━━━━━━\n\n` +
-      `${itemsText}\n\n` +
-      `━━━━━━━━━━━━━━\n` +
-      `💰 *Sous-total :* ${formatPrice(order.total)}\n` +
-      `🚚 *Livraison :* ${formatPrice(order.deliveryFee || 0)}\n` +
-      (order.discount > 0 ? `🎁 *Remise :* -${formatPrice(order.discount)}\n` : '') +
-      `🔥 *TOTAL À PAYER :* ${formatPrice(totalPayer)}\n` +
-      `💵 *Paiement à la livraison*\n` +
-      `━━━━━━━━━━━━━━\n\n` +
-      `⚠️ *Merci de vérifier vos informations.* En cas d'erreur, signalez-la-moi le plus vite possible afin de la corriger avant la livraison.\n\n` +
-      `Merci pour votre confiance ! 🧡\n\n` +
-      `_Envoyé par ${user?.name} — Zangochap_`;
+    const itemsList = order.items.map((i: any) => `${i.name} (${i.size}/${i.color}) x${i.qty}`).join("\n");
+
+    const msg = `🎉 *Votre commande est validée !*
+Veuillez vérifier vos informations enregistrées pour la commande
+Nom: ${lastName}
+Prenom: ${firstName}
+
+Numéro joignable 1: ${order.customerPhone}
+
+Numéro joignable 2 : ${order.customerPhone2 || '—'}
+
+Lieu de livraison : ${order.customerLocation} (${order.commune})
+
+Nom du produit : 
+${itemsList}
+
+Prix total: ${totalAmount.toLocaleString('fr-FR')} FCFA
+
+1️⃣ Téléchargez l’application dès maintenant en cliquant ici 👇🏾:
+📲 *Android* : https://play.google.com/store/apps/details?id=com.zangochap.zangochap&pcampaignid=web_share
+
+🍏 iPhone : https://apps.apple.com/ci/app/zangochap/id6737241287
+
+2️⃣ Envoyez-nous une capture d’écran de l’application installée pour activer votre surprise .
+
+Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
     let phone = order.customerPhone.replace(/[^0-9]/g, '');
     if (phone.startsWith('0')) phone = '225' + phone.substring(1);
@@ -651,6 +661,12 @@ export default function OrdersClient({
           <option value="all">Toutes communes</option>
           {Object.keys(COMMUNES).map(c => <option key={c} value={c}>{c}</option>)}
         </select>
+        {user?.role === 'commercial' && (
+          <select className="filter-select" value={scope} onChange={(e) => setScope(e.target.value)}>
+            <option value="mine">Mes commandes</option>
+            <option value="all">Toutes les commandes</option>
+          </select>
+        )}
         <input type="date" className="filter-date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
         <input type="date" className="filter-date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
         <button className="btn-secondary" onClick={() => router.refresh()} title="Actualiser" style={{ padding: '8px 10px' }}>
@@ -729,20 +745,27 @@ export default function OrdersClient({
                           <button className="action-btn" title="Voir le détail" onClick={() => setSelectedOrder(order)}>
                             <Eye size={14} />
                           </button>
-                          <button className="action-btn" title="Modifier" onClick={() => { setSelectedOrder(order); setIsEditing(true); }}>
-                            <Edit3 size={14} />
-                          </button>
-                          <button className="action-btn" title="Dupliquer & Modifier" onClick={() => setOrderToDuplicate(order)}>
-                            <Copy size={14} />
-                          </button>
+
+                          {/* Commercials can only edit/dup/delete their own orders */}
+                          {(user?.role === 'admin' || (user?.role === 'commercial' && (order.commercialId === user.id || order.commercialName === user.name))) && (
+                            <>
+                              <button className="action-btn" title="Modifier" onClick={() => { setSelectedOrder(order); setIsEditing(true); }}>
+                                <Edit3 size={14} />
+                              </button>
+                              <button className="action-btn" title="Dupliquer & Modifier" onClick={() => setOrderToDuplicate(order)}>
+                                <Copy size={14} />
+                              </button>
+                              <button className="action-btn" title="Supprimer" onClick={() => handleDelete(order.id)} style={{ color: 'var(--red)' }}>
+                                <Trash2 size={14} />
+                              </button>
+                            </>
+                          )}
+
                           <button className="action-btn" title="Envoyer reçu WhatsApp au client" onClick={() => handleWhatsApp(order)} style={{ background: '#dcfce7', color: '#16a34a' }}>
                             <MessageCircle size={14} />
                           </button>
                           <button className="action-btn" title="Imprimer reçu" onClick={() => setReceiptOrder(order)} style={{ background: '#fef3c7', color: '#b45309' }}>
                             <Printer size={14} />
-                          </button>
-                          <button className="action-btn" title="Supprimer" onClick={() => handleDelete(order.id)} style={{ color: 'var(--red)' }}>
-                            <Trash2 size={14} />
                           </button>
                         </div>
                       </td>
@@ -1059,7 +1082,7 @@ function OrderDetailModal({
                         </select>
                       </div>
                     )}
-                    {['CONFIRMED', 'PACKED', 'ON_DELIVERY'].includes(order.status) && (
+                    {['CONFIRMED', 'PACKED', 'ON_DELIVERY'].includes(order.status) && user?.role !== 'COMMERCIAL' && (
                       <button className="btn-orange" onClick={() => onStatusChange(order.id, 'DELIVERED')} disabled={isPending}>
                         <Truck size={14} /> Livré
                       </button>
@@ -1196,6 +1219,12 @@ function OrderDetailModal({
                     {order.customerPhone2 && <div className="cell-muted">{order.customerPhone2}</div>}
                     {order.customerLocation && <div className="cell-muted" style={{ marginTop: 4 }}>{order.customerLocation}</div>}
                     {order.commune && <div style={{ marginTop: 4, color: 'var(--orange)', fontWeight: 600, fontSize: 12 }}>{order.commune}</div>}
+                    {order.paymentMethod && (
+                      <div style={{ marginTop: 8, padding: '4px 8px', background: 'var(--blue-soft)', color: 'var(--blue)', borderRadius: 6, fontSize: 11, fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <CreditCard size={12} />
+                        <span>SOLDER PAR : {order.paymentMethod.toUpperCase()}</span>
+                      </div>
+                    )}
                   </>
                 )}
               </DetailCard>
@@ -1300,27 +1329,87 @@ function OrderDetailModal({
 
               <div style={{ marginTop: 14 }}>
                 <DetailCard label="Historique détaillé">
-                  {history.length === 0 ? (
-                    <div className="cell-muted" style={{ fontSize: 12, padding: '10px 0' }}>Aucun événement enregistré</div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 0, paddingLeft: 4 }}>
-                      {history.slice().reverse().map((h: any, i: number) => (
-                        <div key={i} style={{ display: 'flex', gap: 12, position: 'relative', paddingBottom: 16 }}>
-                          {i < history.length - 1 && (
-                            <div style={{ position: 'absolute', left: 5, top: 14, bottom: -4, width: 2, background: 'var(--line)' }} />
-                          )}
-                          <div style={{ width: 12, height: 12, borderRadius: '50%', background: i === 0 ? 'var(--orange)' : 'var(--line)', border: '2px solid white', marginTop: 3, zIndex: 1, boxShadow: '0 0 0 2px white' }} />
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: i === 0 ? 'var(--ink)' : 'var(--brown)', lineHeight: 1.2 }}>{h.action}</div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-                              <span style={{ fontSize: 11, color: 'var(--brown-soft)', fontWeight: 600 }}>{h.byName}</span>
-                              <span style={{ fontSize: 10, color: 'var(--brown-soft)', fontFamily: 'var(--font-mono)', opacity: 0.8 }}>{formatDate(h.at)}</span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  {(() => {
+                    const formatAction = (action: string) => {
+                      if (!action) return "—";
+
+                      // Status mapping
+                      const statusMap: Record<string, string> = {
+                        'PENDING': 'En attente',
+                        'CONFIRMED': 'Confirmée',
+                        'PACKED': 'Emballée',
+                        'ON_DELIVERY': 'En livraison',
+                        'DELIVERED': 'Livrée',
+                        'CANCELLED': 'Annulée',
+                        'RETURNED': 'Retournée',
+                        'REPROGRAMMED': 'Reprogrammée',
+                        'TO_PROCESS': 'À traiter'
+                      };
+
+                      let formatted = action;
+
+                      // Clean up "Statut → STATUS par NAME"
+                      if (action.includes('Statut →')) {
+                        const parts = action.split(' ');
+                        const status = parts[2];
+                        const frStatus = statusMap[status] || status;
+                        formatted = `Statut : ${frStatus}`;
+                      }
+
+                      return formatted;
+                    };
+
+                    const getActionColor = (action: string) => {
+                      const lower = action.toLowerCase();
+                      if (lower.includes('livrée') || lower.includes('delivered')) return 'var(--green)';
+                      if (lower.includes('annulée') || lower.includes('cancelled')) return 'var(--red)';
+                      if (lower.includes('reprogrammée') || lower.includes('reprogrammed')) return 'var(--orange)';
+                      if (lower.includes('emballée') || lower.includes('packed')) return 'var(--blue)';
+                      if (lower.includes('confirmée') || lower.includes('confirmed')) return 'var(--green)';
+                      return 'inherit';
+                    };
+
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 0, paddingLeft: 4 }}>
+                        {history.length === 0 ? (
+                          <div className="cell-muted" style={{ fontSize: 12, padding: '10px 0' }}>Aucun événement enregistré</div>
+                        ) : (
+                          history.slice().reverse().map((h: any, i: number) => {
+                            const actionText = formatAction(h.action);
+                            const actionColor = getActionColor(actionText);
+
+                            return (
+                              <div key={i} style={{ display: 'flex', gap: 12, position: 'relative', paddingBottom: 16 }}>
+                                {i < history.length - 1 && (
+                                  <div style={{ position: 'absolute', left: 5, top: 14, bottom: -4, width: 2, background: 'var(--line)' }} />
+                                )}
+                                <div style={{
+                                  width: 12, height: 12, borderRadius: '50%',
+                                  background: i === 0 ? 'var(--orange)' : 'var(--line)',
+                                  border: '2px solid white', marginTop: 3, zIndex: 1,
+                                  boxShadow: '0 0 0 2px white'
+                                }} />
+                                <div style={{ flex: 1 }}>
+                                  <div style={{
+                                    fontSize: 13,
+                                    fontWeight: 700,
+                                    color: i === 0 ? 'var(--ink)' : 'var(--brown)',
+                                    lineHeight: 1.2
+                                  }}>
+                                    <span style={{ color: actionColor !== 'inherit' ? actionColor : undefined }}>{actionText}</span>
+                                  </div>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                                    <span style={{ fontSize: 11, color: 'var(--brown-soft)', fontWeight: 600 }}>{h.byName}</span>
+                                    <span style={{ fontSize: 10, color: 'var(--brown-soft)', fontFamily: 'var(--font-mono)', opacity: 0.8 }}>{formatDate(h.at)}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    );
+                  })()}
                 </DetailCard>
               </div>
             </div>

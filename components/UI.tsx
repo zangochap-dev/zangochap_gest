@@ -22,12 +22,13 @@ export const TableCard = ({ title, meta, children, actions, className }: {
   </div>
 );
 
-export const StatusBadge = ({ status }: { status: string }) => {
-  const cssClass = STATUS_CSS[status.toUpperCase()] || status.toLowerCase();
-  const label = STATUS_LABELS[status.toUpperCase()] || status;
+export const StatusBadge = ({ status, size }: { status: any, size?: 'sm' | 'md' | 'lg' }) => {
+  const s = String(status || '').toUpperCase();
+  const cssClass = STATUS_CSS[s] || s.toLowerCase() || 'pending';
+  const label = STATUS_LABELS[s] || status || 'En attente';
 
   return (
-    <span className={`status ${cssClass}`}>
+    <span className={`status ${cssClass} ${size ? `status-${size}` : ''}`}>
       {label}
     </span>
   );

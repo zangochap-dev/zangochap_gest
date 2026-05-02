@@ -1,12 +1,39 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { formatPrice } from "@/lib/constants";
 import { Product } from "@/lib/types";
+import { useCart } from "@/lib/CartContext";
+import { ShoppingBag, Plus, Check } from "lucide-react";
 
 export default function ProductCard({ p }: { p: Product }) {
+  const { addToCart } = useCart();
+  const [added, setAdded] = useState(false);
+  
   const discount = p.oldPrice ? Math.round((1 - Number(p.price) / Number(p.oldPrice)) * 100) : 0;
+
+  const handleQuickAdd = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (p.variants && p.variants.length > 0) {
+      const v = p.variants[0];
+      addToCart({
+        productId: p.id,
+        variantId: v.id,
+        name: p.name,
+        price: Number(p.price),
+        qty: 1,
+        size: v.size,
+        color: v.color,
+        image: p.images?.[0]?.url
+      });
+      
+      setAdded(true);
+      setTimeout(() => setAdded(false), 2000);
+    }
+  };
 
   return (
     <Link href={`/product/${p.id}`} className="group block relative no-underline text-inherit">
@@ -27,6 +54,15 @@ export default function ProductCard({ p }: { p: Product }) {
             -{discount}%
           </div>
         )}
+
+        {/* QUICK ADD BUTTON */}
+        <button 
+          onClick={handleQuickAdd}
+          className={`absolute bottom-3 right-3 w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-all duration-300 shadow-lg border-none cursor-pointer z-10 ${added ? 'bg-green-600 text-white scale-110' : 'bg-[#1A1614] text-white hover:bg-[#D4541C] md:translate-y-2 md:opacity-0 md:group-hover:translate-y-0 md:group-hover:opacity-100'}`}
+          title="Ajouter au panier"
+        >
+          {added ? <Check size={16} /> : <Plus size={16} />}
+        </button>
         
         <div className="absolute bottom-0 left-0 right-0 bg-white/90 text-[#1A1614] py-3 text-center text-[10px] font-extrabold tracking-widest translate-y-full transition-transform duration-300 group-hover:translate-y-0">
           VOIR LES DÉTAILS

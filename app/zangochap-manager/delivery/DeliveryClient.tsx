@@ -133,6 +133,10 @@ export default function DeliveryClient({ orders, user }: { orders: any[]; user: 
   }), [pendingOrders, historyOrders]);
 
   const handleStatusChange = useCallback((orderId: string, status: string) => {
+    if (user?.role?.toUpperCase() === 'COMMERCIAL') {
+      showToast("Accès refusé : Action réservée aux livreurs", "error");
+      return;
+    }
     const label = status === "DELIVERED" ? "Livraison confirmée" : "Retour enregistré";
     if (!confirm(`Souhaitez-vous marquer cette commande comme ${status === "DELIVERED" ? "LIVRÉE" : "RETOURNÉE"} ?`)) return;
 
@@ -146,7 +150,7 @@ export default function DeliveryClient({ orders, user }: { orders: any[]; user: 
         showToast(e.message || "Erreur lors de la mise à jour", "error");
       }
     });
-  }, [router, showToast]);
+  }, [router, showToast, user?.role]);
 
   const onOrderSelect = (order: any) => {
     setSelectedOrder(order);
@@ -155,6 +159,10 @@ export default function DeliveryClient({ orders, user }: { orders: any[]; user: 
   };
 
   const handlePartialDelivery = () => {
+    if (user?.role?.toUpperCase() === 'COMMERCIAL') {
+      showToast("Accès refusé : Action réservée aux livreurs", "error");
+      return;
+    }
     if (deliveredItemIds.length === 0) {
       showToast("Sélectionnez au moins un article", "error");
       return;

@@ -8,7 +8,8 @@ import { ROLE_LABELS } from "@/lib/constants";
 import {
   LayoutDashboard, ShoppingBag, Package, Truck, Box, Users, BarChart3,
   Tag, Upload, FileText, LogOut, Menu, X, ClipboardList,
-  AlertTriangle, Settings, MapPin, Store, ChevronRight, History, Wallet, Warehouse
+  AlertTriangle, Settings, MapPin, Store, ChevronRight, History, Wallet, Warehouse,
+  User
 } from "lucide-react";
 
 interface SidebarProps {
@@ -168,7 +169,8 @@ const NAV_FOR_ROLE: Record<string, (counts?: any) => NavSection[]> = {
     {
       title: 'Administration',
       items: [
-        { label: 'Gestion livraisons', href: '/zangochap-rider', icon: <Truck size={18} /> },
+        { label: 'Attribution livraisons', href: '/zangochap-manager/admin/delivery', icon: <Truck size={18} /> },
+        { label: 'Accès Rider', href: '/zangochap-rider', icon: <User size={18} /> },
         { label: 'Configuration', href: '/zangochap-manager/admin/settings', icon: <Settings size={18} /> },
         { label: 'Importer données', href: '/zangochap-manager/admin/import', icon: <Upload size={18} /> },
       ]

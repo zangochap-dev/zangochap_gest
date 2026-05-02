@@ -1082,7 +1082,7 @@ function OrderDetailModal({
                         </select>
                       </div>
                     )}
-                    {['CONFIRMED', 'PACKED', 'ON_DELIVERY'].includes(order.status) && user?.role !== 'COMMERCIAL' && (
+                    {['CONFIRMED', 'PACKED', 'ON_DELIVERY'].includes(order.status) && user?.role?.toUpperCase() !== 'COMMERCIAL' && (
                       <button className="btn-orange" onClick={() => onStatusChange(order.id, 'DELIVERED')} disabled={isPending}>
                         <Truck size={14} /> Livré
                       </button>

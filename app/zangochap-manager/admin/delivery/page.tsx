@@ -21,7 +21,18 @@ export default async function AdminDeliveryPage() {
 
   const deliverymen = await prisma.user.findMany({
     where: { role: 'LIVREUR' },
-    select: { id: true, name: true, phone: true },
+    select: { 
+      id: true, 
+      name: true, 
+      phone: true,
+      _count: {
+        select: {
+          orders: {
+            where: { status: { notIn: ['DELIVERED', 'CANCELLED'] } }
+          }
+        }
+      }
+    },
   });
 
   return (

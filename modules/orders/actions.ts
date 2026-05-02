@@ -212,8 +212,9 @@ export async function updateOrderStatus(orderId: string, newStatus: string, note
     throw new Error("Accès refusé");
   }
 
-  // Restriction: Commercials cannot mark as DELIVERED
-  if (newStatus.toUpperCase() === 'DELIVERED' && session.role === 'COMMERCIAL') {
+  // Restriction: Commercials cannot mark as DELIVERED or PARTIALLY_DELIVERED
+  const deliveryStatuses = ['DELIVERED', 'PARTIALLY_DELIVERED'];
+  if (deliveryStatuses.includes(newStatus.toUpperCase()) && session.role.toUpperCase() === 'COMMERCIAL') {
     throw new Error("Seul un livreur ou un administrateur peut marquer une commande comme livrée.");
   }
 
@@ -283,6 +284,10 @@ export async function updateOrderStatus(orderId: string, newStatus: string, note
 export async function markPartialDelivery(orderId: string, deliveredQuantities: Record<string, number>, note?: string, includeDeliveryFee: boolean = true) {
   const session = await getSession();
   if (!session) throw new Error("Non authentifié");
+
+  if (session.role.toUpperCase() === 'COMMERCIAL') {
+    throw new Error("Action réservée aux livreurs et administrateurs.");
+  }
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },

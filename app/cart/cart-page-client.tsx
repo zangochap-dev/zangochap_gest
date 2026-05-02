@@ -64,71 +64,67 @@ export default function CartPageClient({ communes = [] }: { communes?: Commune[]
 
   if (orderSuccess) {
     return (
-      <div className="success-page">
-        <div className="success-card">
-          <div className="success-icon"><CheckCircle2 size={56} color="#2D8A4E" strokeWidth={1.5} /></div>
-          <h1>COMMANDE CONFIRMÉE</h1>
-          <p>Merci pour votre confiance. Notre équipe vous contactera dans les prochaines minutes pour organiser la livraison.</p>
-          <Link href="/" className="success-btn">CONTINUER MES ACHATS</Link>
+      <div className="flex items-center justify-center min-h-[60vh] px-6 py-[60px]">
+        <div className="text-center max-w-[460px] animate-[fadeUp_0.5s_ease]">
+          <div className="mb-7"><CheckCircle2 size={56} color="#2D8A4E" strokeWidth={1.5} /></div>
+          <h1 className="text-[22px] font-light tracking-[0.2em] mb-4 text-[#1A1614]">COMMANDE CONFIRMÉE</h1>
+          <p className="text-sm text-[#888] leading-relaxed mb-9">Merci pour votre confiance. Notre équipe vous contactera dans les prochaines minutes pour organiser la livraison.</p>
+          <Link href="/" className="inline-block px-12 py-4 bg-[#1A1614] text-white no-underline text-[11px] font-semibold tracking-[0.15em] transition-all hover:bg-[#333] hover:-translate-y-0.5">CONTINUER MES ACHATS</Link>
         </div>
-        <style jsx>{`
-          .success-page { display: flex; align-items: center; justify-content: center; min-height: 60vh; padding: 60px 24px; }
-          .success-card { text-align: center; max-width: 460px; animation: fadeUp 0.5s ease; }
-          .success-icon { margin-bottom: 28px; }
-          .success-card h1 { font-size: 22px; font-weight: 300; letter-spacing: 0.2em; margin-bottom: 16px; color: #1A1614; }
-          .success-card p { font-size: 14px; color: #888; line-height: 1.7; margin-bottom: 36px; }
-          .success-btn { display: inline-block; padding: 16px 48px; background: #1A1614; color: white; text-decoration: none; font-size: 11px; font-weight: 600; letter-spacing: 0.15em; transition: all 0.3s; }
-          .success-btn:hover { background: #333; transform: translateY(-2px); }
-          @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        `}</style>
       </div>
     );
   }
 
   if (cart.length === 0) {
     return (
-      <div className="empty-page">
+      <div className="flex flex-col items-center justify-center min-h-[50vh] px-6 py-20 text-center animate-[fadeUp_0.5s_ease]">
         <ShoppingBag size={56} color="#ddd" strokeWidth={1.2} />
-        <h1>VOTRE PANIER EST VIDE</h1>
-        <p>Parcourez notre collection et trouvez la pièce parfaite.</p>
-        <Link href="/" className="empty-btn">DÉCOUVRIR LA BOUTIQUE</Link>
-        <style jsx>{`
-          .empty-page { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 50vh; padding: 80px 24px; text-align: center; animation: fadeUp 0.5s ease; }
-          .empty-page h1 { font-size: 20px; font-weight: 300; letter-spacing: 0.2em; margin: 24px 0 12px; color: #1A1614; }
-          .empty-page p { font-size: 14px; color: #999; margin-bottom: 32px; }
-          .empty-btn { display: inline-block; padding: 16px 48px; background: #1A1614; color: white; text-decoration: none; font-size: 11px; font-weight: 600; letter-spacing: 0.15em; transition: all 0.3s; }
-          .empty-btn:hover { background: #333; }
-          @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        `}</style>
+        <h1 className="text-xl font-light tracking-[0.2em] mt-6 mb-3 text-[#1A1614]">VOTRE PANIER EST VIDE</h1>
+        <p className="text-sm text-[#999] mb-8">Parcourez notre collection et trouvez la pièce parfaite.</p>
+        <Link href="/" className="inline-block px-12 py-4 bg-[#1A1614] text-white no-underline text-[11px] font-semibold tracking-[0.15em] transition-all hover:bg-[#333]">DÉCOUVRIR LA BOUTIQUE</Link>
       </div>
     );
   }
 
   return (
-    <div className="cart-page">
-      <div className="cart-breadcrumb">
-        <Link href="/"><ChevronLeft size={14} /> Continuer mes achats</Link>
+    <div className="max-w-[1200px] mx-auto px-6 md:px-10 py-6 pb-20 animate-[fadeUp_0.4s_ease] font-body w-full">
+      <div className="mb-5">
+        <Link href="/" className="no-underline text-[#999] text-[12px] inline-flex items-center gap-1 font-medium tracking-wider transition-colors hover:text-[#1A1614]">
+          <ChevronLeft size={14} /> Continuer mes achats
+        </Link>
       </div>
-      <h1 className="cart-title">PANIER <span>({cart.length})</span></h1>
+      <h1 className="text-2xl font-light tracking-[0.2em] text-[#1A1614] mb-10 uppercase">
+        PANIER <span className="text-[#bbb]">({cart.length})</span>
+      </h1>
 
-      <div className="cart-layout">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-[60px] items-start">
         {/* ═══ ITEMS ═══ */}
-        <div className="cart-items">
+        <div className="flex flex-col gap-0">
           {cart.map((item: any) => (
-            <div key={item.variantId} className="cart-item">
-              <div className="item-img">
-                {item.image ? <img src={item.image} alt="" /> : <span className="item-placeholder">Z</span>}
+            <div key={item.variantId} className="flex items-center gap-6 py-7 border-b border-[#f0f0f0]">
+              <div className="w-[90px] h-[110px] bg-[#F5F3EF] flex-shrink-0 overflow-hidden">
+                {item.image ? (
+                  <img src={item.image} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="w-full h-full flex items-center justify-center text-2xl font-thin text-[#D5D0C8]">Z</span>
+                )}
               </div>
-              <div className="item-details">
-                <h3>{item.name}</h3>
-                <p className="item-variant">{item.size} · {item.color}</p>
-                <p className="item-unit-price">{formatPrice(item.price)}</p>
+              <div className="flex-1">
+                <h3 className="text-sm font-medium text-[#1A1614] mb-1 tracking-wide">{item.name}</h3>
+                <p className="text-[12px] text-[#aaa] mb-1.5">{item.size} · {item.color}</p>
+                <p className="text-[13px] text-[#888] font-medium">{formatPrice(item.price)}</p>
               </div>
-              <div className="item-qty">
+              <div className="hidden md:block text-[12px] text-[#888] font-medium">
                 <span>Qté: {item.qty}</span>
               </div>
-              <div className="item-total">{formatPrice(item.price * item.qty)}</div>
-              <button className="item-remove" onClick={() => removeFromCart(item.variantId)} aria-label="Supprimer">
+              <div className="text-[15px] font-semibold text-[#1A1614] min-w-[80px] text-right">
+                {formatPrice(item.price * item.qty)}
+              </div>
+              <button 
+                className="w-9 h-9 flex items-center justify-center bg-none border border-[#f0f0f0] cursor-pointer text-[#ccc] transition-all hover:border-[#C23616] hover:text-[#C23616]" 
+                onClick={() => removeFromCart(item.variantId)} 
+                aria-label="Supprimer"
+              >
                 <Trash2 size={16} />
               </button>
             </div>
@@ -136,255 +132,75 @@ export default function CartPageClient({ communes = [] }: { communes?: Commune[]
         </div>
 
         {/* ═══ CHECKOUT SIDEBAR ═══ */}
-        <div className="checkout-panel">
-          <h2>LIVRAISON</h2>
-          <form onSubmit={handleSubmit} className="checkout-form">
-            <div className="field">
-              <label>NOM COMPLET</label>
-              <input value={name} onChange={e => setName(e.target.value)} placeholder="Aminata Traoré" required />
+        <div className="bg-[#FAFAF8] p-9 sticky top-[100px] border border-[#f0f0f0]">
+          <h2 className="text-[13px] font-normal tracking-[0.2em] mb-7 text-[#1A1614] uppercase">LIVRAISON</h2>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+            <div className="space-y-2">
+              <label className="block text-[10px] font-medium tracking-[0.12em] text-[#999] uppercase">NOM COMPLET</label>
+              <input 
+                value={name} 
+                onChange={e => setName(e.target.value)} 
+                placeholder="Aminata Traoré" 
+                required 
+                className="w-full p-3.5 border border-[#e8e8e4] bg-white text-sm text-[#1A1614] outline-none transition-colors focus:border-[#1A1614]"
+              />
             </div>
-            <div className="field">
-              <label>TÉLÉPHONE</label>
-              <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="07 00 00 00 00" required />
+            <div className="space-y-2">
+              <label className="block text-[10px] font-medium tracking-[0.12em] text-[#999] uppercase">TÉLÉPHONE</label>
+              <input 
+                value={phone} 
+                onChange={e => setPhone(e.target.value)} 
+                placeholder="07 00 00 00 00" 
+                required 
+                className="w-full p-3.5 border border-[#e8e8e4] bg-white text-sm text-[#1A1614] outline-none transition-colors focus:border-[#1A1614]"
+              />
             </div>
-            <div className="field">
-              <label>COMMUNE</label>
-              <select value={commune} onChange={e => setCommune(e.target.value)} required>
+            <div className="space-y-2">
+              <label className="block text-[10px] font-medium tracking-[0.12em] text-[#999] uppercase">COMMUNE</label>
+              <select 
+                value={commune} 
+                onChange={e => setCommune(e.target.value)} 
+                required
+                className="w-full p-3.5 border border-[#e8e8e4] bg-white text-sm text-[#1A1614] outline-none transition-colors focus:border-[#1A1614]"
+              >
                 <option value="">Sélectionner</option>
                 {communes.map((c: Commune) => <option key={c.id} value={c.name}>{c.name} (+{c.deliveryFee.toLocaleString()} F)</option>)}
               </select>
             </div>
-            <div className="field">
-              <label>ADRESSE PRÉCISE</label>
-              <textarea value={address} onChange={e => setAddress(e.target.value)} placeholder="Quartier, rue, repères..." rows={3} required />
+            <div className="space-y-2">
+              <label className="block text-[10px] font-medium tracking-[0.12em] text-[#999] uppercase">ADRESSE PRÉCISE</label>
+              <textarea 
+                value={address} 
+                onChange={e => setAddress(e.target.value)} 
+                placeholder="Quartier, rue, repères..." 
+                rows={3} 
+                required 
+                className="w-full p-3.5 border border-[#e8e8e4] bg-white text-sm text-[#1A1614] outline-none transition-colors focus:border-[#1A1614] resize-vertical font-inherit"
+              />
             </div>
 
-            <div className="summary">
-              <div className="sum-row"><span>Sous-total</span><span>{formatPrice(total)}</span></div>
-              <div className="sum-row"><span>Livraison</span><span>{deliveryFee > 0 ? formatPrice(deliveryFee) : '—'}</span></div>
-              <div className="sum-row total"><span>Total</span><span>{formatPrice(grandTotal)}</span></div>
+            <div className="border-t border-[#e8e8e4] pt-5 flex flex-col gap-3">
+              <div className="flex justify-between text-[13px] text-[#888] font-normal"><span>Sous-total</span><span>{formatPrice(total)}</span></div>
+              <div className="flex justify-between text-[13px] text-[#888] font-normal"><span>Livraison</span><span>{deliveryFee > 0 ? formatPrice(deliveryFee) : '—'}</span></div>
+              <div className="flex justify-between text-lg font-semibold text-[#1A1614] pt-3 border-t border-[#e8e8e4] mt-1"><span>Total</span><span>{formatPrice(grandTotal)}</span></div>
             </div>
 
-            <button className="checkout-btn" type="submit" disabled={isPending}>
+            <button 
+              className="w-full h-[52px] bg-[#1A1614] text-white border-none text-[12px] font-semibold tracking-[0.15em] cursor-pointer flex items-center justify-center gap-2.5 transition-all duration-350 hover:enabled:bg-[#333] hover:enabled:-translate-y-0.5 hover:enabled:shadow-[0_8px_24px_rgba(0,0,0,0.1)] disabled:opacity-50 disabled:cursor-not-allowed" 
+              type="submit" 
+              disabled={isPending}
+            >
               {isPending ? "TRAITEMENT..." : "CONFIRMER LA COMMANDE"}
               {!isPending && <ArrowRight size={16} />}
             </button>
 
-            <div className="checkout-trust">
+            <div className="flex items-center justify-center gap-1.5 text-[11px] text-[#bbb] mt-1">
               <ShieldCheck size={14} /> Paiement sécurisé · Livraison suivie
             </div>
           </form>
         </div>
       </div>
-
-      <style jsx>{`
-        .cart-page {
-          max-width: 1200px;
-          margin: 0 auto;
-          padding: 24px 40px 80px;
-          animation: fadeUp 0.4s ease;
-        }
-        .cart-breadcrumb { margin-bottom: 20px; }
-        .cart-breadcrumb :global(a) {
-          text-decoration: none;
-          color: #999;
-          font-size: 12px;
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          font-weight: 500;
-          letter-spacing: 0.04em;
-        }
-        .cart-breadcrumb :global(a:hover) { color: #1A1614; }
-        .cart-title {
-          font-size: 24px;
-          font-weight: 300;
-          letter-spacing: 0.2em;
-          color: #1A1614;
-          margin-bottom: 40px;
-        }
-        .cart-title span { color: #bbb; }
-
-        .cart-layout {
-          display: grid;
-          grid-template-columns: 1fr 380px;
-          gap: 60px;
-          align-items: start;
-        }
-
-        /* ITEMS */
-        .cart-items { display: flex; flex-direction: column; gap: 0; }
-        .cart-item {
-          display: flex;
-          align-items: center;
-          gap: 24px;
-          padding: 28px 0;
-          border-bottom: 1px solid #f0f0f0;
-        }
-        .item-img {
-          width: 90px; height: 110px;
-          background: #F5F3EF;
-          flex-shrink: 0;
-          overflow: hidden;
-        }
-        .item-img img { width: 100%; height: 100%; object-fit: cover; }
-        .item-placeholder {
-          width: 100%; height: 100%;
-          display: flex; align-items: center; justify-content: center;
-          font-size: 24px; font-weight: 100; color: #D5D0C8;
-        }
-        .item-details { flex: 1; }
-        .item-details h3 {
-          font-size: 14px;
-          font-weight: 500;
-          color: #1A1614;
-          margin-bottom: 4px;
-          letter-spacing: 0.02em;
-        }
-        .item-variant {
-          font-size: 12px;
-          color: #aaa;
-          margin-bottom: 6px;
-        }
-        .item-unit-price {
-          font-size: 13px;
-          color: #888;
-          font-weight: 500;
-        }
-        .item-qty {
-          font-size: 12px;
-          color: #888;
-          font-weight: 500;
-        }
-        .item-total {
-          font-size: 15px;
-          font-weight: 600;
-          color: #1A1614;
-          min-width: 80px;
-          text-align: right;
-        }
-        .item-remove {
-          width: 36px; height: 36px;
-          display: flex; align-items: center; justify-content: center;
-          background: none;
-          border: 1px solid #f0f0f0;
-          cursor: pointer;
-          color: #ccc;
-          transition: all 0.2s;
-        }
-        .item-remove:hover {
-          border-color: #C23616;
-          color: #C23616;
-        }
-
-        /* CHECKOUT */
-        .checkout-panel {
-          background: #FAFAF8;
-          padding: 36px;
-          position: sticky;
-          top: 100px;
-          border: 1px solid #f0f0f0;
-        }
-        .checkout-panel h2 {
-          font-size: 13px;
-          font-weight: 400;
-          letter-spacing: 0.2em;
-          margin-bottom: 28px;
-          color: #1A1614;
-        }
-        .checkout-form { display: flex; flex-direction: column; gap: 20px; }
-        .field label {
-          display: block;
-          font-size: 10px;
-          font-weight: 500;
-          letter-spacing: 0.12em;
-          color: #999;
-          margin-bottom: 8px;
-        }
-        .field input, .field select, .field textarea {
-          width: 100%;
-          padding: 13px 16px;
-          border: 1px solid #e8e8e4;
-          background: white;
-          font-size: 14px;
-          color: #1A1614;
-          outline: none;
-          transition: border-color 0.25s;
-          font-family: inherit;
-        }
-        .field input:focus, .field select:focus, .field textarea:focus {
-          border-color: #1A1614;
-        }
-        .field textarea { resize: vertical; }
-
-        .summary {
-          border-top: 1px solid #e8e8e4;
-          padding-top: 20px;
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-        .sum-row {
-          display: flex;
-          justify-content: space-between;
-          font-size: 13px;
-          color: #888;
-          font-weight: 400;
-        }
-        .sum-row.total {
-          font-size: 18px;
-          font-weight: 600;
-          color: #1A1614;
-          padding-top: 12px;
-          border-top: 1px solid #e8e8e4;
-          margin-top: 4px;
-        }
-
-        .checkout-btn {
-          width: 100%;
-          height: 52px;
-          background: #1A1614;
-          color: white;
-          border: none;
-          font-size: 12px;
-          font-weight: 600;
-          letter-spacing: 0.15em;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 10px;
-          transition: all 0.35s;
-        }
-        .checkout-btn:hover:not(:disabled) {
-          background: #333;
-          transform: translateY(-2px);
-          box-shadow: 0 8px 24px rgba(0,0,0,0.1);
-        }
-        .checkout-btn:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-        .checkout-trust {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-          font-size: 11px;
-          color: #bbb;
-          margin-top: 4px;
-        }
-
-        @media (max-width: 900px) {
-          .cart-page { padding: 16px 20px 100px; }
-          .cart-layout { grid-template-columns: 1fr; gap: 40px; }
-          .cart-item { gap: 16px; }
-          .item-img { width: 70px; height: 85px; }
-          .item-qty { display: none; }
-          .checkout-panel { position: static; }
-        }
-        @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
-      `}</style>
     </div>
+
   );
 }

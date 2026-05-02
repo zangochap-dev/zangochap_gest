@@ -11,301 +11,113 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
   const itemCount = cart.reduce((sum, item) => sum + item.qty, 0);
 
   return (
-    <div className="public-site">
+    <div className="min-h-screen flex flex-col bg-white w-full overflow-x-clip font-body">
       <Navbar />
-      <main>{children}</main>
+      <main className="flex-1 w-full max-w-full overflow-x-hidden">{children}</main>
 
       {/* MOBILE BOTTOM NAV */}
-      <div className="mobile-bottom-nav">
-        <Link href="/" className="nav-item-mobile active">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/96 backdrop-blur-[20px] border-t border-black/5 z-[900] flex justify-around p-1.5 pb-[env(safe-area-inset-bottom,8px)]">
+        <Link href="/" className="flex flex-col items-center gap-1 text-[#1A1614] no-underline">
           <Home size={20} strokeWidth={1.5} />
-          <span>ACCUEIL</span>
+          <span className="text-[9px] font-bold tracking-widest uppercase">ACCUEIL</span>
         </Link>
-        <Link href="/shop" className="nav-item-mobile">
+        <Link href="/shop" className="flex flex-col items-center gap-1 text-[#666] no-underline">
           <Search size={20} strokeWidth={1.5} />
-          <span>SHOP</span>
+          <span className="text-[9px] font-bold tracking-widest uppercase">SHOP</span>
         </Link>
-        <Link href="/cart" className="nav-item-mobile">
-          <div style={{ position: 'relative' }}>
+        <Link href="/cart" className="flex flex-col items-center gap-1 text-[#666] no-underline">
+          <div className="relative">
             <ShoppingBag size={20} strokeWidth={1.5} />
-            {itemCount > 0 && <span className="cart-badge-mobile">{itemCount}</span>}
+            {itemCount > 0 && (
+              <span className="absolute -top-1 -right-1.5 bg-[#1A1614] text-white text-[8px] w-[15px] h-[15px] rounded-full flex items-center justify-center font-bold border-2 border-white">
+                {itemCount}
+              </span>
+            )}
           </div>
-          <span>PANIER</span>
+          <span className="text-[9px] font-bold tracking-widest uppercase">PANIER</span>
         </Link>
-        <Link href="/compte" className="nav-item-mobile">
+        <Link href="/compte" className="flex flex-col items-center gap-1 text-[#666] no-underline">
           <User size={20} strokeWidth={1.5} />
-          <span>COMPTE</span>
+          <span className="text-[9px] font-bold tracking-widest uppercase">COMPTE</span>
         </Link>
       </div>
 
-      {/* NEWSLETTER + FOOTER */}
-      <footer className="pub-footer">
+      {/* FOOTER */}
+      <footer className="mt-auto md:pb-0 pb-20 w-full">
         {/* Newsletter Section */}
-        <div className="newsletter-section">
-          <div className="newsletter-inner">
-            <h3>RESTEZ CONNECTÉ</h3>
-            <p>Recevez en avant-première nos nouvelles collections et offres exclusives.</p>
-            <form className="newsletter-form" onSubmit={(e) => e.preventDefault()}>
-              <input type="email" placeholder="Votre adresse email" />
-              <button type="submit">S'INSCRIRE</button>
+        <div className="bg-[#F7F5F0] py-20 px-6 text-center w-full">
+          <div className="max-w-[520px] mx-auto">
+            <h3 className="text-[13px] font-normal tracking-[0.35em] text-[#1A1614] mb-3.5 uppercase">RESTEZ CONNECTÉ</h3>
+            <p className="text-sm text-[#888] leading-relaxed mb-8">Recevez en avant-première nos nouvelles collections et offres exclusives.</p>
+            <form className="flex flex-col sm:flex-row border border-[#D5D0C8] overflow-hidden" onSubmit={(e) => e.preventDefault()}>
+              <input 
+                type="email" 
+                placeholder="Votre adresse email" 
+                className="flex-1 p-4 outline-none text-[13px] bg-transparent text-[#1A1614] tracking-wide"
+              />
+              <button 
+                type="submit" 
+                className="p-4 bg-[#1A1614] text-white text-[11px] font-semibold tracking-[0.15em] cursor-pointer transition-colors hover:bg-[#333] whitespace-nowrap uppercase"
+              >
+                S'INSCRIRE
+              </button>
             </form>
           </div>
         </div>
 
         {/* Footer Main */}
-        <div className="footer-main">
-          <div className="footer-grid">
-            <div className="footer-col brand-col">
-              <div className="footer-logo">ZANGOCHAP</div>
-              <p className="footer-tagline">Maison de mode contemporaine. Des pièces intemporelles conçues avec exigence pour ceux qui refusent l'ordinaire.</p>
-              <div className="social-links">
-                <a href="#" aria-label="Instagram">IG</a>
-                <a href="#" aria-label="Facebook">FB</a>
-                <a href="#" aria-label="TikTok">TK</a>
+        <div className="bg-[#1A1614] text-white py-[70px] pb-[50px] px-6 w-full">
+          <div className="max-w-[1200px] mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1fr] gap-10 md:gap-[60px]">
+            <div className="col-span-1 sm:col-span-2 lg:col-span-1">
+              <img src="/logo.png" alt="ZANGOCHAP" className="h-[40px] mb-6 brightness-0 invert" />
+              <p className="text-[13px] leading-relaxed text-white/45 mb-6">Zangochap : Mieux s'habiller à prix bas ! Nous offrons une sélection exceptionnelle de produits de qualité avec un service client réactif et des livraisons rapides.</p>
+              <div className="flex gap-3">
+                <a href="https://instagram.com/zangochap" target="_blank" className="w-9 h-9 border border-white/15 rounded-full flex items-center justify-center text-white/50 text-[10px] font-bold tracking-wider no-underline transition-all hover:border-white/40 hover:text-white">IG</a>
+                <a href="https://facebook.com/zangochap" target="_blank" className="w-9 h-9 border border-white/15 rounded-full flex items-center justify-center text-white/50 text-[10px] font-bold tracking-wider no-underline transition-all hover:border-white/40 hover:text-white">FB</a>
+                <a href="#" className="w-9 h-9 border border-white/15 rounded-full flex items-center justify-center text-white/50 text-[10px] font-bold tracking-wider no-underline transition-all hover:border-white/40 hover:text-white">TK</a>
               </div>
             </div>
 
-            <div className="footer-col">
-              <h4>BOUTIQUE</h4>
-              <ul>
-                <li><a href="/shop">Nouvelle Collection</a></li>
-                <li><a href="/#featured">Sélection</a></li>
-                <li><a href="#">Accessoires</a></li>
-                <li><a href="#">Éditions Limitées</a></li>
+            <div>
+              <h4 className="text-[11px] font-medium tracking-[0.2em] text-white/35 mb-6 uppercase">BOUTIQUE</h4>
+              <ul className="list-none p-0 m-0 space-y-3.5">
+                <li><Link href="/shop" className="text-white/65 no-underline text-[13px] tracking-wide transition-colors hover:text-white">Nouvelle Collection</Link></li>
+                <li><Link href="/#featured" className="text-white/65 no-underline text-[13px] tracking-wide transition-colors hover:text-white">Sélection</Link></li>
+                <li><Link href="/shop?category=Accessoires" className="text-white/65 no-underline text-[13px] tracking-wide transition-colors hover:text-white">Accessoires</Link></li>
+                <li><Link href="#" className="text-white/65 no-underline text-[13px] tracking-wide transition-colors hover:text-white">Éditions Limitées</Link></li>
               </ul>
             </div>
 
-            <div className="footer-col">
-              <h4>AIDE</h4>
-              <ul>
-                <li><a href="#">Service Client</a></li>
-                <li><a href="#">Livraison & Retours</a></li>
-                <li><a href="#">Guide des Tailles</a></li>
-                <li><a href="#">FAQ</a></li>
+            <div>
+              <h4 className="text-[11px] font-medium tracking-[0.2em] text-white/35 mb-6 uppercase">AIDE</h4>
+              <ul className="list-none p-0 m-0 space-y-3.5">
+                <li><Link href="#" className="text-white/65 no-underline text-[13px] tracking-wide transition-colors hover:text-white">Service Client</Link></li>
+                <li><Link href="#" className="text-white/65 no-underline text-[13px] tracking-wide transition-colors hover:text-white">Livraison & Retours</Link></li>
+                <li><Link href="#" className="text-white/65 no-underline text-[13px] tracking-wide transition-colors hover:text-white">Guide des Tailles</Link></li>
+                <li><Link href="#" className="text-white/65 no-underline text-[13px] tracking-wide transition-colors hover:text-white">FAQ</Link></li>
               </ul>
             </div>
 
-            <div className="footer-col">
-              <h4>CONTACT</h4>
-              <ul>
-                <li><a href="tel:+22500000000">+225 00 00 00 00</a></li>
-                <li><a href="mailto:contact@zangochap.ci">contact@zangochap.ci</a></li>
-                <li><span className="footer-hours">Lun-Sam · 9h-19h</span></li>
+            <div>
+              <h4 className="text-[11px] font-medium tracking-[0.2em] text-white/35 mb-6 uppercase">CONTACT</h4>
+              <ul className="list-none p-0 m-0 space-y-3.5">
+                <li><a href="tel:+2250757330000" className="text-white/65 no-underline text-[13px] tracking-wide transition-colors hover:text-white">+225 07 57 33 00 00</a></li>
+                <li><a href="mailto:service@zangochap.ci" className="text-white/65 no-underline text-[13px] tracking-wide transition-colors hover:text-white">service@zangochap.ci</a></li>
+                <li><span className="text-white/35 text-[12px]">Lun-Sam · 8h30-17h</span></li>
               </ul>
             </div>
           </div>
         </div>
 
         {/* Footer Bottom */}
-        <div className="footer-bottom">
-          <span>&copy; {new Date().getFullYear()} Zangochap. Tous droits réservés.</span>
-          <div className="footer-legal">
-            <a href="#">Politique de Confidentialité</a>
-            <a href="#">Conditions Générales</a>
+        <div className="bg-[#151210] py-6 px-6 flex flex-col md:flex-row items-center justify-between gap-3 text-center w-full">
+          <span className="text-[11px] text-white/25 tracking-wide">&copy; {new Date().getFullYear()} Zangochap. Tous droits réservés.</span>
+          <div className="flex gap-6">
+            <Link href="#" className="text-[11px] text-white/25 no-underline transition-colors hover:text-white/60">Politique de Confidentialité</Link>
+            <Link href="#" className="text-[11px] text-white/25 no-underline transition-colors hover:text-white/60">Conditions Générales</Link>
           </div>
         </div>
       </footer>
-
-      <style jsx>{`
-        .public-site {
-          min-height: 100vh;
-          display: flex;
-          flex-direction: column;
-          background: #FFFFFF;
-        }
-        main { flex: 1; }
-
-        /* MOBILE BOTTOM NAV */
-        .mobile-bottom-nav {
-          display: none;
-          position: fixed;
-          bottom: 0;
-          left: 0; right: 0;
-          background: rgba(255,255,255,0.96);
-          backdrop-filter: blur(20px);
-          -webkit-backdrop-filter: blur(20px);
-          border-top: 1px solid rgba(0,0,0,0.06);
-          z-index: 900;
-          padding: 6px 0 env(safe-area-inset-bottom, 8px);
-        }
-        .cart-badge-mobile {
-          position: absolute;
-          top: -4px; right: -7px;
-          background: #1A1614;
-          color: white;
-          font-size: 8px;
-          width: 15px; height: 15px;
-          border-radius: 50%;
-          display: flex; align-items: center; justify-content: center;
-          font-weight: 700;
-          border: 2px solid white;
-        }
-
-        /* NEWSLETTER */
-        .newsletter-section {
-          background: #F7F5F0;
-          padding: 80px 32px;
-          text-align: center;
-        }
-        .newsletter-inner {
-          max-width: 520px;
-          margin: 0 auto;
-        }
-        .newsletter-inner h3 {
-          font-size: 13px;
-          font-weight: 400;
-          letter-spacing: 0.35em;
-          color: #1A1614;
-          margin-bottom: 14px;
-        }
-        .newsletter-inner p {
-          font-size: 14px;
-          color: #888;
-          line-height: 1.7;
-          margin-bottom: 32px;
-        }
-        .newsletter-form {
-          display: flex;
-          gap: 0;
-          border: 1px solid #D5D0C8;
-          overflow: hidden;
-        }
-        .newsletter-form input {
-          flex: 1;
-          padding: 16px 20px;
-          border: none;
-          outline: none;
-          font-size: 13px;
-          background: transparent;
-          color: #1A1614;
-          letter-spacing: 0.02em;
-        }
-        .newsletter-form button {
-          padding: 16px 32px;
-          background: #1A1614;
-          color: white;
-          border: none;
-          font-size: 11px;
-          font-weight: 600;
-          letter-spacing: 0.15em;
-          cursor: pointer;
-          transition: background 0.3s;
-          white-space: nowrap;
-        }
-        .newsletter-form button:hover { background: #333; }
-
-        /* FOOTER MAIN */
-        .pub-footer {
-          margin-top: auto;
-        }
-        .footer-main {
-          background: #1A1614;
-          color: white;
-          padding: 70px 32px 50px;
-        }
-        .footer-grid {
-          max-width: 1200px;
-          margin: 0 auto;
-          display: grid;
-          grid-template-columns: 1.5fr 1fr 1fr 1fr;
-          gap: 60px;
-        }
-        .footer-logo {
-          font-size: 20px;
-          font-weight: 300;
-          letter-spacing: 0.35em;
-          margin-bottom: 20px;
-        }
-        .footer-tagline {
-          font-size: 13px;
-          line-height: 1.8;
-          color: rgba(255,255,255,0.45);
-          margin-bottom: 24px;
-        }
-        .social-links {
-          display: flex;
-          gap: 12px;
-        }
-        .social-links a {
-          width: 36px; height: 36px;
-          border: 1px solid rgba(255,255,255,0.15);
-          border-radius: 50%;
-          display: flex; align-items: center; justify-content: center;
-          color: rgba(255,255,255,0.5);
-          text-decoration: none;
-          font-size: 10px;
-          font-weight: 700;
-          letter-spacing: 0.05em;
-          transition: all 0.3s;
-        }
-        .social-links a:hover {
-          border-color: rgba(255,255,255,0.4);
-          color: white;
-        }
-        .footer-col h4 {
-          font-size: 11px;
-          font-weight: 500;
-          letter-spacing: 0.2em;
-          color: rgba(255,255,255,0.35);
-          margin-bottom: 24px;
-        }
-        .footer-col ul {
-          list-style: none;
-          padding: 0; margin: 0;
-        }
-        .footer-col li {
-          margin-bottom: 14px;
-        }
-        .footer-col a {
-          color: rgba(255,255,255,0.65);
-          text-decoration: none;
-          font-size: 13px;
-          transition: color 0.2s;
-          letter-spacing: 0.01em;
-        }
-        .footer-col a:hover { color: white; }
-        .footer-hours {
-          color: rgba(255,255,255,0.35);
-          font-size: 12px;
-        }
-
-        /* FOOTER BOTTOM */
-        .footer-bottom {
-          background: #151210;
-          padding: 24px 32px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          max-width: 100%;
-        }
-        .footer-bottom span {
-          font-size: 11px;
-          color: rgba(255,255,255,0.25);
-          letter-spacing: 0.04em;
-        }
-        .footer-legal {
-          display: flex;
-          gap: 24px;
-        }
-        .footer-legal a {
-          font-size: 11px;
-          color: rgba(255,255,255,0.25);
-          text-decoration: none;
-          transition: color 0.2s;
-        }
-        .footer-legal a:hover { color: rgba(255,255,255,0.6); }
-
-        @media (max-width: 768px) {
-          .mobile-bottom-nav { display: flex; justify-content: space-around; }
-          .pub-footer { padding-bottom: 80px; }
-          .footer-grid { grid-template-columns: 1fr 1fr; gap: 40px 30px; }
-          .brand-col { grid-column: 1 / -1; }
-          .newsletter-section { padding: 50px 20px; }
-          .newsletter-form { flex-direction: column; }
-          .newsletter-form button { padding: 14px; }
-          .footer-bottom { flex-direction: column; gap: 12px; text-align: center; }
-        }
-      `}</style>
     </div>
   );
 }

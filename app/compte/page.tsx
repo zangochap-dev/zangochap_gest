@@ -58,30 +58,38 @@ export default function ComptePage() {
 
   return (
     <PublicLayout>
-      <div className="compte-page">
-        <div className="compte-container">
+      <div className="flex justify-center px-6 py-[60px] pb-[100px] animate-[fadeUp_0.5s_ease] font-body">
+        <div className="w-full max-w-[440px]">
           {/* HEADER */}
-          <div className="compte-header">
-            <h1>MON COMPTE</h1>
-            <p>Connectez-vous pour suivre vos commandes et profiter d'avantages exclusifs.</p>
+          <div className="text-center mb-10">
+            <h1 className="text-2xl font-extralight tracking-[0.25em] text-[#1A1614] mb-3 uppercase">MON COMPTE</h1>
+            <p className="text-[13px] text-[#999] leading-relaxed">Connectez-vous pour suivre vos commandes et profiter d'avantages exclusifs.</p>
           </div>
 
           {/* TAB SWITCHER */}
-          <div className="tab-switcher">
-            <button className={`tab-btn ${tab === "login" ? "active" : ""}`} onClick={() => setTab("login")}>
+          <div className="flex border-b border-[#e8e8e4] mb-9">
+            <button 
+              className={`flex-1 bg-none border-none py-4 text-[11px] font-medium tracking-[0.15em] cursor-pointer relative transition-colors ${tab === "login" ? "text-[#1A1614]" : "text-[#bbb]"}`} 
+              onClick={() => setTab("login")}
+            >
               CONNEXION
+              {tab === "login" && <span className="absolute -bottom-px left-[20%] right-[20%] h-0.5 bg-[#1A1614]" />}
             </button>
-            <button className={`tab-btn ${tab === "register" ? "active" : ""}`} onClick={() => setTab("register")}>
+            <button 
+              className={`flex-1 bg-none border-none py-4 text-[11px] font-medium tracking-[0.15em] cursor-pointer relative transition-colors ${tab === "register" ? "text-[#1A1614]" : "text-[#bbb]"}`} 
+              onClick={() => setTab("register")}
+            >
               CRÉER UN COMPTE
+              {tab === "register" && <span className="absolute -bottom-px left-[20%] right-[20%] h-0.5 bg-[#1A1614]" />}
             </button>
           </div>
 
           {/* LOGIN FORM */}
           {tab === "login" && (
-            <form onSubmit={handleLogin} className="compte-form">
-              <div className="field">
-                <label>TÉLÉPHONE</label>
-                <div className="input-wrap">
+            <form onSubmit={handleLogin} className="flex flex-col gap-5.5 animate-[fadeUp_0.3s_ease]">
+              <div className="space-y-2">
+                <label className="block text-[10px] font-medium tracking-[0.12em] text-[#999] uppercase">TÉLÉPHONE</label>
+                <div className="flex items-center gap-3 border border-[#e8e8e4] px-4 h-[52px] transition-colors focus-within:border-[#1A1614] focus-within:text-[#1A1614] text-[#bbb]">
                   <Phone size={16} />
                   <input
                     type="tel"
@@ -89,13 +97,14 @@ export default function ComptePage() {
                     onChange={e => setLoginPhone(e.target.value)}
                     placeholder="07 00 00 00 00"
                     required
+                    className="flex-1 border-none outline-none text-sm text-[#1A1614] bg-transparent font-inherit"
                   />
                 </div>
               </div>
 
-              <div className="field">
-                <label>MOT DE PASSE</label>
-                <div className="input-wrap">
+              <div className="space-y-2">
+                <label className="block text-[10px] font-medium tracking-[0.12em] text-[#999] uppercase">MOT DE PASSE</label>
+                <div className="flex items-center gap-3 border border-[#e8e8e4] px-4 h-[52px] transition-colors focus-within:border-[#1A1614] focus-within:text-[#1A1614] text-[#bbb]">
                   <Lock size={16} />
                   <input
                     type={showPassword ? "text" : "password"}
@@ -103,27 +112,28 @@ export default function ComptePage() {
                     onChange={e => setLoginPassword(e.target.value)}
                     placeholder="Votre mot de passe"
                     required
+                    className="flex-1 border-none outline-none text-sm text-[#1A1614] bg-transparent font-inherit"
                   />
-                  <button type="button" className="toggle-pw" onClick={() => setShowPassword(!showPassword)}>
+                  <button type="button" className="bg-none border-none cursor-pointer text-[#ccc] p-1 transition-colors hover:text-[#1A1614]" onClick={() => setShowPassword(!showPassword)}>
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
               </div>
 
-              <button type="submit" className="submit-btn">
+              <button type="submit" className="w-full h-[52px] bg-[#1A1614] text-white border-none text-[12px] font-semibold tracking-[0.15em] cursor-pointer flex items-center justify-center gap-2.5 mt-2 transition-all duration-350 hover:bg-[#333] hover:-translate-y-0.5 hover:shadow-[0_8_24px_rgba(0,0,0,0.1)]">
                 SE CONNECTER <ArrowRight size={16} />
               </button>
 
-              <button type="button" className="forgot-link">Mot de passe oublié ?</button>
+              <button type="button" className="bg-none border-none text-[#999] text-[12px] cursor-pointer text-center transition-colors hover:text-[#1A1614] tracking-wide">Mot de passe oublié ?</button>
             </form>
           )}
 
           {/* REGISTER FORM */}
           {tab === "register" && (
-            <form onSubmit={handleRegister} className="compte-form">
-              <div className="field">
-                <label>NOM COMPLET</label>
-                <div className="input-wrap">
+            <form onSubmit={handleRegister} className="flex flex-col gap-5.5 animate-[fadeUp_0.3s_ease]">
+              <div className="space-y-2">
+                <label className="block text-[10px] font-medium tracking-[0.12em] text-[#999] uppercase">NOM COMPLET</label>
+                <div className="flex items-center gap-3 border border-[#e8e8e4] px-4 h-[52px] transition-colors focus-within:border-[#1A1614] focus-within:text-[#1A1614] text-[#bbb]">
                   <User size={16} />
                   <input
                     type="text"
@@ -131,13 +141,14 @@ export default function ComptePage() {
                     onChange={e => setRegName(e.target.value)}
                     placeholder="Aminata Traoré"
                     required
+                    className="flex-1 border-none outline-none text-sm text-[#1A1614] bg-transparent font-inherit"
                   />
                 </div>
               </div>
 
-              <div className="field">
-                <label>TÉLÉPHONE</label>
-                <div className="input-wrap">
+              <div className="space-y-2">
+                <label className="block text-[10px] font-medium tracking-[0.12em] text-[#999] uppercase">TÉLÉPHONE</label>
+                <div className="flex items-center gap-3 border border-[#e8e8e4] px-4 h-[52px] transition-colors focus-within:border-[#1A1614] focus-within:text-[#1A1614] text-[#bbb]">
                   <Phone size={16} />
                   <input
                     type="tel"
@@ -145,26 +156,28 @@ export default function ComptePage() {
                     onChange={e => setRegPhone(e.target.value)}
                     placeholder="07 00 00 00 00"
                     required
+                    className="flex-1 border-none outline-none text-sm text-[#1A1614] bg-transparent font-inherit"
                   />
                 </div>
               </div>
 
-              <div className="field">
-                <label>EMAIL <span className="optional">(optionnel)</span></label>
-                <div className="input-wrap">
+              <div className="space-y-2">
+                <label className="block text-[10px] font-medium tracking-[0.12em] text-[#999] uppercase">EMAIL <span className="text-[#ccc] normal-case tracking-normal">(optionnel)</span></label>
+                <div className="flex items-center gap-3 border border-[#e8e8e4] px-4 h-[52px] transition-colors focus-within:border-[#1A1614] focus-within:text-[#1A1614] text-[#bbb]">
                   <Mail size={16} />
                   <input
                     type="email"
                     value={regEmail}
                     onChange={e => setRegEmail(e.target.value)}
                     placeholder="email@exemple.com"
+                    className="flex-1 border-none outline-none text-sm text-[#1A1614] bg-transparent font-inherit"
                   />
                 </div>
               </div>
 
-              <div className="field">
-                <label>MOT DE PASSE</label>
-                <div className="input-wrap">
+              <div className="space-y-2">
+                <label className="block text-[10px] font-medium tracking-[0.12em] text-[#999] uppercase">MOT DE PASSE</label>
+                <div className="flex items-center gap-3 border border-[#e8e8e4] px-4 h-[52px] transition-colors focus-within:border-[#1A1614] focus-within:text-[#1A1614] text-[#bbb]">
                   <Lock size={16} />
                   <input
                     type={showPassword ? "text" : "password"}
@@ -173,35 +186,36 @@ export default function ComptePage() {
                     placeholder="Créer un mot de passe"
                     required
                     minLength={6}
+                    className="flex-1 border-none outline-none text-sm text-[#1A1614] bg-transparent font-inherit"
                   />
-                  <button type="button" className="toggle-pw" onClick={() => setShowPassword(!showPassword)}>
+                  <button type="button" className="bg-none border-none cursor-pointer text-[#ccc] p-1 transition-colors hover:text-[#1A1614]" onClick={() => setShowPassword(!showPassword)}>
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
               </div>
 
-              <button type="submit" className="submit-btn">
+              <button type="submit" className="w-full h-[52px] bg-[#1A1614] text-white border-none text-[12px] font-semibold tracking-[0.15em] cursor-pointer flex items-center justify-center gap-2.5 mt-2 transition-all duration-350 hover:bg-[#333] hover:-translate-y-0.5 hover:shadow-[0_8_24px_rgba(0,0,0,0.1)]">
                 CRÉER MON COMPTE <ArrowRight size={16} />
               </button>
             </form>
           )}
 
           {/* ADVANTAGES */}
-          <div className="advantages">
-            <h3>POURQUOI CRÉER UN COMPTE ?</h3>
-            <div className="adv-grid">
-              <div className="adv-item">
+          <div className="mt-[60px] pt-10 border-t border-[#f0f0f0]">
+            <h3 className="text-[11px] font-normal tracking-[0.2em] text-[#bbb] text-center mb-7 uppercase">POURQUOI CRÉER UN COMPTE ?</h3>
+            <div className="flex flex-col gap-5">
+              <div className="flex items-center gap-4 p-5 border border-[#f0f0f0] text-[#1A1614]">
                 <ShoppingBag size={20} strokeWidth={1.3} />
                 <div>
-                  <strong>Suivi de commandes</strong>
-                  <span>Suivez vos achats en temps réel</span>
+                  <strong className="block text-[13px] font-medium mb-0.5">Suivi de commandes</strong>
+                  <span className="text-[12px] text-[#aaa]">Suivez vos achats en temps réel</span>
                 </div>
               </div>
-              <div className="adv-item">
+              <div className="flex items-center gap-4 p-5 border border-[#f0f0f0] text-[#1A1614]">
                 <MapPin size={20} strokeWidth={1.3} />
                 <div>
-                  <strong>Adresses sauvegardées</strong>
-                  <span>Commandez plus rapidement</span>
+                  <strong className="block text-[13px] font-medium mb-0.5">Adresses sauvegardées</strong>
+                  <span className="text-[12px] text-[#aaa]">Commandez plus rapidement</span>
                 </div>
               </div>
             </div>
@@ -209,193 +223,6 @@ export default function ComptePage() {
         </div>
       </div>
 
-      <style jsx>{`
-        .compte-page {
-          display: flex;
-          justify-content: center;
-          padding: 60px 24px 100px;
-          animation: fadeUp 0.5s ease;
-        }
-        .compte-container {
-          width: 100%;
-          max-width: 440px;
-        }
-
-        /* HEADER */
-        .compte-header {
-          text-align: center;
-          margin-bottom: 40px;
-        }
-        .compte-header h1 {
-          font-size: 24px;
-          font-weight: 200;
-          letter-spacing: 0.25em;
-          color: #1A1614;
-          margin-bottom: 12px;
-        }
-        .compte-header p {
-          font-size: 13px;
-          color: #999;
-          line-height: 1.6;
-        }
-
-        /* TABS */
-        .tab-switcher {
-          display: flex;
-          border-bottom: 1px solid #e8e8e4;
-          margin-bottom: 36px;
-        }
-        .tab-btn {
-          flex: 1;
-          background: none;
-          border: none;
-          padding: 16px 0;
-          font-size: 11px;
-          font-weight: 500;
-          letter-spacing: 0.15em;
-          color: #bbb;
-          cursor: pointer;
-          position: relative;
-          transition: color 0.3s;
-        }
-        .tab-btn.active { color: #1A1614; }
-        .tab-btn.active::after {
-          content: '';
-          position: absolute;
-          bottom: -1px;
-          left: 20%; right: 20%;
-          height: 2px;
-          background: #1A1614;
-        }
-
-        /* FORM */
-        .compte-form {
-          display: flex;
-          flex-direction: column;
-          gap: 22px;
-          animation: fadeUp 0.3s ease;
-        }
-        .field label {
-          display: block;
-          font-size: 10px;
-          font-weight: 500;
-          letter-spacing: 0.12em;
-          color: #999;
-          margin-bottom: 8px;
-        }
-        .optional {
-          color: #ccc;
-          letter-spacing: 0;
-          text-transform: none;
-        }
-        .input-wrap {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          border: 1px solid #e8e8e4;
-          padding: 0 16px;
-          height: 52px;
-          transition: border-color 0.25s;
-          color: #bbb;
-        }
-        .input-wrap:focus-within {
-          border-color: #1A1614;
-          color: #1A1614;
-        }
-        .input-wrap input {
-          flex: 1;
-          border: none;
-          outline: none;
-          font-size: 14px;
-          color: #1A1614;
-          font-family: inherit;
-          background: transparent;
-        }
-        .toggle-pw {
-          background: none;
-          border: none;
-          cursor: pointer;
-          color: #ccc;
-          padding: 4px;
-          transition: color 0.2s;
-        }
-        .toggle-pw:hover { color: #1A1614; }
-
-        .submit-btn {
-          width: 100%;
-          height: 52px;
-          background: #1A1614;
-          color: white;
-          border: none;
-          font-size: 12px;
-          font-weight: 600;
-          letter-spacing: 0.15em;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 10px;
-          margin-top: 8px;
-          transition: all 0.35s;
-        }
-        .submit-btn:hover {
-          background: #333;
-          transform: translateY(-2px);
-          box-shadow: 0 8px 24px rgba(0,0,0,0.1);
-        }
-
-        .forgot-link {
-          background: none;
-          border: none;
-          color: #999;
-          font-size: 12px;
-          cursor: pointer;
-          text-align: center;
-          transition: color 0.2s;
-          letter-spacing: 0.02em;
-        }
-        .forgot-link:hover { color: #1A1614; }
-
-        /* ADVANTAGES */
-        .advantages {
-          margin-top: 60px;
-          padding-top: 40px;
-          border-top: 1px solid #f0f0f0;
-        }
-        .advantages h3 {
-          font-size: 11px;
-          font-weight: 400;
-          letter-spacing: 0.2em;
-          color: #bbb;
-          text-align: center;
-          margin-bottom: 28px;
-        }
-        .adv-grid {
-          display: flex;
-          flex-direction: column;
-          gap: 20px;
-        }
-        .adv-item {
-          display: flex;
-          align-items: center;
-          gap: 16px;
-          padding: 20px;
-          border: 1px solid #f0f0f0;
-          color: #1A1614;
-        }
-        .adv-item strong {
-          display: block;
-          font-size: 13px;
-          font-weight: 500;
-          margin-bottom: 2px;
-        }
-        .adv-item span {
-          font-size: 12px;
-          color: #aaa;
-        }
-
-        @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
-      `}</style>
     </PublicLayout>
   );
 }

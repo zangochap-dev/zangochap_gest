@@ -2,6 +2,8 @@
 
 @theme {
   --font-outfit: "Outfit", sans-serif;
+  --font-display: "Outfit", sans-serif;
+  --font-body: "Plus Jakarta Sans", sans-serif;
   --color-accent: #FF6B00;
   --color-neon-green: #00FF94;
 }
@@ -48,98 +50,81 @@
   --sidebar-w: 240px;
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
-}
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
 
-html {
-  -webkit-text-size-adjust: 100%;
-  overflow-x: hidden;
-}
+  html {
+    -webkit-text-size-adjust: 100%;
+    overflow-x: hidden;
+  }
 
-body {
-  font-family: var(--font-body);
-  background: var(--cream);
-  color: var(--ink);
-  font-size: 14px;
-  line-height: 1.5;
-  min-height: 100vh;
-  overflow-x: hidden;
-}
+  body {
+    font-family: var(--font-body);
+    background: white;
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
 
-button {
-  font-family: inherit;
-  cursor: pointer;
-  border: none;
-  background: none;
-  color: inherit;
-  transition: all 0.15s;
-}
+  button {
+    font-family: inherit;
+    cursor: pointer;
+  }
 
-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 
-input,
-textarea,
-select {
-  font-family: inherit;
-  font-size: 14px;
-}
+  input,
+  textarea,
+  select {
+    font-family: inherit;
+    font-size: 14px;
+  }
 
-a {
-  text-decoration: none;
-  color: inherit;
+  a {
+    text-decoration: none;
+    color: inherit;
+  }
 }
 
 /* ============= ANIMATIONS ============= */
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-
 @keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-
 @keyframes scaleIn {
-  from {
-    transform: scale(0.96);
-    opacity: 0;
+  from { transform: scale(0.96); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@layer components {
+  .animate-fade-in { animation: fadeIn 0.25s ease-out forwards; }
+  .animate-slide-up { animation: slideUp 0.3s ease-out forwards; }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
-
-  to {
-    transform: scale(1);
-    opacity: 1;
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
   }
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.25s ease-out forwards;
-}
-
-.animate-slide-up {
-  animation: slideUp 0.3s ease-out forwards;
-}
 
 /* ============= FIELD SYSTEM ============= */
 .field {
@@ -4027,3 +4012,4 @@ tbody td {
   color: var(--brown-soft);
   cursor: not-allowed;
 }
+} /* end @layer components */

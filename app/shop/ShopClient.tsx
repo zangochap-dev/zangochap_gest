@@ -5,6 +5,7 @@ import { formatPrice } from "@/lib/constants";
 import Link from "next/link";
 import { Filter, X, ChevronDown, SlidersHorizontal } from "lucide-react";
 import { Product, Category } from "@/lib/types";
+import ProductCard from "@/components/public/ProductCard";
 
 export default function ShopClient({ initialProducts, categories }: { 
   initialProducts: Product[], 
@@ -42,34 +43,67 @@ export default function ShopClient({ initialProducts, categories }: {
   );
 
   return (
-    <div className="shop-page">
-      <div className="shop-container">
+    <div className="bg-white min-h-screen py-10 font-body w-full">
+      <div className="max-w-[1400px] mx-auto px-4 md:px-8">
         {/* HEADER */}
-        <div className="shop-header">
-          <div className="breadcrumb">ACCUEIL / BOUTIQUE</div>
-          <h1>NOTRE COLLECTION</h1>
-          <div className="shop-controls">
-            <button className="filter-toggle" onClick={() => setShowFilters(true)}>
+        <div className="mb-8">
+          <div className="text-[10px] tracking-[0.2em] text-[#D4541C] mb-3 font-extrabold uppercase">
+            ACCUEIL / BOUTIQUE
+          </div>
+          <h1 className="font-display text-[36px] font-bold tracking-tight mb-5 text-[#1A1614]">
+            NOTRE COLLECTION
+          </h1>
+          <div className="flex justify-between items-center pb-2.5 border-b border-[#eee] mb-5">
+            <button 
+              className="flex items-center gap-2 bg-none border border-[#1A1614] px-4 py-2 text-[11px] font-semibold cursor-pointer"
+              onClick={() => setShowFilters(true)}
+            >
               <SlidersHorizontal size={16} /> FILTRER
             </button>
-            <div className="sort-wrap">
-              <select value={sortBy} onChange={(e) => { setSortBy(e.target.value); setCurrentPage(1); }}>
+            <div className="relative">
+              <select 
+                className="border-none bg-none text-[11px] font-semibold tracking-wider outline-none cursor-pointer appearance-none pr-6"
+                value={sortBy} 
+                onChange={(e) => { setSortBy(e.target.value); setCurrentPage(1); }}
+              >
                 <option value="newest">NOUVEAUTÉS</option>
                 <option value="price-asc">PRIX CROISSANT</option>
                 <option value="price-desc">PRIX DÉCROISSANT</option>
               </select>
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none">
+                <ChevronDown size={14} />
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="shop-content">
+        {/* MOBILE CATEGORY CHIPS (Horizontal Scroll) */}
+        <div className="lg:hidden -mx-4 px-4 flex overflow-x-auto gap-3 pb-4 mb-6 scrollbar-hide">
+          <button 
+            onClick={() => { setSelectedCategory(null); setCurrentPage(1); }}
+            className={`whitespace-nowrap px-5 py-2.5 rounded-full text-[10px] font-extrabold tracking-widest transition-all border ${!selectedCategory ? 'bg-[#1A1614] text-white border-[#1A1614]' : 'bg-white text-[#1A1614] border-[#eee]'}`}
+          >
+            TOUT VOIR
+          </button>
+          {categories.map((cat: Category) => (
+            <button 
+              key={cat.id}
+              onClick={() => { setSelectedCategory(cat.name); setCurrentPage(1); }}
+              className={`whitespace-nowrap px-5 py-2.5 rounded-full text-[10px] font-extrabold tracking-widest transition-all border ${selectedCategory === cat.name ? 'bg-[#1A1614] text-white border-[#1A1614]' : 'bg-white text-[#1A1614] border-[#eee]'}`}
+            >
+              {cat.name.toUpperCase()}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex flex-col lg:flex-row gap-8">
           {/* SIDEBAR FILTERS (Desktop) */}
-          <aside className="sidebar">
-            <div className="filter-group">
-              <h3>CATÉGORIES</h3>
-              <div className="filter-list">
+          <aside className="hidden lg:block w-[200px] flex-shrink-0">
+            <div className="mb-5">
+              <h3 className="text-[12px] font-bold tracking-widest mb-5 uppercase text-[#1A1614]">CATÉGORIES</h3>
+              <div className="flex flex-col gap-3">
                 <button 
-                  className={!selectedCategory ? "active" : ""} 
+                  className={`text-left bg-none border-none text-[13px] cursor-pointer p-0 transition-colors ${!selectedCategory ? "text-[#1A1614] font-bold" : "text-[#666]"}`} 
                   onClick={() => { setSelectedCategory(null); setCurrentPage(1); }}
                 >
                   Tout voir
@@ -77,27 +111,28 @@ export default function ShopClient({ initialProducts, categories }: {
                 {categories.map((cat: Category) => (
                   <button 
                     key={cat.id}
-                    className={selectedCategory === cat.name ? "active" : ""}
+                    className={`text-left bg-none border-none text-[13px] cursor-pointer p-0 transition-colors flex justify-between items-center ${selectedCategory === cat.name ? "text-[#1A1614] font-bold" : "text-[#666]"}`}
                     onClick={() => { setSelectedCategory(cat.name); setCurrentPage(1); }}
                   >
-                    {cat.name} <span>({cat._count?.products})</span>
+                    {cat.name} <span className="text-[#ccc] text-[11px]">({cat._count?.products})</span>
                   </button>
                 ))}
               </div>
             </div>
 
-            <div className="filter-group">
-              <h3>PRIX MAX</h3>
-              <div className="price-slider">
+            <div className="mb-5">
+              <h3 className="text-[12px] font-bold tracking-widest mb-5 uppercase text-[#1A1614]">PRIX MAX</h3>
+              <div className="space-y-3">
                 <input 
                   type="range" 
                   min="0" 
                   max="500000" 
                   step="5000"
+                  className="w-full accent-[#1A1614] cursor-pointer"
                   value={priceRange} 
                   onChange={(e) => { setPriceRange(Number(e.target.value)); setCurrentPage(1); }} 
                 />
-                <div className="price-labels">
+                <div className="flex justify-between text-[12px] font-semibold text-[#1A1614]">
                   <span>0 F</span>
                   <span>{formatPrice(priceRange)}</span>
                 </div>
@@ -106,9 +141,11 @@ export default function ShopClient({ initialProducts, categories }: {
           </aside>
 
           {/* MAIN GRID */}
-          <main className="main-grid">
-            <div className="results-count">{filteredProducts.length} PRODUITS TROUVÉS</div>
-            <div className="product-grid">
+          <main className="flex-1">
+            <div className="text-[10px] text-[#999] mb-6 tracking-wider uppercase">
+              {filteredProducts.length} PRODUITS TROUVÉS
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 md:gap-x-6 gap-y-10 md:gap-y-12">
               {paginatedProducts.map((p: Product) => (
                 <ProductCard p={p} key={p.id} />
               ))}
@@ -116,8 +153,9 @@ export default function ShopClient({ initialProducts, categories }: {
 
             {/* PAGINATION UI */}
             {totalPages > 1 && (
-              <div className="pagination">
+              <div className="flex justify-center items-center gap-2 mt-[60px] pt-10 border-t border-[#eee]">
                 <button 
+                  className="min-w-[40px] h-[40px] bg-none border border-[#eee] text-[11px] font-semibold cursor-pointer transition-colors hover:enabled:border-[#1A1614] disabled:opacity-30 disabled:cursor-not-allowed"
                   disabled={currentPage === 1}
                   onClick={() => { setCurrentPage(prev => prev - 1); window.scrollTo(0, 0); }}
                 >
@@ -126,13 +164,14 @@ export default function ShopClient({ initialProducts, categories }: {
                 {[...Array(totalPages)].map((_, i) => (
                   <button 
                     key={i} 
-                    className={currentPage === i + 1 ? "active" : ""}
+                    className={`min-w-[40px] h-[40px] border text-[11px] font-semibold cursor-pointer transition-colors ${currentPage === i + 1 ? "bg-[#1A1614] text-white border-[#1A1614]" : "bg-none border-[#eee] hover:border-[#1A1614]"}`}
                     onClick={() => { setCurrentPage(i + 1); window.scrollTo(0, 0); }}
                   >
                     {i + 1}
                   </button>
                 ))}
                 <button 
+                  className="min-w-[40px] h-[40px] bg-none border border-[#eee] text-[11px] font-semibold cursor-pointer transition-colors hover:enabled:border-[#1A1614] disabled:opacity-30 disabled:cursor-not-allowed"
                   disabled={currentPage === totalPages}
                   onClick={() => { setCurrentPage(prev => prev + 1); window.scrollTo(0, 0); }}
                 >
@@ -142,9 +181,14 @@ export default function ShopClient({ initialProducts, categories }: {
             )}
 
             {filteredProducts.length === 0 && (
-              <div className="no-results">
-                <p>Aucun produit ne correspond à vos critères.</p>
-                <button onClick={() => {setSelectedCategory(null); setPriceRange(500000);}}>Réinitialiser</button>
+              <div className="text-center py-[100px]">
+                <p className="text-[#666]">Aucun produit ne correspond à vos critères.</p>
+                <button 
+                  className="mt-5 bg-[#1A1614] text-white border-none px-6 py-2.5 text-[11px] font-semibold cursor-pointer uppercase transition-transform active:scale-95"
+                  onClick={() => {setSelectedCategory(null); setPriceRange(500000);}}
+                >
+                  Réinitialiser
+                </button>
               </div>
             )}
           </main>
@@ -152,20 +196,19 @@ export default function ShopClient({ initialProducts, categories }: {
       </div>
 
       {/* MOBILE FILTERS OVERLAY */}
-      <div className={`mobile-filters ${showFilters ? "open" : ""}`}>
-        <div className="mf-header">
-          <h2>FILTRER</h2>
-          <button onClick={() => setShowFilters(false)}><X /></button>
+      <div className={`fixed inset-0 bg-white z-[1000] flex flex-col transition-transform duration-400 ease-[cubic-bezier(0.4,0,0.2,1)] ${showFilters ? "translate-y-0" : "translate-y-full"}`}>
+        <div className="p-5 border-b border-[#eee] flex justify-between items-center">
+          <h2 className="text-lg font-bold tracking-tight">FILTRER</h2>
+          <button className="bg-none border-none cursor-pointer p-1" onClick={() => setShowFilters(false)}><X /></button>
         </div>
-        <div className="mf-body">
-           {/* Same filter content as sidebar but mobile optimized */}
-           <div className="filter-group">
-              <h3>CATÉGORIES</h3>
-              <div className="mobile-cat-grid">
+        <div className="p-5 flex-1 overflow-y-auto">
+           <div className="mb-8">
+              <h3 className="text-[12px] font-bold tracking-widest mb-5 uppercase text-[#1A1614]">CATÉGORIES</h3>
+              <div className="grid grid-cols-2 gap-2.5">
                 {categories.map((cat: Category) => (
                   <button 
                     key={cat.id}
-                    className={selectedCategory === cat.name ? "active" : ""}
+                    className={`p-3 border text-[11px] font-bold rounded transition-colors ${selectedCategory === cat.name ? "bg-[#1A1614] text-white border-[#1A1614]" : "bg-white text-[#1A1614] border-[#eee]"}`}
                     onClick={() => {setSelectedCategory(cat.name); setShowFilters(false);}}
                   >
                     {cat.name}
@@ -175,169 +218,7 @@ export default function ShopClient({ initialProducts, categories }: {
            </div>
         </div>
       </div>
-
-      <style jsx>{`
-        .shop-page { background: white; min-height: 100vh; padding-top: 10px; }
-        .shop-container { max-width: 1400px; margin: 0 auto; padding: 0 20px; }
-        
-        .breadcrumb { font-size: 10px; letter-spacing: 0.1em; color: #999; margin-bottom: 8px; }
-        .shop-header h1 { font-size: 20px; font-weight: 300; letter-spacing: 0.15em; margin-bottom: 15px; }
-        
-        .shop-controls {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding-bottom: 10px;
-          border-bottom: 1px solid #eee;
-          margin-bottom: 20px;
-        }
-        .filter-toggle {
-          display: flex; align-items: center; gap: 8px;
-          background: none; border: 1px solid #1A1614; padding: 8px 16px;
-          font-size: 11px; font-weight: 600; cursor: pointer;
-        }
-        .sort-wrap select {
-          border: none; background: none; font-size: 11px; font-weight: 600;
-          letter-spacing: 0.05em; outline: none; cursor: pointer;
-        }
-
-        .shop-content { display: flex; gap: 30px; }
-        
-        .sidebar { width: 200px; flex-shrink: 0; }
-        .filter-group { margin-bottom: 20px; }
-        .filter-group h3 { font-size: 12px; font-weight: 700; letter-spacing: 0.1em; margin-bottom: 20px; }
-        .filter-list { display: flex; flex-direction: column; gap: 12px; }
-        .filter-list button {
-          text-align: left; background: none; border: none;
-          font-size: 13px; color: #666; cursor: pointer; padding: 0;
-          transition: color 0.3s;
-        }
-        .filter-list button span { color: #ccc; font-size: 11px; }
-        .filter-list button.active { color: #1A1614; font-weight: 700; }
-        
-        .price-slider input { width: 100%; accent-color: #1A1614; margin-bottom: 12px; }
-        .price-labels { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; }
-
-        .main-grid { flex: 1; }
-        .results-count { font-size: 10px; color: #999; margin-bottom: 24px; letter-spacing: 0.05em; }
-        
-        .product-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 40px 24px;
-        }
-
-        .pagination {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          gap: 8px;
-          margin-top: 60px;
-          padding-top: 40px;
-          border-top: 1px solid #eee;
-        }
-        .pagination button {
-          min-width: 40px;
-          height: 40px;
-          background: none;
-          border: 1px solid #eee;
-          font-size: 11px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.3s;
-        }
-        .pagination button:hover:not(:disabled) { border-color: #1A1614; }
-        .pagination button.active { background: #1A1614; color: white; border-color: #1A1614; }
-        .pagination button:disabled { opacity: 0.3; cursor: not-allowed; }
-
-        .no-results { text-align: center; padding: 100px 0; }
-        .no-results button { 
-          margin-top: 20px; background: #1A1614; color: white; border: none; 
-          padding: 10px 24px; font-size: 11px; cursor: pointer;
-        }
-
-        /* MOBILE FILTERS */
-        .mobile-filters {
-          position: fixed; inset: 0; background: white; z-index: 1000;
-          transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-          display: flex; flex-direction: column;
-        }
-        .mobile-filters.open { transform: translateY(0); }
-        .mf-header {
-          padding: 20px; border-bottom: 1px solid #eee;
-          display: flex; justify-content: space-between; align-items: center;
-        }
-        .mf-body { padding: 20px; flex: 1; overflow-y: auto; }
-        .mobile-cat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .mobile-cat-grid button {
-          padding: 12px; border: 1px solid #eee; background: none;
-          font-size: 11px; font-weight: 600; border-radius: 4px;
-        }
-        .mobile-cat-grid button.active { background: #1A1614; color: white; border-color: #1A1614; }
-
-        @media (max-width: 1024px) {
-          .product-grid { grid-template-columns: repeat(2, 1fr); }
-          .sidebar { display: none; }
-        }
-      `}</style>
     </div>
-  );
-}
 
-function ProductCard({ p }: { p: Product }) {
-  const discount = p.oldPrice ? Math.round((1 - Number(p.price) / Number(p.oldPrice)) * 100) : 0;
-
-  return (
-    <Link href={`/product/${p.id}`} className="p-card">
-      <div className="p-img">
-        {p.images?.[0] ? (
-          <img src={p.images[0].url} alt={p.name} loading="lazy" />
-        ) : (
-          <div className="placeholder">Z</div>
-        )}
-        {discount > 0 && <div className="p-badge">-{discount}%</div>}
-      </div>
-      <div className="p-info">
-        <h3>{p.name}</h3>
-        <div className="p-price-row">
-          <span className="p-price">{formatPrice(Number(p.price))}</span>
-          {p.oldPrice && <span className="p-old-price">{formatPrice(Number(p.oldPrice))}</span>}
-        </div>
-      </div>
-      <style jsx>{`
-        .p-card { text-decoration: none; color: inherit; }
-        .p-img {
-          aspect-ratio: 3/4;
-          background: #F5F3EF;
-          position: relative;
-          overflow: hidden;
-          margin-bottom: 12px;
-        }
-        .p-img img {
-          width: 100%; height: 100%;
-          object-fit: cover;
-          transition: transform 0.5s ease;
-        }
-        .p-card:hover .p-img img { transform: scale(1.05); }
-        .p-badge {
-          position: absolute;
-          top: 8px; right: 8px;
-          background: #C23616;
-          color: white;
-          padding: 3px 7px;
-          font-size: 9px;
-          font-weight: 700;
-        }
-        .p-info h3 {
-          font-size: 12px;
-          font-weight: 400;
-          color: #555;
-          margin-bottom: 4px;
-        }
-        .p-price-row { display: flex; align-items: center; gap: 8px; }
-        .p-price { font-size: 13px; font-weight: 700; color: #1A1614; }
-        .p-old-price { font-size: 11px; color: #aaa; text-decoration: line-through; }
-      `}</style>
-    </Link>
   );
 }

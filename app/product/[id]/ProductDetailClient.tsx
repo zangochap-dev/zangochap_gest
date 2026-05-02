@@ -70,74 +70,76 @@ export default function ProductDetailClient({ product }: { product: any }) {
   const discount = product.oldPrice ? Math.round((1 - Number(product.price) / Number(product.oldPrice)) * 100) : 0;
 
   return (
-    <div className="pdp-container">
+    <div className="max-w-[1440px] mx-auto px-4 md:px-10 py-[10px] pb-10 animate-[fadeUp_0.5s_ease] font-body w-full">
       {/* BREADCRUMB */}
-      <div className="breadcrumb">
-        <Link href="/"><ChevronLeft size={14} /> Retour</Link>
+      <div className="mb-2.5">
+        <Link href="/" className="no-underline text-[#999] text-[12px] inline-flex items-center gap-1 font-medium tracking-wider transition-colors hover:text-[#1A1614]">
+          <ChevronLeft size={14} /> Retour
+        </Link>
       </div>
 
-      <div className="pdp-grid">
+      <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-10 items-start">
         {/* ═══ GALLERY ═══ */}
-        <div className="gallery">
-          <div className="gallery-thumbs">
+        <div className="grid grid-cols-1 lg:grid-cols-[72px_1fr] gap-4 relative lg:sticky lg:top-[100px]">
+          <div className="flex flex-row lg:flex-col gap-2.5 order-2 lg:order-1">
             {product.images.map((img: any, idx: number) => (
               <button
                 key={idx}
-                className={`thumb ${activeImg === idx ? 'active' : ''}`}
+                className={`w-[60px] h-[70px] lg:w-[72px] lg:h-[90px] border-2 bg-[#F5F3EF] cursor-pointer overflow-hidden p-0 transition-colors ${activeImg === idx ? 'border-[#1A1614]' : 'border-transparent'}`}
                 onClick={() => setActiveImg(idx)}
               >
-                <img src={img.url} alt="" loading="lazy" />
+                <img src={img.url} alt="" loading="lazy" className="w-full h-full object-cover" />
               </button>
             ))}
           </div>
-          <div className="gallery-main">
+          <div className="aspect-[3/4] bg-[#F5F3EF] overflow-hidden relative order-1 lg:order-2 group">
             {product.images?.[activeImg] ? (
-              <img src={product.images[activeImg].url} alt={product.name} />
+              <img src={product.images[activeImg].url} alt={product.name} className="w-full h-full object-cover transition-transform duration-[6s] ease-[cubic-bezier(0.19,1,0.22,1)] group-hover:scale-105" />
             ) : (
-              <div className="no-img">Z</div>
+              <div className="w-full h-full flex items-center justify-center text-[100px] font-thin text-[#D5D0C8]">Z</div>
             )}
-            {discount > 0 && <div className="sale-badge">-{discount}%</div>}
+            {discount > 0 && <div className="absolute top-5 right-5 bg-[#C23616] text-white px-3.5 py-1.5 text-[11px] font-bold">-{discount}%</div>}
           </div>
         </div>
 
         {/* ═══ PRODUCT INFO ═══ */}
-        <div className="info-panel">
-          <div className="info-scroll">
-            <span className="info-eyebrow">Zangochap · Collection 2026</span>
-            <h1>{product.name}</h1>
+        <div className="pt-5 lg:pt-5">
+          <div className="flex flex-col">
+            <span className="text-[11px] uppercase tracking-[0.25em] text-[#bbb] font-normal mb-3 block">Zangochap · Collection 2026</span>
+            <h1 className="font-display text-4xl font-bold text-[#1A1614] tracking-tight leading-[1.1] mb-6">{product.name}</h1>
 
-            <div className="price-block">
-              <span className="current-price">{formatPrice(product.price)}</span>
+            <div className="flex items-baseline gap-3.5 mb-4 pb-4 border-b border-[#f0f0f0]">
+              <span className="text-2xl font-semibold text-[#1A1614]">{formatPrice(product.price)}</span>
               {product.oldPrice && (
                 <>
-                  <span className="old-price">{formatPrice(product.oldPrice)}</span>
-                  <span className="discount-tag">-{discount}%</span>
+                  <span className="text-base text-[#bbb] line-through">{formatPrice(product.oldPrice)}</span>
+                  <span className="text-[11px] font-bold text-[#C23616] bg-[#C2361610] px-2 py-0.5">-{discount}%</span>
                 </>
               )}
             </div>
 
-            <p className="description">
+            <p className="text-sm leading-relaxed text-[#777] mb-5">
               {product.description || "Un produit d'exception qui allie qualité supérieure et design contemporain. Chaque détail a été pensé pour offrir une expérience unique."}
             </p>
 
             {/* SIZES */}
-            <div className="selector">
-              <div className="selector-label">
-                <span>Taille</span>
-                {selectedSize && <span className="selected-val">{selectedSize}</span>}
+            <div className="mb-7">
+              <div className="flex justify-between items-center mb-3.5">
+                <span className="text-[12px] font-medium uppercase tracking-wider text-[#1A1614]">Taille</span>
+                {selectedSize && <span className="text-[12px] text-[#888]">{selectedSize}</span>}
               </div>
-              <div className="size-grid">
+              <div className="flex flex-wrap gap-2">
                 {availableSizes.map((s: any) => {
                   const available = isSizeAvailable(s);
                   return (
                     <button
                       key={s}
-                      className={`size-btn ${selectedSize === s ? 'active' : ''} ${!available ? 'oos' : ''}`}
+                      className={`min-w-[52px] h-[44px] bg-white border text-[12px] font-medium text-[#1A1614] transition-all tracking-wider relative ${selectedSize === s ? 'bg-[#1A1614] text-white border-[#1A1614]' : 'border-[#e0e0e0] hover:enabled:border-[#1A1614]'} ${!available ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
                       onClick={() => { setSelectedSize(s); setSelectedColor(""); }}
                       disabled={!available}
                     >
                       {s}
-                      {!available && <span className="oos-line" />}
+                      {!available && <span className="absolute top-1/2 left-[10%] right-[10%] h-[1px] bg-[#999] -rotate-[15deg]" />}
                     </button>
                   );
                 })}
@@ -145,49 +147,53 @@ export default function ProductDetailClient({ product }: { product: any }) {
             </div>
 
             {/* COLORS */}
-            <div className="selector">
-              <div className="selector-label">
-                <span>Couleur</span>
-                {selectedColor && <span className="selected-val">{selectedColor}</span>}
+            <div className="mb-7">
+              <div className="flex justify-between items-center mb-3.5">
+                <span className="text-[12px] font-medium uppercase tracking-wider text-[#1A1614]">Couleur</span>
+                {selectedColor && <span className="text-[12px] text-[#888]">{selectedColor}</span>}
               </div>
-              <div className="color-grid">
+              <div className="flex flex-wrap gap-2">
                 {selectedSize ? (
                   availableColorsForSize.map((c: any) => (
                     <button
                       key={c}
-                      className={`color-btn ${selectedColor === c ? 'active' : ''}`}
+                      className={`px-5 py-2.5 bg-white border text-[12px] font-medium text-[#1A1614] transition-all ${selectedColor === c ? 'bg-[#1A1614] text-white border-[#1A1614]' : 'border-[#e0e0e0] hover:border-[#1A1614]'}`}
                       onClick={() => setSelectedColor(c)}
                     >
                       {c}
                     </button>
                   ))
                 ) : (
-                  <span className="hint">Sélectionnez d'abord une taille</span>
+                  <span className="text-[12px] text-[#ccc] italic">Sélectionnez d'abord une taille</span>
                 )}
               </div>
             </div>
 
             {/* STOCK INDICATOR */}
             {currentVariant && (
-              <div style={{ marginBottom: 12, fontSize: 12, fontWeight: 500 }}>
+              <div className="mb-3 text-[12px] font-medium">
                 {currentVariant.stock > 0 ? (
-                  <span style={{ color: currentVariant.stock <= 3 ? '#C23616' : '#2D8A4E' }}>
+                  <span className={currentVariant.stock <= 3 ? 'text-[#C23616]' : 'text-[#2D8A4E]'}>
                     {currentVariant.stock <= 3 ? `⚠ Plus que ${currentVariant.stock} en stock` : `✓ En stock`}
                   </span>
                 ) : (
-                  <span style={{ color: '#C23616' }}>✕ Rupture de stock</span>
+                  <span className="text-[#C23616]">✕ Rupture de stock</span>
                 )}
               </div>
             )}
 
             {/* QTY + ADD */}
-            <div className="action-row">
-              <div className="qty-control">
-                <button onClick={() => setQty(Math.max(1, qty - 1))} aria-label="Moins"><Minus size={16} /></button>
-                <span>{qty}</span>
-                <button onClick={() => setQty(Math.min(currentVariant?.stock || 99, qty + 1))} aria-label="Plus"><Plus size={16} /></button>
+            <div className="flex flex-col sm:flex-row gap-3 mb-8">
+              <div className="flex items-center border border-[#e0e0e0] h-[52px]">
+                <button className="w-11 h-full flex items-center justify-center text-[#1A1614] transition-colors hover:bg-[#f5f5f5]" onClick={() => setQty(Math.max(1, qty - 1))} aria-label="Moins"><Minus size={16} /></button>
+                <span className="w-9 text-center font-semibold text-[15px] border-x border-[#e0e0e0] h-full flex items-center justify-center">{qty}</span>
+                <button className="w-11 h-full flex items-center justify-center text-[#1A1614] transition-colors hover:bg-[#f5f5f5]" onClick={() => setQty(Math.min(currentVariant?.stock || 99, qty + 1))} aria-label="Plus"><Plus size={16} /></button>
               </div>
-              <button className={`add-to-cart ${added ? 'added' : ''}`} onClick={handleAddToCart} disabled={!currentVariant || currentVariant.stock <= 0}>
+              <button 
+                className={`flex-1 h-[52px] text-white text-[12px] font-semibold tracking-[0.15em] flex items-center justify-center gap-2.5 transition-all duration-350 ease-out active:scale-95 ${added ? 'bg-[#2D8A4E]' : 'bg-[#1A1614] hover:bg-[#333] hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0'}`} 
+                onClick={handleAddToCart} 
+                disabled={!currentVariant || currentVariant.stock <= 0}
+              >
                 {added ? (
                   <><Check size={18} /> AJOUTÉ</>
                 ) : currentVariant && currentVariant.stock <= 0 ? (
@@ -199,24 +205,28 @@ export default function ProductDetailClient({ product }: { product: any }) {
             </div>
 
             {/* TRUST */}
-            <div className="trust-row">
-              <div className="trust-chip"><Truck size={15} /> Livraison express</div>
-              <div className="trust-chip"><RotateCcw size={15} /> Retours 7j</div>
-              <div className="trust-chip"><ShieldCheck size={15} /> Qualité garantie</div>
+            <div className="flex flex-wrap gap-3 mb-9">
+              <div className="flex items-center gap-1.5 px-4 py-2.5 border border-[#f0f0f0] text-[11px] font-medium text-[#888] tracking-wider"><Truck size={15} /> Livraison express</div>
+              <div className="flex items-center gap-1.5 px-4 py-2.5 border border-[#f0f0f0] text-[11px] font-medium text-[#888] tracking-wider"><RotateCcw size={15} /> Retours 7j</div>
+              <div className="flex items-center gap-1.5 px-4 py-2.5 border border-[#f0f0f0] text-[11px] font-medium text-[#888] tracking-wider"><ShieldCheck size={15} /> Qualité garantie</div>
             </div>
 
             {/* DETAILS ACCORDION */}
-            <details className="detail-block">
-              <summary>Détails du produit</summary>
-              <div className="detail-content">
-                {product.material && <p><strong>Matière :</strong> {product.material}</p>}
-                {product.origin && <p><strong>Origine :</strong> {product.origin}</p>}
-                <p><strong>Entretien :</strong> Suivez les indications sur l'étiquette intérieure.</p>
+            <details className="border-t border-[#f0f0f0] group">
+              <summary className="py-5 text-[12px] font-medium uppercase tracking-widest cursor-pointer text-[#1A1614] flex justify-between items-center list-none after:content-['+'] after:text-lg after:font-light after:text-[#999] group-open:after:content-['−']">
+                Détails du produit
+              </summary>
+              <div className="pb-5 text-[13px] leading-relaxed text-[#777] space-y-2">
+                {product.material && <p><strong className="text-[#555]">Matière :</strong> {product.material}</p>}
+                {product.origin && <p><strong className="text-[#555]">Origine :</strong> {product.origin}</p>}
+                <p><strong className="text-[#555]">Entretien :</strong> Suivez les indications sur l'étiquette intérieure.</p>
               </div>
             </details>
-            <details className="detail-block">
-              <summary>Livraison & Retours</summary>
-              <div className="detail-content">
+            <details className="border-t border-[#f0f0f0] group">
+              <summary className="py-5 text-[12px] font-medium uppercase tracking-widest cursor-pointer text-[#1A1614] flex justify-between items-center list-none after:content-['+'] after:text-lg after:font-light after:text-[#999] group-open:after:content-['−']">
+                Livraison & Retours
+              </summary>
+              <div className="pb-5 text-[13px] leading-relaxed text-[#777] space-y-2">
                 <p>Livraison gratuite à Abidjan pour toute commande de plus de 25 000 F CFA.</p>
                 <p>Retours gratuits sous 7 jours après réception.</p>
               </div>
@@ -224,344 +234,7 @@ export default function ProductDetailClient({ product }: { product: any }) {
           </div>
         </div>
       </div>
-
-      <style jsx>{`
-        .pdp-container {
-          max-width: 1440px;
-          margin: 0 auto;
-          padding: 10px 20px 40px;
-          animation: fadeUp 0.5s ease;
-        }
-        .breadcrumb { margin-bottom: 10px; }
-        .breadcrumb :global(a) {
-          text-decoration: none;
-          color: #999;
-          font-size: 12px;
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          font-weight: 500;
-          letter-spacing: 0.04em;
-          transition: color 0.2s;
-        }
-        .breadcrumb :global(a:hover) { color: #1A1614; }
-
-        /* ═══ GRID ═══ */
-        .pdp-grid {
-          display: grid;
-          grid-template-columns: 1.3fr 1fr;
-          gap: 40px;
-          align-items: start;
-        }
-
-        /* ═══ GALLERY ═══ */
-        .gallery {
-          display: grid;
-          grid-template-columns: 72px 1fr;
-          gap: 16px;
-          position: sticky;
-          top: 100px;
-        }
-        .gallery-thumbs {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-        .thumb {
-          width: 72px; height: 90px;
-          border: 2px solid transparent;
-          background: #F5F3EF;
-          cursor: pointer;
-          overflow: hidden;
-          transition: border-color 0.3s;
-          padding: 0;
-        }
-        .thumb.active { border-color: #1A1614; }
-        .thumb img { width: 100%; height: 100%; object-fit: cover; }
-        .gallery-main {
-          aspect-ratio: 3/4;
-          background: #F5F3EF;
-          overflow: hidden;
-          position: relative;
-        }
-        .gallery-main img {
-          width: 100%; height: 100%;
-          object-fit: cover;
-          transition: transform 6s cubic-bezier(0.19, 1, 0.22, 1);
-        }
-        .gallery-main:hover img { transform: scale(1.04); }
-        .sale-badge {
-          position: absolute;
-          top: 20px; right: 20px;
-          background: #C23616;
-          color: white;
-          padding: 6px 14px;
-          font-size: 11px;
-          font-weight: 700;
-        }
-        .no-img {
-          width: 100%; height: 100%;
-          display: flex; align-items: center; justify-content: center;
-          font-size: 100px; font-weight: 100; color: #D5D0C8;
-        }
-
-        /* ═══ INFO PANEL ═══ */
-        .info-panel { padding-top: 20px; }
-        .info-eyebrow {
-          font-size: 11px;
-          text-transform: uppercase;
-          letter-spacing: 0.25em;
-          color: #bbb;
-          font-weight: 400;
-          display: block;
-          margin-bottom: 12px;
-        }
-        .info-panel h1 {
-          font-size: 30px;
-          font-weight: 300;
-          color: #1A1614;
-          letter-spacing: -0.01em;
-          line-height: 1.25;
-          margin-bottom: 24px;
-        }
-
-        /* PRICE */
-        .price-block {
-          display: flex;
-          align-items: baseline;
-          gap: 14px;
-          margin-bottom: 15px;
-          padding-bottom: 15px;
-          border-bottom: 1px solid #f0f0f0;
-        }
-        .current-price {
-          font-size: 24px;
-          font-weight: 600;
-          color: #1A1614;
-        }
-        .old-price {
-          font-size: 16px;
-          color: #bbb;
-          text-decoration: line-through;
-        }
-        .discount-tag {
-          font-size: 11px;
-          font-weight: 700;
-          color: #C23616;
-          background: #C2361610;
-          padding: 3px 8px;
-        }
-
-        .description {
-          font-size: 14px;
-          line-height: 1.6;
-          color: #777;
-          margin-bottom: 20px;
-        }
-
-        /* SELECTORS */
-        .selector { margin-bottom: 28px; }
-        .selector-label {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 14px;
-        }
-        .selector-label span {
-          font-size: 12px;
-          font-weight: 500;
-          text-transform: uppercase;
-          letter-spacing: 0.1em;
-          color: #1A1614;
-        }
-        .selected-val {
-          font-weight: 400 !important;
-          color: #888 !important;
-          text-transform: none !important;
-          letter-spacing: 0 !important;
-        }
-        .size-grid, .color-grid {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-        }
-        .size-btn {
-          min-width: 52px; height: 44px;
-          background: white;
-          border: 1px solid #e0e0e0;
-          cursor: pointer;
-          font-size: 12px;
-          font-weight: 500;
-          color: #1A1614;
-          transition: all 0.2s;
-          letter-spacing: 0.02em;
-        }
-        .size-btn:hover:not(:disabled) { border-color: #1A1614; }
-        .size-btn.active {
-          background: #1A1614;
-          color: white;
-          border-color: #1A1614;
-        }
-        .size-btn.oos {
-          opacity: 0.4;
-          cursor: not-allowed;
-          position: relative;
-        }
-        .oos-line {
-          position: absolute;
-          top: 50%; left: 10%; right: 10%;
-          height: 1px;
-          background: #999;
-          transform: rotate(-15deg);
-        }
-        .color-btn {
-          padding: 10px 20px;
-          background: white;
-          border: 1px solid #e0e0e0;
-          cursor: pointer;
-          font-size: 12px;
-          font-weight: 500;
-          color: #1A1614;
-          transition: all 0.2s;
-        }
-        .color-btn:hover { border-color: #1A1614; }
-        .color-btn.active {
-          background: #1A1614;
-          color: white;
-          border-color: #1A1614;
-        }
-        .hint {
-          font-size: 12px;
-          color: #ccc;
-          font-style: italic;
-        }
-
-        /* ACTION ROW */
-        .action-row {
-          display: flex;
-          gap: 12px;
-          margin-bottom: 32px;
-        }
-        .qty-control {
-          display: flex;
-          align-items: center;
-          border: 1px solid #e0e0e0;
-          height: 52px;
-        }
-        .qty-control button {
-          width: 44px; height: 100%;
-          background: none; border: none;
-          cursor: pointer;
-          display: flex; align-items: center; justify-content: center;
-          color: #1A1614;
-          transition: background 0.2s;
-        }
-        .qty-control button:hover { background: #f5f5f5; }
-        .qty-control span {
-          width: 36px;
-          text-align: center;
-          font-weight: 600;
-          font-size: 15px;
-          border-left: 1px solid #e0e0e0;
-          border-right: 1px solid #e0e0e0;
-          height: 100%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .add-to-cart {
-          flex: 1; height: 52px;
-          background: #1A1614;
-          color: white;
-          border: none;
-          font-size: 12px;
-          font-weight: 600;
-          letter-spacing: 0.15em;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 10px;
-          cursor: pointer;
-          transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .add-to-cart:hover {
-          background: #333;
-          transform: translateY(-2px);
-          box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-        }
-        .add-to-cart.added {
-          background: #2D8A4E;
-        }
-
-        /* TRUST */
-        .trust-row {
-          display: flex;
-          gap: 12px;
-          margin-bottom: 36px;
-          flex-wrap: wrap;
-        }
-        .trust-chip {
-          display: flex;
-          align-items: center;
-          gap: 7px;
-          padding: 10px 16px;
-          border: 1px solid #f0f0f0;
-          font-size: 11px;
-          font-weight: 500;
-          color: #888;
-          letter-spacing: 0.02em;
-        }
-
-        /* DETAILS */
-        .detail-block {
-          border-top: 1px solid #f0f0f0;
-        }
-        .detail-block summary {
-          padding: 20px 0;
-          font-size: 12px;
-          font-weight: 500;
-          text-transform: uppercase;
-          letter-spacing: 0.1em;
-          cursor: pointer;
-          color: #1A1614;
-          list-style: none;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-        .detail-block summary::after {
-          content: '+';
-          font-size: 18px;
-          font-weight: 300;
-          color: #999;
-        }
-        .detail-block[open] summary::after { content: '−'; }
-        .detail-content {
-          padding-bottom: 20px;
-          font-size: 13px;
-          line-height: 1.7;
-          color: #777;
-        }
-        .detail-content p { margin-bottom: 8px; }
-        .detail-content strong { color: #555; }
-
-        /* RESPONSIVE */
-        @media (max-width: 1024px) {
-          .pdp-grid { grid-template-columns: 1fr; gap: 40px; }
-          .gallery { position: static; grid-template-columns: 1fr; }
-          .gallery-thumbs { flex-direction: row; order: 2; }
-          .thumb { width: 60px; height: 70px; }
-          .pdp-container { padding: 16px 20px 100px; }
-        }
-        @media (max-width: 600px) {
-          .action-row { flex-direction: column; }
-          .add-to-cart { height: 56px; }
-          .trust-row { gap: 8px; }
-          .trust-chip { font-size: 10px; padding: 8px 12px; }
-          .info-panel h1 { font-size: 24px; }
-        }
-        @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
-      `}</style>
     </div>
+
   );
 }

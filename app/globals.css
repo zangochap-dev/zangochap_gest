@@ -795,6 +795,28 @@ tbody td {
   border-radius: 50%;
 }
 
+.status-sm {
+  font-size: 9px;
+  padding: 1px 6px;
+  gap: 4px;
+}
+
+.status-sm::before {
+  width: 4px;
+  height: 4px;
+}
+
+.status-lg {
+  font-size: 13px;
+  padding: 4px 12px;
+  gap: 6px;
+}
+
+.status-lg::before {
+  width: 6px;
+  height: 6px;
+}
+
 .status.pending {
   background: var(--amber-soft);
   color: var(--amber);

@@ -18,26 +18,68 @@ export default async function DeliveryPage() {
       deliverymanId: user.id,
     },
     orderBy: { updatedAt: "desc" },
-    include: { items: true },
+    include: { 
+      items: true,
+      commercial: {
+        select: {
+          name: true,
+          phone: true,
+        }
+      },
+    },
     take: 50,
   });
 
-  // Safe serialization for Client Components (converting Dates and Decimals)
-  const orders: RiderOrder[] = ordersRaw.map(o => ({
-    ...o,
-    total: Number(o.total),
-    deliveryFee: Number(o.deliveryFee),
-    discount: Number(o.discount || 0),
-    isCommercialContacted: o.isCommercialContacted,
-    updatedAt: o.updatedAt.toISOString(),
-    createdAt: o.createdAt.toISOString(),
-    deliveryDate: o.deliveryDate?.toISOString() || null,
-    items: o.items.map(i => ({
-      ...i,
-      price: Number(i.price),
-      verifiedAt: i.verifiedAt?.toISOString() || null,
-    })),
-  })) as any;
+  // Get all order IDs to fetch collection records
+  const orderIds = ordersRaw.map(o => o.id);
+  const collectionRecords = await prisma.collectionRecord.findMany({
+    where: { orderId: { in: orderIds } },
+  });
+
+  // Get unique user IDs for packers and collectors to fetch their phones
+  const packerIds = ordersRaw.map(o => o.packedBy).filter(Boolean) as string[];
+  const collectorIds = collectionRecords.map(r => r.by);
+  const allStaffIds = Array.from(new Set([...packerIds, ...collectorIds]));
+  
+  const staffUsers = await prisma.user.findMany({
+    where: { id: { in: allStaffIds } },
+    select: { id: true, name: true, phone: true }
+  });
+
+  const staffMap = new Map(staffUsers.map(u => [u.id, u]));
+
+  // Safe serialization for Client Components
+  const orders: RiderOrder[] = ordersRaw.map(o => {
+    const packerUser = o.packedBy ? staffMap.get(o.packedBy) : null;
+    const orderCollections = collectionRecords.filter(r => r.orderId === o.id);
+    const collectors = Array.from(new Set(orderCollections.map(r => r.by)))
+      .map(id => staffMap.get(id))
+      .filter(Boolean) as { name: string; phone: string | null }[];
+
+    return {
+      ...o,
+      total: Number(o.total),
+      deliveryFee: Number(o.deliveryFee),
+      discount: Number(o.discount || 0),
+      isCommercialContacted: o.isCommercialContacted,
+      updatedAt: o.updatedAt.toISOString(),
+      createdAt: o.createdAt.toISOString(),
+      items: o.items.map(i => ({
+        ...i,
+        price: Number(i.price),
+        verifiedAt: i.verifiedAt?.toISOString() || null,
+      })),
+      commercial: o.commercial ? {
+        name: o.commercial.name,
+        phone: o.commercial.phone,
+      } : null,
+      packer: packerUser ? {
+        name: packerUser.name,
+        phone: packerUser.phone,
+      } : (o.packedByName ? { name: o.packedByName, phone: null } : null),
+      collectors: collectors,
+    };
+  }) as any;
 
   return (
     <DeliveryClient orders={orders} user={user} />

@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { MapPin, Package, ChevronRight } from "lucide-react";
+import { MapPin, Package, ChevronRight, Banknote, Clock } from "lucide-react";
+import { motion } from "framer-motion";
 import { formatPrice } from "@/lib/constants";
 import { StatusBadge } from "./StatusBadge";
 import { RiderOrder } from "../types";
@@ -10,54 +11,71 @@ import { calculateOrderCollectionTotal } from "../utils";
 interface OrderCardProps {
   order: RiderOrder;
   onClick: () => void;
+  index?: number;
 }
 
-export function OrderCard({ order, onClick }: OrderCardProps) {
+export function OrderCard({ order, onClick, index = 0 }: OrderCardProps) {
   const total = calculateOrderCollectionTotal(order);
-  const isActive = !["DELIVERED", "RETURNED", "CANCELLED", "PARTIALLY_DELIVERED"].includes(order.status);
   const totalQty = order.items?.reduce((sum, i) => sum + i.qty, 0) ?? 0;
+  const time = new Date(order.updatedAt || order.createdAt).toLocaleTimeString("fr-FR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
   return (
-    <div className="bg-white overflow-hidden rounded-md border border-[#E5E5EA]">
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: index * 0.05 }}
+    >
       <button
         onClick={onClick}
-        className="w-full bg-white border-b border-[#E5E5EA] flex items-center gap-4 p-4 bg-white text-left"
+        className="w-full bg-white rounded-xl border border-[#E5E5EA] p-3.5 text-left active:scale-[0.98] transition-all duration-150 shadow-sm hover:shadow-sm group"
       >
-
-
-        {/* Content */}
-        <div className="flex-1 min-w-0 space-y-1.5">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex items-center gap-1 truncate">
-              <span className="font-semibold text-[14px] text-[#1C1C1E]">{order.ref}</span>
-
-              <MapPin size={10} className="shrink-0 text-orange-500" />
-              <span className="truncate">{order.commune}</span>
-            </div>
-            <span className="w-0.5 h-0.5 rounded-full bg-[#AEAEB2]" />
-            <span className="text-[12px] font-bold text-[#FF6B2C] tabular-nums whitespace-nowrap">
-              {formatPrice(total)}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2 text-[11px] text-[#8E8E93]">
-            <span className="text-[14px] font-semibold text-[#1C1C1E] truncate">
-              {order.customerName}
-            </span>
-
-
-          </div>
-
+        <div className="flex flex-col gap-3">
+          {/* Top Row: Ref & Price */}
           <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="bg-[#F2F2F7] px-2 py-1 rounded-md">
+                <span className="text-[11px] font-bold text-[#1C1C1E] tabular-nums">#{order.ref}</span>
+              </div>
+              <div className="flex items-center gap-1 text-[#8E8E93]">
+                <Clock size={12} />
+                <span className="text-[10px] font-medium">{time}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 bg-[#FF6B2C]/5 px-3 py-1 rounded-full border border-[#FF6B2C]/10">
+              <Banknote size={12} className="text-[#FF6B2C]" />
+              <span className="text-[13px] font-extrabold text-[#FF6B2C] tabular-nums">
+                {formatPrice(total)}
+              </span>
+            </div>
+          </div>
+
+          {/* Middle Row: Customer & Location */}
+          <div className="space-y-1">
+            <h3 className="text-[15px] font-bold text-[#1C1C1E] leading-tight">
+              {order.customerName}
+            </h3>
+            <div className="flex items-center gap-1.5 text-[#8E8E93]">
+              <MapPin size={12} className="text-[#FF6B2C] shrink-0" />
+              <span className="text-[12px] font-medium truncate">{order.commune}</span>
+            </div>
+          </div>
+
+          {/* Bottom Row: Status & Items */}
+          <div className="flex items-center justify-between pt-1 border-t border-[#F2F2F7]">
             <StatusBadge status={order.status} />
-            <span className="text-[11px] font-medium text-[#AEAEB2]">
-              {totalQty} art.
-            </span>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 text-[#AEAEB2]">
+                <Package size={12} />
+                <span className="text-[11px] font-semibold">{totalQty} art.</span>
+              </div>
+              <ChevronRight size={16} className="text-[#AEAEB2] group-hover:translate-x-0.5 transition-transform" />
+            </div>
           </div>
         </div>
-
-        <ChevronRight size={16} className="shrink-0 text-[#AEAEB2]" />
       </button>
-    </div>
+    </motion.div>
   );
 }

@@ -3,7 +3,7 @@
 import React, { useState, useTransition, useMemo } from "react";
 import { TableCard, EmptyState, StatCard, StatusBadge } from "@/components/UI";
 import { formatPrice, formatDate, COMMUNES } from "@/lib/constants";
-import { Truck, User, UserPlus, Clock, Search, X, Package, Check, Filter, MapPin, Calendar, LayoutGrid, List } from "lucide-react";
+import { Truck, User, UserPlus, Clock, Search, X, Package, Check, Filter, MapPin, Calendar, LayoutGrid, List, Archive, TrendingUp, ChevronRight } from "lucide-react";
 import { assignOrderToDeliveryman, bulkAssignOrders } from "@/modules/orders/actions";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/Toast";
@@ -19,9 +19,11 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
   const [filterDeliveryman, setFilterDeliveryman] = useState("ALL");
   const [filterCommune, setFilterCommune] = useState("ALL");
   const [filterDate, setFilterDate] = useState(""); // YYYY-MM-DD
-  const [viewMode, setViewMode] = useState<"table" | "grid">("table");
+  const [viewMode, setViewMode] = useState<"table" | "grid" | "history">("table");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
+  const [expandedDate, setExpandedDate] = useState<string | null>(null);
+  
   const router = useRouter();
   const { showToast } = useToast();
 
@@ -116,6 +118,21 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
     });
     return groups;
   }, [filteredOrders, deliverymen]);
+
+  // Group by date for the "history" view
+  const groupedByDate = useMemo(() => {
+    const groups: Record<string, any[]> = {};
+    const sortedOrders = [...filteredOrders].sort((a, b) => 
+      new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime()
+    );
+    
+    sortedOrders.forEach(o => {
+      const date = new Date(o.updatedAt || o.createdAt).toLocaleDateString("fr-CA"); // YYYY-MM-DD
+      if (!groups[date]) groups[date] = [];
+      groups[date].push(o);
+    });
+    return groups;
+  }, [filteredOrders]);
 
   return (
     <div className="content animate-fade-in">
@@ -243,6 +260,13 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
             title="Vue par livreur"
           >
             <LayoutGrid size={18} />
+          </button>
+          <button 
+            className={`toggle-btn ${viewMode === 'history' ? 'active' : ''}`} 
+            onClick={() => setViewMode('history')}
+            title="Vue Archives"
+          >
+            <Archive size={18} />
           </button>
         </div>
       </div>
@@ -375,6 +399,92 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
         </div>
       )}
 
+      {/* HISTORY VIEW (BY DATE) */}
+      {viewMode === "history" && (
+        <div className="history-archive-container">
+          {Object.entries(groupedByDate).map(([date, dateOrders]) => {
+            const dateStats = {
+              total: dateOrders.length,
+              delivered: dateOrders.filter(o => o.status === "DELIVERED").length,
+              returned: dateOrders.filter(o => o.status === "RETURNED" || o.status === "CANCELLED").length,
+              cash: dateOrders.filter(o => o.status === "DELIVERED").reduce((acc, o) => acc + Number(o.total || 0) + Number(o.deliveryFee || 0), 0)
+            };
+            const isExpanded = expandedDate === date;
+
+            return (
+              <div key={date} className={`history-date-block ${isExpanded ? 'expanded' : ''}`}>
+                <div 
+                  className="history-date-header"
+                  onClick={() => setExpandedDate(isExpanded ? null : date)}
+                >
+                  <div className="date-info">
+                    <div className="calendar-box">
+                      <Calendar size={18} />
+                      <span>{new Date(date).getDate()}</span>
+                    </div>
+                    <div>
+                      <h4>{new Date(date).toLocaleDateString("fr-FR", { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</h4>
+                      <p>{dateOrders.length} commandes au total</p>
+                    </div>
+                  </div>
+
+                  <div className="header-stats">
+                    <div className="mini-stat">
+                      <span className="label">CA Encaissé</span>
+                      <span className="value text-green">{formatPrice(dateStats.cash)}</span>
+                    </div>
+                    <div className="mini-stat">
+                      <span className="label">Livrés</span>
+                      <span className="value">{dateStats.delivered}</span>
+                    </div>
+                    <div className="mini-stat">
+                      <span className="label">Retours</span>
+                      <span className="value text-red">{dateStats.returned}</span>
+                    </div>
+                    <ChevronRight size={20} className="expand-icon" />
+                  </div>
+                </div>
+
+                {isExpanded && (
+                  <div className="history-date-content animate-fade-in">
+                    <div className="table-responsive">
+                      <table className="mini-table">
+                        <thead>
+                          <tr>
+                            <th>Réf.</th>
+                            <th>Client / Commune</th>
+                            <th>Livreur</th>
+                            <th>Total</th>
+                            <th>Statut</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {dateOrders.map(o => (
+                            <tr key={o.id}>
+                              <td><span className="cell-mono">{o.ref}</span></td>
+                              <td>
+                                <div className="cell-strong">{o.customerName}</div>
+                                <div className="cell-muted">{o.commune}</div>
+                              </td>
+                              <td>{o.deliverymanName || '-'}</td>
+                              <td>{formatPrice(Number(o.total || 0) + Number(o.deliveryFee || 0))}</td>
+                              <td><StatusBadge status={o.status} size="sm" /></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {Object.keys(groupedByDate).length === 0 && (
+            <EmptyState icon="📅" title="Aucune archive" description="Aucune donnée historique trouvée pour les filtres actuels." />
+          )}
+        </div>
+      )}
+
       <style jsx>{`
         .filter-container { display: flex; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
         .filter-item { position: relative; flex: 1; min-width: 180px; }
@@ -453,6 +563,42 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
           text-align: center; padding: 40px 20px; color: var(--brown-soft); 
           font-size: 12px; font-weight: 600; border: 2px dashed var(--line); border-radius: 12px;
         }
+
+        /* HISTORY ARCHIVE */
+        .history-archive-container { display: flex; flex-direction: column; gap: 12px; }
+        .history-date-block { 
+          background: white; border-radius: 16px; border: 1px solid var(--line); overflow: hidden;
+          transition: 0.3s;
+        }
+        .history-date-block.expanded { box-shadow: var(--shadow-md); border-color: var(--orange-soft); }
+        .history-date-header { 
+          padding: 16px 20px; display: flex; justify-content: space-between; align-items: center;
+          cursor: pointer; active: background: var(--cream);
+        }
+        .date-info { display: flex; align-items: center; gap: 16px; }
+        .calendar-box { 
+          width: 44px; height: 44px; background: var(--cream-2); border-radius: 12px;
+          display: flex; flex-direction: column; align-items: center; justify-content: center;
+          color: var(--brown); font-weight: 800; border: 1px solid var(--line);
+        }
+        .calendar-box span { font-size: 12px; margin-top: -2px; }
+        .date-info h4 { margin: 0; font-size: 15px; font-weight: 800; color: #1C1C1E; capitalize; }
+        .date-info p { margin: 0; font-size: 11px; color: var(--brown-soft); font-weight: 600; }
+        
+        .header-stats { display: flex; align-items: center; gap: 32px; }
+        .mini-stat { display: flex; flex-direction: column; align-items: flex-end; }
+        .mini-stat .label { font-size: 9px; font-weight: 700; color: var(--brown-soft); uppercase; letter-spacing: 0.05em; }
+        .mini-stat .value { font-size: 14px; font-weight: 800; color: #1C1C1E; tabular-nums; }
+        .text-green { color: #34C759 !important; }
+        .text-red { color: #FF3B30 !important; }
+        .expand-icon { color: var(--brown-soft); transition: 0.3s; }
+        .history-date-block.expanded .expand-icon { transform: rotate(90deg); color: var(--orange); }
+
+        .history-date-content { padding: 0 20px 20px 20px; border-top: 1px solid var(--line-light); background: var(--cream-3); }
+        .mini-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        .mini-table th { text-align: left; padding: 10px; font-size: 11px; font-weight: 800; color: var(--brown-soft); uppercase; border-bottom: 2px solid var(--line); }
+        .mini-table td { padding: 12px 10px; border-bottom: 1px solid var(--line-light); font-size: 13px; }
+        .mini-table tr:last-child td { border-bottom: none; }
       `}</style>
     </div>
   );

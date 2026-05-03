@@ -31,6 +31,21 @@ export interface RiderOrder {
   isCommercialContacted?: boolean;
   updatedAt: string | Date;
   createdAt: string | Date;
+  settlementId?: string | null;
+  
+  // Staff Info
+  commercial?: {
+    name: string;
+    phone: string | null;
+  } | null;
+  packer?: {
+    name: string;
+    phone: string | null;
+  } | null;
+  collectors?: {
+    name: string;
+    phone: string | null;
+  }[];
 }
 
 export interface RiderStats {

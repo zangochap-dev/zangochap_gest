@@ -1,14 +1,17 @@
 "use client";
 
 import React, { useState, useTransition, useMemo, useCallback } from "react";
-import { Search, Package } from "lucide-react";
+import { Search, Package, ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/components/Toast";
 
 // Components
 import RiderGlobalStyles from "./components/RiderGlobalStyles";
 import { OrderCard } from "./components/OrderCard";
 import { OrderDetailsSheet } from "./components/OrderDetailsSheet";
+import { HistoryGroupDetails } from "./components/HistoryGroupDetails";
+import { HistoryGroupCard } from "./components/HistoryGroupCard";
 import { BottomNav } from "./components/BottomNav";
 import { WalletView } from "./components/WalletView";
 import { ProfileView } from "./components/ProfileView";
@@ -35,6 +38,7 @@ export default function DeliveryClient({
   const [historyFilter, setHistoryFilter] = useState<"all" | "DELIVERED" | "CANCELLED" | "PARTIALLY_DELIVERED">("all");
   const [historyTodayOnly, setHistoryTodayOnly] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<RiderOrder | null>(null);
+  const [selectedHistoryGroup, setSelectedHistoryGroup] = useState<{ date: string; orders: RiderOrder[] } | null>(null);
   const [partialMode, setPartialMode] = useState(false);
   const [includeDeliveryFee, setIncludeDeliveryFee] = useState(true);
   const [deliveredQuantities, setDeliveredQuantities] = useState<Record<string, number>>({});
@@ -42,18 +46,30 @@ export default function DeliveryClient({
   const [searchQuery, setSearchQuery] = useState("");
   const [isPending, startTransition] = useTransition();
   const [confirmingStatus, setConfirmingStatus] = useState<{ id: string; status: string } | null>(null);
+  const [returnReason, setReturnReason] = useState("");
 
   const router = useRouter();
   const { showToast } = useToast();
 
   // ── Derived Data (memoized) ──
+  const todayStr = new Date().toDateString();
+
   const pending = useMemo(
-    () => orders.filter((o) => !["DELIVERED", "RETURNED", "CANCELLED"].includes(o.status)),
-    [orders]
+    () => orders.filter((o) => {
+      const isCompleted = ["DELIVERED", "RETURNED", "CANCELLED"].includes(o.status);
+      const isToday = new Date(o.updatedAt || o.createdAt).toDateString() === todayStr;
+      return !isCompleted && isToday;
+    }),
+    [orders, todayStr]
   );
+
   const history = useMemo(
-    () => orders.filter((o) => ["DELIVERED", "RETURNED", "CANCELLED"].includes(o.status)),
-    [orders]
+    () => orders.filter((o) => {
+      const isCompleted = ["DELIVERED", "RETURNED", "CANCELLED"].includes(o.status);
+      const isPast = new Date(o.updatedAt || o.createdAt).toDateString() !== todayStr;
+      return isCompleted || (isPast && !isCompleted);
+    }),
+    [orders, todayStr]
   );
 
   const displayedOrders = useMemo(() => {
@@ -82,16 +98,22 @@ export default function DeliveryClient({
     );
   }, [missionFilter, historyFilter, historyTodayOnly, pending, history, searchQuery]);
 
+  // Cash Management: Orders delivered but not yet settled
+  const ordersToSettle = useMemo(
+    () => orders.filter(o => ["DELIVERED", "PARTIALLY_DELIVERED"].includes(o.status) && !o.settlementId),
+    [orders]
+  );
+
   const stats = useMemo<RiderStats>(
     () => ({
-      cash: pending.reduce((acc, o) => acc + o.total + o.deliveryFee - (o.discount || 0), 0),
+      cash: ordersToSettle.reduce((acc, o) => acc + o.total + o.deliveryFee - (o.discount || 0), 0),
       count: pending.length,
       deliveredToday: history.filter((o) => {
         const d = new Date(o.updatedAt || o.createdAt);
         return d.toDateString() === new Date().toDateString() && o.status === "DELIVERED";
       }).length,
     }),
-    [pending, history]
+    [pending, history, ordersToSettle]
   );
 
   const partialSummary = useMemo(() => {
@@ -105,6 +127,7 @@ export default function DeliveryClient({
     setPartialMode(false);
     setIncludeDeliveryFee(true);
     setReturnReasons({});
+    setReturnReason("");
     const initialQty: Record<string, number> = {};
     order.items.forEach((i) => (initialQty[i.id] = i.qty));
     setDeliveredQuantities(initialQty);
@@ -120,14 +143,15 @@ export default function DeliveryClient({
 
   const handleStatusUpdate = useCallback((id: string, status: string) => {
     setConfirmingStatus({ id, status });
+    setReturnReason("");
   }, []);
 
   const executeStatusUpdate = useCallback(
-    (id: string, status: string) => {
+    (id: string, status: string, reason?: string) => {
       setConfirmingStatus(null);
       startTransition(async () => {
         try {
-          await updateOrderStatus(id, status);
+          await updateOrderStatus(id, status, reason);
           showToast("Statut mis à jour ✓", "success");
           setSelectedOrder(null);
           router.refresh();
@@ -184,27 +208,47 @@ export default function DeliveryClient({
     router.push("/zangochap-manager");
   }, [router]);
 
-  // ── Render ──
+  // ── Render Helpers ──
+  const groupedOrders = useMemo(() => {
+    return Object.entries(
+      displayedOrders.reduce((groups, order) => {
+        const date = new Date(order.updatedAt || order.createdAt).toDateString();
+        if (!groups[date]) groups[date] = [];
+        groups[date].push(order);
+        return groups;
+      }, {} as Record<string, RiderOrder[]>)
+    ).sort((a, b) => new Date(b[0]).getTime() - new Date(a[0]).getTime());
+  }, [displayedOrders]);
+
+  const RETURN_REASONS = [
+    "Client absent",
+    "Mauvaise adresse",
+    "Refusé par le client",
+    "Article défectueux",
+    "Produit non conforme",
+    "Pas de budget/monnaie",
+  ];
+
   return (
     <div className="h-[100dvh] overflow-hidden">
       <RiderGlobalStyles />
 
       <div className="max-w-md mx-auto relative h-full flex flex-col overflow-hidden">
         {/* ── Header ── */}
-        <header className="shrink-0 px-5 pt-6 pb-4 bg-white border-b border-[#E5E5EA]">
+        <header className="shrink-0 px-4 pt-5 pb-3.5 bg-white border-b border-[#E5E5EA]">
           {/* Top Row */}
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-[#FF6B2C] flex items-center justify-center text-base font-bold text-white">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded bg-[#FF6B2C] flex items-center justify-center text-sm font-bold text-white">
                 {user?.name?.[0]?.toUpperCase()}
               </div>
               <div>
-                <h1 className="text-base font-semibold text-[#1C1C1E] leading-none mb-1">
+                <h1 className="text-[15px] font-semibold text-[#1C1C1E] leading-none mb-1">
                   {user?.name?.split(" ")[0]}
                 </h1>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#34C759]" />
-                  <span className="text-[10px] font-medium text-[#8E8E93]">
+                <div className="flex items-center gap-1">
+                  <span className="w-1 h-1 rounded-full bg-[#34C759]" />
+                  <span className="text-[9px] font-medium text-[#8E8E93]">
                     En service
                   </span>
                 </div>
@@ -212,14 +256,14 @@ export default function DeliveryClient({
             </div>
 
             {activeTab === "missions" && (
-              <div className="flex items-center gap-2">
-                <div className="px-3 py-1.5 bg-[#F0F0F2] border border-[#E5E5EA] rounded-full">
-                  <span className="text-xs font-bold text-[#FF6B2C] tabular-nums">
+              <div className="flex items-center gap-1.5">
+                <div className="px-2.5 py-1 bg-[#F0F0F2] border border-[#E5E5EA] rounded-md">
+                  <span className="text-[11px] font-bold text-[#FF6B2C] tabular-nums">
                     {new Intl.NumberFormat("fr-FR").format(stats.cash)} F
                   </span>
                 </div>
-                <div className="px-3 py-1.5 bg-[#F0F0F2] border border-[#E5E5EA] rounded-full">
-                  <span className="text-xs font-bold text-[#34C759] tabular-nums">
+                <div className="px-2.5 py-1 bg-[#F0F0F2] border border-[#E5E5EA] rounded-md">
+                  <span className="text-[11px] font-bold text-[#34C759] tabular-nums">
                     {stats.deliveredToday}
                   </span>
                 </div>
@@ -229,11 +273,11 @@ export default function DeliveryClient({
 
           {/* Tabs + Search */}
           {activeTab === "missions" && (
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               <div className="flex bg-[#F0F0F2] p-1 rounded-lg border border-[#E5E5EA]">
                 <button
                   onClick={() => { setMissionFilter("pending"); setHistoryFilter("all"); }}
-                  className={`flex-1 py-2 rounded-md text-xs font-semibold transition-all ${
+                  className={`flex-1 py-1.5 rounded-md text-[11px] font-semibold transition-all ${
                     missionFilter === "pending"
                       ? "bg-[#FF6B2C] text-white"
                       : "text-[#AEAEB2]"
@@ -243,7 +287,7 @@ export default function DeliveryClient({
                 </button>
                 <button
                   onClick={() => setMissionFilter("history")}
-                  className={`flex-1 py-2 rounded-md text-xs font-semibold transition-all ${
+                  className={`flex-1 py-1.5 rounded-md text-[11px] font-semibold transition-all ${
                     missionFilter === "history"
                       ? "bg-[#FF6B2C] text-white"
                       : "text-[#AEAEB2]"
@@ -255,15 +299,15 @@ export default function DeliveryClient({
 
               {/* History sub-filters */}
               {missionFilter === "history" && (
-                <div className="space-y-2">
-                  <div className="flex gap-2 overflow-x-auto pb-1">
+                <div className="space-y-1.5">
+                  <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
                     {(["all", "DELIVERED", "CANCELLED", "PARTIALLY_DELIVERED"] as const).map((f) => {
                       const labels: Record<string, string> = { all: "Tous", DELIVERED: "Livrés", CANCELLED: "Annulés", PARTIALLY_DELIVERED: "Partiels" };
                       return (
                         <button
                           key={f}
                           onClick={() => setHistoryFilter(f)}
-                          className={`px-3 py-1.5 rounded-full text-[11px] font-semibold whitespace-nowrap transition-colors ${
+                          className={`px-2.5 py-1 rounded-md text-[10px] font-semibold whitespace-nowrap transition-colors ${
                             historyFilter === f
                               ? "bg-[#1C1C1E] text-white"
                               : "bg-[#F0F0F2] text-[#8E8E93] border border-[#E5E5EA]"
@@ -275,7 +319,7 @@ export default function DeliveryClient({
                     })}
                     <button
                       onClick={() => setHistoryTodayOnly(!historyTodayOnly)}
-                      className={`px-3 py-1.5 rounded-full text-[11px] font-semibold whitespace-nowrap transition-colors ${
+                      className={`px-2.5 py-1 rounded-md text-[10px] font-semibold whitespace-nowrap transition-colors ${
                         historyTodayOnly
                           ? "bg-[#FF6B2C] text-white"
                           : "bg-[#F0F0F2] text-[#8E8E93] border border-[#E5E5EA]"
@@ -289,15 +333,15 @@ export default function DeliveryClient({
 
               <div className="relative">
                 <Search
-                  size={16}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#AEAEB2]"
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[#AEAEB2]"
                 />
                 <input
                   type="text"
                   placeholder="Rechercher..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full h-10 bg-[#F0F0F2] border border-[#E5E5EA] rounded-lg pl-10 pr-4 text-sm font-medium text-[#1C1C1E] outline-none focus:border-[#FF6B2C]/40 transition-colors placeholder:text-[#AEAEB2]"
+                  className="w-full h-9 bg-[#F0F0F2] border border-[#E5E5EA] rounded-lg pl-9 pr-3 text-xs font-medium text-[#1C1C1E] outline-none focus:border-[#FF6B2C]/40 transition-colors placeholder:text-[#AEAEB2]"
                 />
               </div>
             </div>
@@ -305,29 +349,59 @@ export default function DeliveryClient({
         </header>
 
         {/* ── Main Content ── */}
-        <main className="flex-1 overflow-y-auto overscroll-contain px-4 pt-3 pb-28">
+        <main className="flex-1 overflow-y-auto overscroll-contain px-3.5 pt-2.5 pb-24">
           {activeTab === "missions" && (
-            <div className="space-y-2">
+            <div className="space-y-6">
               {displayedOrders.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-24 text-[#AEAEB2]">
-                  <Package size={40} strokeWidth={1.5} className="mb-3 opacity-50" />
-                  <p className="text-xs font-semibold uppercase tracking-wider">
+                <div className="flex flex-col items-center justify-center py-20 text-[#AEAEB2]">
+                  <Package size={32} strokeWidth={1.5} className="mb-2 opacity-50" />
+                  <p className="text-[10px] font-semibold uppercase tracking-wider">
                     Aucune mission
                   </p>
                 </div>
+              ) : missionFilter === "pending" ? (
+                groupedOrders.map(([date, dateOrders]) => {
+                  const isToday = date === new Date().toDateString();
+                  const isYesterday = date === new Date(Date.now() - 86400000).toDateString();
+                  const label = isToday ? "Aujourd'hui" : isYesterday ? "Hier" : new Date(date).toLocaleDateString("fr-FR", { weekday: 'long', day: 'numeric', month: 'long' });
+
+                  return (
+                    <div key={date} className="space-y-4">
+                      <div className="flex items-center gap-3 px-1">
+                        <span className="text-[11px] font-black uppercase tracking-[0.2em] text-[#1C1C1E] whitespace-nowrap">
+                          {label}
+                        </span>
+                        <div className="h-[2px] flex-1 bg-[#E5E5EA] rounded-full" />
+                      </div>
+                      <div className="space-y-2.5">
+                        {dateOrders.map((order, idx) => (
+                          <OrderCard
+                            key={order.id}
+                            order={order}
+                            index={idx}
+                            onClick={() => handleOpenOrder(order)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })
               ) : (
-                displayedOrders.map((order) => (
-                  <OrderCard
-                    key={order.id}
-                    order={order}
-                    onClick={() => handleOpenOrder(order)}
-                  />
-                ))
+                <div className="space-y-3 pt-1">
+                  {groupedOrders.map(([date, dateOrders]) => (
+                    <HistoryGroupCard
+                      key={date}
+                      date={date}
+                      orders={dateOrders}
+                      onClick={() => setSelectedHistoryGroup({ date, orders: dateOrders })}
+                    />
+                  ))}
+                </div>
               )}
             </div>
           )}
 
-          {activeTab === "wallet" && <WalletView stats={stats} />}
+          {activeTab === "wallet" && <WalletView stats={stats} ordersToSettle={ordersToSettle} />}
           {activeTab === "profile" && <ProfileView user={user} logout={handleLogout} />}
         </main>
 
@@ -356,41 +430,88 @@ export default function DeliveryClient({
           />
         )}
 
-        {/* Confirmation Modal */}
-        {confirmingStatus && (
-          <div className="fixed inset-0 z-[300] flex items-center justify-center px-6">
-            <div
-              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-              onClick={() => setConfirmingStatus(null)}
+        <AnimatePresence>
+          {selectedHistoryGroup && (
+            <HistoryGroupDetails 
+              date={selectedHistoryGroup.date}
+              orders={selectedHistoryGroup.orders}
+              onClose={() => setSelectedHistoryGroup(null)}
+              onOpenOrder={(order) => {
+                setSelectedHistoryGroup(null);
+                handleOpenOrder(order);
+              }}
             />
-            <div className="relative bg-white w-full max-w-xs rounded-xl border border-[#E5E5EA] overflow-hidden">
-              <div className="p-6 text-center">
-                <h3 className="text-base font-semibold text-[#1C1C1E] mb-1">
-                  Confirmer l'action ?
-                </h3>
-                <p className="text-xs font-medium text-[#AEAEB2]">
-                  Cette action est irréversible
-                </p>
-              </div>
-              <div className="flex border-t border-[#E5E5EA]">
-                <button
-                  onClick={() => setConfirmingStatus(null)}
-                  className="flex-1 py-4 text-sm font-medium text-[#8E8E93] border-r border-[#E5E5EA] active:bg-[#F0F0F2] transition-colors"
-                >
-                  Annuler
-                </button>
-                <button
-                  onClick={() =>
-                    executeStatusUpdate(confirmingStatus.id, confirmingStatus.status)
-                  }
-                  className="flex-1 py-4 text-sm font-semibold text-[#FF6B2C] active:bg-[#F0F0F2] transition-colors"
-                >
-                  Confirmer
-                </button>
-              </div>
+          )}
+        </AnimatePresence>
+
+        {/* Confirmation Modal */}
+        <AnimatePresence>
+          {confirmingStatus && (
+            <div className="fixed inset-0 z-[300] flex items-center justify-center px-6">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                onClick={() => setConfirmingStatus(null)}
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                className="relative bg-white w-full max-w-sm rounded-xl shadow-xl border border-[#F2F2F7] overflow-hidden"
+              >
+                <div className="p-6 text-center">
+                  <div className="w-12 h-12 bg-[#F2F2F7] rounded-full flex items-center justify-center mx-auto mb-3 text-[#FF6B2C]">
+                    <Package size={24} />
+                  </div>
+                  <h3 className="text-[17px] font-black text-[#1C1C1E] mb-1.5 leading-tight">
+                    {confirmingStatus.status === "DELIVERED" ? "Confirmer la livraison ?" : "Confirmer le retour ?"}
+                  </h3>
+                  <p className="text-[13px] font-semibold text-[#AEAEB2] leading-relaxed mb-4">
+                    {confirmingStatus.status === "DELIVERED" 
+                      ? "Assurez-vous d'avoir bien encaissé le montant total."
+                      : "Veuillez préciser le motif du retour ci-dessous."}
+                  </p>
+
+                  {confirmingStatus.status !== "DELIVERED" && (
+                    <div className="flex flex-wrap gap-1.5 justify-center mb-5">
+                      {RETURN_REASONS.map((r) => (
+                        <button
+                          key={r}
+                          onClick={() => setReturnReason(r)}
+                          className={`px-3 py-1.5 rounded-md text-[11px] font-bold transition-all border ${
+                            returnReason === r
+                              ? "bg-[#1C1C1E] text-white border-[#1C1C1E]"
+                              : "bg-white text-[#8E8E93] border-[#E5E5EA]"
+                          }`}
+                        >
+                          {r}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setConfirmingStatus(null)}
+                      className="flex-1 h-12 rounded-lg bg-[#F2F2F7] text-[#1C1C1E] font-bold text-[14px] active:scale-95 transition-transform"
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      disabled={confirmingStatus.status !== "DELIVERED" && !returnReason}
+                      onClick={() => executeStatusUpdate(confirmingStatus.id, confirmingStatus.status, returnReason)}
+                      className="flex-1 h-12 rounded-lg bg-[#FF6B2C] text-white font-bold text-[14px] active:scale-95 transition-transform disabled:opacity-40"
+                    >
+                      Confirmer
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
             </div>
-          </div>
-        )}
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

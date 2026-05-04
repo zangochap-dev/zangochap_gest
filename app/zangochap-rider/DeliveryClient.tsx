@@ -34,7 +34,7 @@ export default function DeliveryClient({
 }) {
   // ── State ──
   const [activeTab, setActiveTab] = useState<"missions" | "wallet" | "profile">("missions");
-  const [missionFilter, setMissionFilter] = useState<"pending" | "history">("pending");
+  const [missionFilter, setMissionFilter] = useState<"pending" | "current" | "history">("pending");
   const [historyFilter, setHistoryFilter] = useState<"all" | "DELIVERED" | "CANCELLED" | "PARTIALLY_DELIVERED">("all");
   const [historyTodayOnly, setHistoryTodayOnly] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<RiderOrder | null>(null);
@@ -58,16 +58,21 @@ export default function DeliveryClient({
     () => orders.filter((o) => {
       const isCompleted = ["DELIVERED", "RETURNED", "CANCELLED"].includes(o.status);
       const isToday = new Date(o.updatedAt || o.createdAt).toDateString() === todayStr;
-      return !isCompleted && isToday;
+      return !isCompleted && isToday && o.status !== "ON_DELIVERY";
     }),
     [orders, todayStr]
+  );
+
+  const inProgress = useMemo(
+    () => orders.filter((o) => o.status === "ON_DELIVERY"),
+    [orders]
   );
 
   const history = useMemo(
     () => orders.filter((o) => {
       const isCompleted = ["DELIVERED", "RETURNED", "CANCELLED"].includes(o.status);
       const isPast = new Date(o.updatedAt || o.createdAt).toDateString() !== todayStr;
-      return isCompleted || (isPast && !isCompleted);
+      return (isCompleted || (isPast && !isCompleted)) && o.status !== "ON_DELIVERY";
     }),
     [orders, todayStr]
   );
@@ -76,6 +81,8 @@ export default function DeliveryClient({
     let base: RiderOrder[];
     if (missionFilter === "pending") {
       base = pending;
+    } else if (missionFilter === "current") {
+      base = inProgress;
     } else {
       base = history;
       // Sub-filter by status
@@ -108,12 +115,13 @@ export default function DeliveryClient({
     () => ({
       cash: ordersToSettle.reduce((acc, o) => acc + o.total + o.deliveryFee - (o.discount || 0), 0),
       count: pending.length,
+      inProgressCount: inProgress.length,
       deliveredToday: history.filter((o) => {
         const d = new Date(o.updatedAt || o.createdAt);
         return d.toDateString() === new Date().toDateString() && o.status === "DELIVERED";
       }).length,
     }),
-    [pending, history, ordersToSettle]
+    [pending, inProgress, history, ordersToSettle]
   );
 
   const partialSummary = useMemo(() => {
@@ -286,6 +294,16 @@ export default function DeliveryClient({
                   À faire ({stats.count})
                 </button>
                 <button
+                  onClick={() => setMissionFilter("current")}
+                  className={`flex-1 py-1.5 rounded-md text-[11px] font-semibold transition-all ${
+                    missionFilter === "current"
+                      ? "bg-[#FF6B2C] text-white"
+                      : "text-[#AEAEB2]"
+                  }`}
+                >
+                  En cours ({stats.inProgressCount})
+                </button>
+                <button
                   onClick={() => setMissionFilter("history")}
                   className={`flex-1 py-1.5 rounded-md text-[11px] font-semibold transition-all ${
                     missionFilter === "history"
@@ -386,6 +404,17 @@ export default function DeliveryClient({
                     </div>
                   );
                 })
+              ) : missionFilter === "current" ? (
+                <div className="space-y-2.5 pt-1">
+                  {displayedOrders.map((order, idx) => (
+                    <OrderCard
+                      key={order.id}
+                      order={order}
+                      index={idx}
+                      onClick={() => handleOpenOrder(order)}
+                    />
+                  ))}
+                </div>
               ) : (
                 <div className="space-y-3 pt-1">
                   {groupedOrders.map(([date, dateOrders]) => (
@@ -408,7 +437,7 @@ export default function DeliveryClient({
         <BottomNav
           activeTab={activeTab}
           setActiveTab={setActiveTab}
-          pendingCount={stats.count}
+          pendingCount={stats.count + stats.inProgressCount}
         />
 
         {selectedOrder && (

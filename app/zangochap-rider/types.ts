@@ -51,5 +51,6 @@ export interface RiderOrder {
 export interface RiderStats {
   cash: number;
   count: number;
+  inProgressCount: number;
   deliveredToday: number;
 }

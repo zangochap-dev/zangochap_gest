@@ -1,47 +1,50 @@
-# Install dependencies only when needed
-FROM node:22-alpine AS deps
-# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
-RUN apk add --no-cache libc6-compat
+# Stage 1: Dependencies
+FROM node:20-slim AS deps
 WORKDIR /app
 
-# Install dependencies based on the preferred package manager
-COPY package.json package-lock.json* ./
+# Install OpenSSL for Prisma
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
+COPY package*.json ./
+COPY prisma ./prisma
+
 RUN npm ci
 
-# Rebuild the source code only when needed
-FROM node:22-alpine AS builder
+# Stage 2: Builder
+FROM node:20-slim AS builder
 WORKDIR /app
+
+# Install OpenSSL for Prisma
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Next.js collects completely anonymous telemetry data about general usage.
-# Learn more here: https://nextjs.org/telemetry
-# Uncomment the following line in case you want to disable telemetry during the build.
-# ENV NEXT_TELEMETRY_DISABLED=1
-
-# Prisma generate needs DATABASE_URL to be defined even if it doesn't connect
+# Dummy environment variables for build
 ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
 ENV NEXT_PUBLIC_APP_NAME="Zangochap Back Office"
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# Prisma generate must run before next build
 RUN npx prisma generate
 RUN npm run build
 
-# Production image, copy all the files and run next
-FROM node:22-alpine AS runner
-RUN apk add --no-cache openssl
+# Stage 3: Runner
+FROM node:20-slim AS runner
 WORKDIR /app
 
-# Install prisma CLI globally to have it available in the runner
-RUN npm install -g prisma@7.8.0
+# Install runtime dependencies (openssl for Prisma)
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production
-# Uncomment the following line in case you want to disable telemetry during runtime.
-# ENV NEXT_TELEMETRY_DISABLED=1
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+# Create a non-root user
+RUN groupadd --system --gid 1001 nodejs
+RUN useradd --system --uid 1001 nextjs
 
+# Set up public and standalone folders
 COPY --from=builder /app/public ./public
 
 # Set the correct permission for prerender cache
@@ -55,17 +58,22 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # We need the prisma schema to run migrations/db push at runtime
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
-COPY --from=builder --chown=nextjs:nodejs /app/.env* ./ 
-# Note: we copy .env if it exists, but the container should get env from docker-compose
+COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
 
+# Create uploads directory with correct permissions
+RUN mkdir -p public/uploads && chown -R nextjs:nodejs public/uploads
+
+# Make execution script executable
+RUN chmod +x ./scripts/start-prod.sh
+
+# Use non-root user
 USER nextjs
 
 EXPOSE 3000
 
-ENV PORT=3000
-# set hostname to localhost
-ENV HOSTNAME="0.0.0.0"
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD node -e "fetch('http://localhost:3000/').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
 
-# Use a shell script to run prisma db push before starting the app
-# We use || true to prevent the container from crashing if db push fails (optional)
-CMD if [ -z "$DATABASE_URL" ]; then echo "DATABASE_URL is not set"; exit 1; fi && prisma db push --url "$DATABASE_URL" && node server.js
+# Start the application using the script
+CMD ["./scripts/start-prod.sh"]

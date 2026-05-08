@@ -1,5 +1,5 @@
 # Install dependencies only when needed
-FROM node:20-alpine AS deps
+FROM node:22-alpine AS deps
 # Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
@@ -9,7 +9,7 @@ COPY package.json package-lock.json* ./
 RUN npm ci
 
 # Rebuild the source code only when needed
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -28,7 +28,7 @@ RUN npx prisma generate
 RUN npm run build
 
 # Production image, copy all the files and run next
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 RUN apk add --no-cache openssl
 WORKDIR /app
 
@@ -50,8 +50,11 @@ RUN chown nextjs:nodejs .next
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# We need the prisma schema to run migrations/db push at runtime
+# We need the prisma schema and config to run migrations/db push at runtime
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
+COPY --from=builder /app/.env* ./ 
+# Note: we copy .env if it exists, but the container should get env from docker-compose
 
 USER nextjs
 
@@ -62,4 +65,5 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
 # Use a shell script to run prisma db push before starting the app
-CMD npx prisma db push && node server.js
+# We use || true to prevent the container from crashing if db push fails (optional)
+CMD if [ -z "$DATABASE_URL" ]; then echo "DATABASE_URL is not set"; exit 1; fi && ./node_modules/.bin/prisma db push && node server.js

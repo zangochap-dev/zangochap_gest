@@ -14,5 +14,5 @@ else
 fi
 
 # Start the application
-echo "Starting Next.js application..."
-exec node server.js
+echo "Starting Next.js application on port ${PORT:-4000}..."
+PORT=${PORT:-4000} exec node server.js

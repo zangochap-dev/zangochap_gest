@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
     serverActions: {
       allowedOrigins: [
         "172.20.10.2", 
-        "localhost:3000", 
+        "localhost:4000", 
         "russel-unclinging-incalculably.ngrok-free.dev",
         "*.traefik.me",
         "72-62-45-245.traefik.me"

@@ -37,7 +37,7 @@ RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV PORT=3000
+ENV PORT=4000
 ENV HOSTNAME="0.0.0.0"
 
 # Create a non-root user
@@ -72,11 +72,11 @@ RUN sed -i 's/\r$//' ./scripts/start-prod.sh && chmod +x ./scripts/start-prod.sh
 # Use non-root user
 USER nextjs
 
-EXPOSE 3000
+EXPOSE 4000
 
 # Healthcheck
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD node -e "fetch('http://localhost:3000/').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
+    CMD node -e "fetch('http://localhost:4000/').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
 
 # Start the application using the script
 CMD ["./scripts/start-prod.sh"]

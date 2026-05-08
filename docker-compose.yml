@@ -6,7 +6,7 @@ services:
     container_name: zangochap-gest
     restart: always
     ports:
-      - "3000:3000"
+      - "4000:4000"
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - NEXT_PUBLIC_APP_NAME=${NEXT_PUBLIC_APP_NAME}

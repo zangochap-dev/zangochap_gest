@@ -33,17 +33,23 @@ export async function uploadImage(dataUrl: string, fileName: string): Promise<st
     
     // Ensure the uploads directory exists
     const uploadDir = path.join(process.cwd(), "public", "uploads");
+    console.log(`[UPLOAD] Resolving upload directory: ${uploadDir}`);
+    
     if (!fs.existsSync(uploadDir)) {
+      console.log(`[UPLOAD] Directory does not exist, creating: ${uploadDir}`);
       fs.mkdirSync(uploadDir, { recursive: true });
     }
 
     const filePath = path.join(uploadDir, finalFileName);
+    console.log(`[UPLOAD] Writing file to: ${filePath}`);
+    
     fs.writeFileSync(filePath, optimizedBuffer);
+    console.log(`[UPLOAD] Success! File written: ${finalFileName}`);
 
     // Return the improved relative URL
     return `/uploads/${finalFileName}`;
-  } catch (error) {
-    console.error("Upload failed:", error);
-    throw new Error("Erreur lors de l'enregistrement de l'image.");
+  } catch (error: any) {
+    console.error("[UPLOAD] Failed:", error);
+    throw new Error(`Erreur d'upload: ${error.message || "Erreur inconnue"}`);
   }
 }

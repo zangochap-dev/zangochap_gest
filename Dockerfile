@@ -40,9 +40,9 @@ RUN adduser -S -u 1001 -G nodejs nextjs
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
 
-# Set the correct permission for prerender cache
-RUN mkdir .next
-RUN chown nextjs:nodejs .next
+# Set the correct permission for prerender cache and uploads
+RUN mkdir -p .next public/uploads
+RUN chown -R nextjs:nodejs .next public/uploads
 
 # Automatically leverage output traces to reduce image size
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./

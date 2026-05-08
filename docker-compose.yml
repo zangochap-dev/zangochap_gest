@@ -13,13 +13,8 @@ services:
     networks:
       - dokploy-network
     expose:
-      - "4000"
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.zangochap-app.rule=Host(`gestion-zangochapgest-pytw4y-8a2e3c-72-62-45-245.traefik.me`)"
-      - "traefik.http.routers.zangochap-app.entrypoints=websecure"
-      - "traefik.http.routers.zangochap-app.tls.certResolver=letsencrypt"
-      - "traefik.http.services.zangochap-app.loadbalancer.server.port=4000"
+      - "3000"
+
 
 networks:
   dokploy-network:

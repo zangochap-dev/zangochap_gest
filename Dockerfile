@@ -66,8 +66,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
 # Create uploads directory with correct permissions
 RUN mkdir -p public/uploads && chown -R nextjs:nodejs public/uploads
 
-# Make execution script executable
-RUN chmod +x ./scripts/start-prod.sh
+# Make execution script executable and fix potential Windows line endings
+RUN sed -i 's/\r$//' ./scripts/start-prod.sh && chmod +x ./scripts/start-prod.sh
 
 # Use non-root user
 USER nextjs

@@ -14,13 +14,28 @@ export default async function SettingsPromosPage() {
 
   const promos = await prisma.promoCode.findMany({
     orderBy: { createdAt: 'desc' },
-    include: { usages: true },
+    include: { usages: true, products: true, categories: true },
+  });
+
+  const products = await prisma.product.findMany({
+    select: { id: true, name: true, emoji: true },
+    orderBy: { name: 'asc' }
+  });
+
+  const categories = await prisma.category.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' }
   });
 
   return (
     <>
       <Topbar title="Configuration" subtitle="codes promos" />
-      <PromoClient promos={JSON.parse(JSON.stringify(promos))} user={user} />
+      <PromoClient 
+        promos={JSON.parse(JSON.stringify(promos))} 
+        user={user} 
+        products={products}
+        categories={categories}
+      />
     </>
   );
 }

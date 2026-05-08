@@ -116,6 +116,7 @@ model Category {
   slug          String        @unique
   products      Product[]
   subCategories SubCategory[]
+  promoCodes    PromoCode[]   @relation("PromoCategories")
   createdAt     DateTime      @default(now())
 }
 
@@ -170,6 +171,7 @@ model Product {
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
   orderItems        OrderItem[]
+  promoCodes        PromoCode[]      @relation("PromoProducts")
 
   @@index([categoryId])
   @@index([subCategoryId])
@@ -297,7 +299,8 @@ model OrderItem {
   emoji     String?
   image     String?  @db.Text
   isCustom  Boolean  @default(false)
-  isGift    Boolean  @default(false)
+  isGift     Boolean   @default(false)
+  notes      String?   @db.Text
   isVerified Boolean  @default(false)
   verifiedAt DateTime?
   isDelivered Boolean  @default(true)
@@ -329,18 +332,24 @@ model PromoCode {
   startDate     DateTime?
   endDate       DateTime?
   isActive      Boolean      @default(true)
+  isAutomatic   Boolean      @default(false)
+  minQuantity   Int          @default(0)
+  products      Product[]    @relation("PromoProducts")
+  categories    Category[]   @relation("PromoCategories")
   creatorId     String
   createdAt     DateTime     @default(now())
   usages        PromoUsage[]
 }
 
 model PromoUsage {
-  id        String    @id @default(cuid())
-  promoCode String
-  promo     PromoCode @relation(fields: [promoCode], references: [code])
-  orderId   String
-  phone     String
-  createdAt DateTime  @default(now())
+  id            String    @id @default(cuid())
+  promoCode     String
+  promo         PromoCode @relation(fields: [promoCode], references: [code])
+  orderId       String    @unique
+  customerName  String
+  customerPhone String
+  orderTotal    Float
+  createdAt     DateTime  @default(now())
 }
 
 model Customer {

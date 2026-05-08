@@ -139,6 +139,8 @@ export async function createOrder(data: {
     image?: string;
     isCustom?: boolean;
     isGift?: boolean;
+    notes?: string;
+    desc?: string;
   }>;
   promoCode?: string;
   discount?: number;
@@ -199,9 +201,10 @@ export async function createOrder(data: {
           price: Number(item.price),
           emoji: item.emoji || '📦',
           image: item.image || null,
-          productId: item.productId,
+          productId: item.isCustom ? null : item.productId,
           isCustom: item.isCustom || false,
           isGift: item.isGift || false,
+          notes: item.notes || item.desc || null,
         })),
       },
       history: [
@@ -215,6 +218,23 @@ export async function createOrder(data: {
     },
     include: { items: true },
   });
+
+  // Record promo usage if applicable
+  if (data.promoCode) {
+    try {
+      await prisma.promoUsage.create({
+        data: {
+          promoCode: data.promoCode,
+          orderId: order.id,
+          customerName: data.customerName,
+          customerPhone: data.customerPhone,
+          orderTotal: finalTotal + (data.deliveryFee || 0)
+        }
+      });
+    } catch (e) {
+      console.error("Failed to record promo usage:", e);
+    }
+  }
 
   // Removed: await decrementStockForOrder(order, session || { name: 'Site Web', email: 'public' });
 

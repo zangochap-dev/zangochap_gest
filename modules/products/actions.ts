@@ -7,6 +7,7 @@ import { uploadImage } from "@/lib/upload";
 import { Prisma } from "@prisma/client";
 import { getOrCreateDefaultWarehouse } from "@/modules/orders/actions";
 import { syncProductStock } from "@/lib/stock-sync";
+import { getBestAutomaticDiscount, CartItem } from "@/lib/promo-engine";
 
 async function ensureAuth(roles?: string[]) {
   const session = await getSession();
@@ -403,4 +404,13 @@ export async function getStockMovements(productId?: string) {
     },
     take: 50
   });
+}
+
+export async function getAutomaticDiscountAction(cart: CartItem[]) {
+  try {
+    return await getBestAutomaticDiscount(cart);
+  } catch (e) {
+    console.error("Error getting automatic discount:", e);
+    return { code: null, amount: 0, label: null };
+  }
 }

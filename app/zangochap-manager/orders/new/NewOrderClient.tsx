@@ -4,10 +4,11 @@ import React, { useState, useMemo, useCallback, useTransition, useEffect, useRef
 import { createPortal } from "react-dom";
 import { useToast } from "@/components/Toast";
 import { createOrder, getOrder } from "@/modules/orders/actions";
-import { COMMUNES, formatPrice, CATEGORIES, DELIVERY_FEES } from "@/lib/constants";
+import { getAutomaticDiscountAction } from "@/modules/products/actions";
+import { COMMUNES, formatPrice, DELIVERY_FEES } from "@/lib/constants";
 import { getCustomers } from "@/modules/crm/actions";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search, X, ShoppingCart, User, Plus, Minus, Trash2, CreditCard, Filter, RotateCcw, Info, Check, Maximize, Sparkles, RotateCw, Package, ArrowLeft } from "lucide-react";
+import { Search, X, ShoppingCart, User, Plus, Minus, Trash2, CreditCard, Filter, RotateCcw, Info, Check, Maximize, Sparkles, RotateCw, Package, ArrowLeft, Tag } from "lucide-react";
 import VariantSelectionModal from "@/components/VariantSelectionModal";
 import ProductCard from "@/components/ProductCard";
 import Link from "next/link";
@@ -17,15 +18,40 @@ import ReceiptModal from "@/components/ReceiptModal";
 interface NewOrderClientProps {
   products: any[];
   user: any;
+  categories: any[];
 }
 
-export default function NewOrderClient({ products, user }: NewOrderClientProps) {
+export default function NewOrderClient({ products, user, categories }: NewOrderClientProps) {
   const [activeCategory, setActiveCategory] = useState('all');
   const [search, setSearch] = useState('');
   const [items, setItems] = useState<any[]>([]);
   const [isPending, startTransition] = useTransition();
   const { showToast } = useToast();
   const router = useRouter();
+
+  // Promo State
+  const [discount, setDiscount] = useState<{ code: string | null, amount: number, label: string | null }>({
+    code: null,
+    amount: 0,
+    label: null
+  });
+
+  // Calculate automatic discount
+  useEffect(() => {
+    if (items.length > 0) {
+      const fetchDiscount = async () => {
+        const res = await getAutomaticDiscountAction(items.map(item => ({
+          productId: item.productId,
+          price: item.price,
+          qty: item.qty
+        })));
+        setDiscount(res);
+      };
+      fetchDiscount();
+    } else {
+      setDiscount({ code: null, amount: 0, label: null });
+    }
+  }, [items]);
 
   // Customer State
   const [customerId, setCustomerId] = useState<string | null>(null);
@@ -379,6 +405,8 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
           type: orderType || undefined,
           deliveryDate,
           paymentMethod: finalPaymentMethod || undefined,
+          promoCode: discount.code || undefined,
+          discount: discount.amount,
         });
         showToast('Commande créée ✓', 'success');
         setReceiptOrder(order);
@@ -445,13 +473,13 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
             >
               Tous
             </button>
-            {Object.entries(CATEGORIES).map(([id, label]) => (
+            {categories.map(cat => (
               <button
-                key={id}
-                className={`pos-cat-tab ${activeCategory === id ? 'active' : ''}`}
-                onClick={() => setActiveCategory(id)}
+                key={cat.id}
+                className={`pos-cat-tab ${activeCategory === cat.id ? 'active' : ''}`}
+                onClick={() => setActiveCategory(cat.id)}
               >
-                {label}
+                {cat.name}
               </button>
             ))}
           </nav>
@@ -564,9 +592,17 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
               <span>Livraison</span>
               <span>{formatPrice(deliveryFee)}</span>
             </div>
+            {discount.amount > 0 && (
+              <div className="pos-summary-row" style={{ color: 'var(--orange)', fontWeight: 700 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Tag size={12} /> {discount.label || 'Remise auto.'}
+                </span>
+                <span>-{formatPrice(discount.amount)}</span>
+              </div>
+            )}
             <div className="pos-summary-total">
               <span>Total à payer</span>
-              <span>{formatPrice(total + deliveryFee)}</span>
+              <span>{formatPrice(Math.max(0, total + deliveryFee - discount.amount))}</span>
             </div>
 
             <button
@@ -753,7 +789,13 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
               <div className="pos-mini-totals">
                 <div className="mini-row"><span>Articles</span> <span>{formatPrice(total)}</span></div>
                 <div className="mini-row"><span>Livraison</span> <span>{formatPrice(deliveryFee)}</span></div>
-                <div className="mini-row total"><span>Total</span> <span>{formatPrice(total + deliveryFee)}</span></div>
+                {discount.amount > 0 && (
+                  <div className="mini-row" style={{ color: 'var(--orange)', fontWeight: 600 }}>
+                    <span>Remise ({discount.label})</span> 
+                    <span>-{formatPrice(discount.amount)}</span>
+                  </div>
+                )}
+                <div className="mini-row total"><span>Total</span> <span>{formatPrice(Math.max(0, total + deliveryFee - discount.amount))}</span></div>
               </div>
             </div>
           </div>

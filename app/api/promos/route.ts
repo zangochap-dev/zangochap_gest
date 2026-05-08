@@ -4,19 +4,30 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(req: NextRequest) {
   try {
     const data = await req.json();
+    const { productIds, categoryIds, ...rest } = data;
+    
     const promo = await prisma.promoCode.create({
       data: {
-        code: data.code,
-        type: data.type,
-        value: data.value || 0,
-        giftProductId: data.giftProductId || null,
-        rule: data.rule || 'UNLIMITED',
-        minAmount: data.minAmount || 0,
-        maxGlobalUses: data.maxGlobalUses || null,
-        startDate: data.startDate ? new Date(data.startDate) : null,
-        endDate: data.endDate ? new Date(data.endDate) : null,
+        code: rest.code,
+        label: rest.label || rest.code,
+        type: rest.type,
+        value: rest.value || 0,
+        giftProductId: rest.giftProductId || null,
+        rule: rest.rule || 'UNLIMITED',
+        minAmount: rest.minAmount || 0,
+        minQuantity: rest.minQuantity || 0,
+        maxGlobalUses: rest.maxGlobalUses || null,
+        startDate: rest.startDate ? new Date(rest.startDate) : null,
+        endDate: rest.endDate ? new Date(rest.endDate) : null,
         isActive: true,
-        creatorId: data.creatorId,
+        isAutomatic: rest.isAutomatic || false,
+        creatorId: rest.creatorId,
+        products: productIds?.length ? {
+          connect: productIds.map((id: string) => ({ id }))
+        } : undefined,
+        categories: categoryIds?.length ? {
+          connect: categoryIds.map((id: string) => ({ id }))
+        } : undefined,
       },
     });
     return NextResponse.json(promo);
@@ -28,14 +39,28 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const data = await req.json();
-    const { code, ...rest } = data;
+    const { code, productIds, categoryIds, ...rest } = data;
+    
+    const updateData: any = {
+      ...rest,
+      startDate: rest.startDate ? new Date(rest.startDate) : rest.startDate === null ? null : undefined,
+      endDate: rest.endDate ? new Date(rest.endDate) : rest.endDate === null ? null : undefined,
+    };
+
+    if (productIds !== undefined) {
+      updateData.products = {
+        set: productIds.map((id: string) => ({ id }))
+      };
+    }
+    if (categoryIds !== undefined) {
+      updateData.categories = {
+        set: categoryIds.map((id: string) => ({ id }))
+      };
+    }
+
     await prisma.promoCode.update({
       where: { code },
-      data: {
-        ...rest,
-        startDate: rest.startDate ? new Date(rest.startDate) : undefined,
-        endDate: rest.endDate ? new Date(rest.endDate) : undefined,
-      },
+      data: updateData,
     });
     return NextResponse.json({ success: true });
   } catch (e: any) {

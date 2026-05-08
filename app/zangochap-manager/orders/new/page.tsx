@@ -28,6 +28,10 @@ export default async function NewOrderPage() {
     include: { variants: true, supplier: true, category: true, images: true },
   });
 
+  const categories = await prisma.category.findMany({
+    orderBy: { name: 'asc' }
+  });
+
   // Sort: Popularity (sales count) DESC, then Name ASC
   const sortedProducts = products.sort((a, b) => {
     const countA = salesMap.get(a.id) || 0;
@@ -37,6 +41,10 @@ export default async function NewOrderPage() {
   });
 
   return (
-    <NewOrderClient products={JSON.parse(JSON.stringify(sortedProducts))} user={user} />
+    <NewOrderClient 
+      products={JSON.parse(JSON.stringify(sortedProducts))} 
+      user={user} 
+      categories={JSON.parse(JSON.stringify(categories))}
+    />
   );
 }

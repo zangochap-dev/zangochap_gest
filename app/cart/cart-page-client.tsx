@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { useState, useTransition, useEffect } from "react";
 import { useCart } from "@/lib/CartContext";
 import { formatPrice } from "@/lib/constants";
-import { Trash2, ShoppingBag, ArrowRight, MapPin, Phone, User, CheckCircle2, Minus, Plus, ShieldCheck, Truck, ChevronLeft } from "lucide-react";
+import { Trash2, ShoppingBag, ArrowRight, MapPin, Phone, User, CheckCircle2, Minus, Plus, ShieldCheck, Truck, ChevronLeft, Tag } from "lucide-react";
 import Link from "next/link";
 import { createOrder } from "@/modules/orders/actions";
+import { getAutomaticDiscountAction } from "@/modules/products/actions";
 import { useToast } from "@/components/Toast";
 import { useRouter } from "next/navigation";
 import { Commune } from "@/lib/types";
@@ -17,6 +18,34 @@ export default function CartPageClient({ communes = [] }: { communes?: Commune[]
   const [isPending, startTransition] = useTransition();
   const [orderSuccess, setOrderSuccess] = useState(false);
 
+  // Promo State
+  const [discount, setDiscount] = useState<{ code: string | null, amount: number, label: string | null }>({
+    code: null,
+    amount: 0,
+    label: null
+  });
+
+  // Fetch automatic discount
+  useEffect(() => {
+    if (cart.length > 0) {
+      // Small optimization: only fetch if items changed
+      const fetchDiscount = async () => {
+        // We need to pass productId and categoryId too (CartItem in CartContext has productId)
+        // Note: categoryId might be missing in CartItem, we might need to fetch it or store it in context.
+        // For now, let's assume CartItem has productId.
+        const res = await getAutomaticDiscountAction(cart.map(item => ({
+          productId: item.productId,
+          price: item.price,
+          qty: item.qty
+        })));
+        setDiscount(res);
+      };
+      fetchDiscount();
+    } else {
+      setDiscount({ code: null, amount: 0, label: null });
+    }
+  }, [cart]);
+
   // Form State
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -25,7 +54,7 @@ export default function CartPageClient({ communes = [] }: { communes?: Commune[]
 
   const selectedCommuneObj = communes.find(c => c.name === commune);
   const deliveryFee = selectedCommuneObj ? selectedCommuneObj.deliveryFee : 0;
-  const grandTotal = total + deliveryFee;
+  const grandTotal = Math.max(0, total + deliveryFee - discount.amount);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,6 +73,8 @@ export default function CartPageClient({ communes = [] }: { communes?: Commune[]
           commune,
           deliveryFee,
           status: 'TO_PROCESS',
+          promoCode: discount.code || undefined,
+          discount: discount.amount,
           items: cart.map(item => ({
             productId: item.productId,
             name: item.name,
@@ -133,7 +164,7 @@ export default function CartPageClient({ communes = [] }: { communes?: Commune[]
         </div>
 
         {/* ═══ CHECKOUT SIDEBAR ═══ */}
-        <div className="bg-[#FAFAF8] p-9 sticky top-[100px] border border-[#f0f0f0]">
+        <div className="bg-[#FAFAF8] p-9 sticky top-[100px] border border-[#f0f0f0] rounded-sm">
           <h2 className="text-[13px] font-normal tracking-[0.2em] mb-7 text-[#1A1614] uppercase">LIVRAISON</h2>
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
             <div className="space-y-2">
@@ -183,6 +214,14 @@ export default function CartPageClient({ communes = [] }: { communes?: Commune[]
             <div className="border-t border-[#e8e8e4] pt-5 flex flex-col gap-3">
               <div className="flex justify-between text-[13px] text-[#888] font-normal"><span>Sous-total</span><span>{formatPrice(total)}</span></div>
               <div className="flex justify-between text-[13px] text-[#888] font-normal"><span>Livraison</span><span>{deliveryFee > 0 ? formatPrice(deliveryFee) : '—'}</span></div>
+              
+              {discount.amount > 0 && (
+                <div className="flex justify-between text-[13px] text-[#D4541C] font-semibold animate-pulse">
+                  <span className="flex items-center gap-1.5"><Tag size={14} /> {discount.label || 'Remise automatique'}</span>
+                  <span>-{formatPrice(discount.amount)}</span>
+                </div>
+              )}
+
               <div className="flex justify-between text-lg font-semibold text-[#1A1614] pt-3 border-t border-[#e8e8e4] mt-1"><span>Total</span><span>{formatPrice(grandTotal)}</span></div>
             </div>
 
@@ -202,6 +241,5 @@ export default function CartPageClient({ communes = [] }: { communes?: Commune[]
         </div>
       </div>
     </div>
-
   );
 }

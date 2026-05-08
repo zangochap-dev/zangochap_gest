@@ -5,13 +5,15 @@ services:
       dockerfile: Dockerfile
     restart: always
     environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - NEXT_PUBLIC_APP_NAME=${NEXT_PUBLIC_APP_NAME}
+      - DATABASE_URL=postgresql://postgres:aa90AsmvXjeilRt8yvJA@72.62.45.245:5433/zangochapdb
+      - NEXT_PUBLIC_APP_NAME=Zangochap
       - NODE_ENV=production
     volumes:
       - uploads_data:/app/public/uploads
     networks:
       - dokploy-network
+    expose:
+      - "4000"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.zangochap-app.rule=Host(`gestion-zangochapgest-pytw4y-8a2e3c-72-62-45-245.traefik.me`)"

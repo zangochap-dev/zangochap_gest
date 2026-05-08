@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { Plus } from "lucide-react";
 import { formatPrice } from "@/lib/constants";
 
@@ -52,11 +53,16 @@ export default function ProductCard({ product: p, onAdd, onPreview }: ProductCar
         }}
       >
         {image ? (
-          <img 
-            src={image} 
-            style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s' }} 
-            alt={p.name}
-          />
+          <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+            <Image 
+              src={image} 
+              alt={p.name}
+              fill
+              sizes="(max-width: 768px) 50vw, 200px"
+              style={{ objectFit: 'cover', transition: 'transform 0.3s' }}
+              className="hover:scale-105"
+            />
+          </div>
         ) : (
           <div style={{ fontSize: 32 }}>{p.emoji || '📦'}</div>
         )}

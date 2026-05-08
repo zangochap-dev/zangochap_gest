@@ -8,7 +8,7 @@ echo "Starting production environment..."
 # Run database migrations/synchronization
 if [ -n "$DATABASE_URL" ]; then
   echo "Synchronizing database schema..."
-  prisma db push --accept-data-loss
+  prisma db push --accept-data-loss --url "$DATABASE_URL"
 else
   echo "Warning: DATABASE_URL not set, skipping database sync."
 fi

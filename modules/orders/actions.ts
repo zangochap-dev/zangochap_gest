@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getSession } from "../auth/actions";
 import { syncProductStock } from "@/lib/stock-sync";
+import { uploadImage } from "@/lib/upload";
 import { COMMUNES } from "@/lib/constants";
 
 // ============ ACCESS HELPER ============
@@ -152,6 +153,13 @@ export async function createOrder(data: {
   status?: string;
 }) {
   const session = await getSession();
+
+  // Process Images for custom items
+  for (const item of data.items) {
+    if (item.image && item.image.startsWith('data:image')) {
+      item.image = await uploadImage(item.image, `order-item-${Date.now()}`);
+    }
+  }
 
   // ── ── Validation du stock désactivée pour permettre la vente en rupture (flux tendu) ── ──
   // L'ordre sera créé et passera en collecte normalement.

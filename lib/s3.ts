@@ -34,7 +34,7 @@ export async function uploadToS3(dataUrl: string, fileName: string): Promise<str
     .webp({ quality: 80 })
     .toBuffer();
 
-  const key = `products/${Date.now()}-${fileName.replace(/\.[^/.]+$/, "")}.webp`;
+  const key = `uploads/${Date.now()}-${fileName.replace(/\.[^/.]+$/, "")}.webp`;
 
   await s3Client.send(
     new PutObjectCommand({

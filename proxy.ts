@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export function proxy(request: NextRequest) {
-  const currentUser = request.cookies.get("zc_user")?.value;
+  const currentUser = request.cookies.get("zc_session")?.value;
   const currentCustomer = request.cookies.get("zc_customer")?.value;
   const { pathname } = request.nextUrl;
 

@@ -6,6 +6,11 @@ import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
 import bcrypt from "bcryptjs";
+import { SignJWT, jwtVerify } from "jose";
+
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.JWT_SECRET || "zangochap-super-secret-key-change-me-in-prod"
+);
 
 export async function loginAction(formData: FormData) {
   const email = formData.get("email")?.toString().trim().toLowerCase();
@@ -36,7 +41,13 @@ export async function loginAction(formData: FormData) {
     initials: user.initials || user.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase(),
   };
 
-  (await cookies()).set("zc_user", JSON.stringify(sessionData), {
+  const sessionToken = await new SignJWT(sessionData)
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("7d")
+    .sign(JWT_SECRET);
+
+  (await cookies()).set("zc_session", sessionToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
@@ -52,23 +63,44 @@ export async function loginAction(formData: FormData) {
 }
 
 export async function logoutAction() {
-  (await cookies()).delete("zc_user");
+  (await cookies()).delete("zc_session");
   redirect("/zangochap-manager");
 }
 
 export async function getSession() {
-  const userCookie = (await cookies()).get("zc_user");
-  if (!userCookie) return null;
+  const sessionToken = (await cookies()).get("zc_session")?.value;
+  if (!sessionToken) return null;
   try {
-    return JSON.parse(userCookie.value);
+    const { payload } = await jwtVerify(sessionToken, JWT_SECRET);
+    return payload as any;
   } catch {
     return null;
   }
 }
 
+async function ensureAdmin() {
+  const session = await getSession();
+  if (!session || session.role !== "admin") {
+    throw new Error("Action non autorisée. Droits administrateur requis.");
+  }
+  return session;
+}
+
 // ============ ACCOUNT MANAGEMENT ============
 export async function getAccounts() {
+  await ensureAdmin();
   return prisma.user.findMany({
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      phone: true,
+      phone2: true,
+      serviceLabel: true,
+      initials: true,
+      createdAt: true,
+    },
     orderBy: { name: 'asc' },
   });
 }
@@ -82,6 +114,7 @@ export async function createAccount(data: {
   password: string;
   role: string;
 }) {
+  await ensureAdmin();
   const existing = await prisma.user.findUnique({ where: { email: data.email.toLowerCase() } });
   if (existing) return { success: false, error: "Email déjà utilisé" };
 
@@ -115,6 +148,7 @@ export async function updateAccount(email: string, data: {
   role?: string;
   password?: string;
 }) {
+  await ensureAdmin();
   const updateData: any = {};
   if (data.name) {
     updateData.name = data.name;
@@ -140,6 +174,7 @@ export async function updateAccount(email: string, data: {
 }
 
 export async function deleteAccount(email: string) {
+  await ensureAdmin();
   await prisma.user.delete({ where: { email } });
   revalidatePath("/zangochap-manager/admin/team");
   return { success: true };

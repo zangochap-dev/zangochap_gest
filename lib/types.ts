@@ -4,10 +4,17 @@ export interface ProductImage {
   altText?: string | null;
 }
 
+export interface SubCategory {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 export interface Category {
   id: string;
   name: string;
   slug: string;
+  subCategories?: SubCategory[];
   _count?: {
     products: number;
   };
@@ -31,6 +38,7 @@ export interface Product {
   description?: string | null;
   images: ProductImage[];
   category?: Category | null;
+  subCategory?: SubCategory | null;
   variants: ProductVariant[];
   stock: number;
   createdAt: string | Date;

@@ -8,6 +8,15 @@ import { Prisma } from "@prisma/client";
 import { getOrCreateDefaultWarehouse } from "@/modules/orders/actions";
 import { syncProductStock } from "@/lib/stock-sync";
 
+async function ensureAuth(roles?: string[]) {
+  const session = await getSession();
+  if (!session) throw new Error("Non authentifié");
+  if (roles && !roles.includes(session.role.toLowerCase())) {
+    throw new Error("Action non autorisée pour votre profil.");
+  }
+  return session;
+}
+
 function slugify(text: string) {
   return text
     .toString()
@@ -22,6 +31,7 @@ function slugify(text: string) {
 export async function getProducts(filters?: {
   search?: string;
   category?: string;
+  subCategory?: string;
   inStock?: boolean;
   outOfStock?: boolean;
 }) {
@@ -35,6 +45,9 @@ export async function getProducts(filters?: {
   }
   if (filters?.category) {
     where.category = { name: filters.category };
+  }
+  if (filters?.subCategory) {
+    where.subCategory = { name: filters.subCategory };
   }
   if (filters?.outOfStock) where.stock = 0;
   if (filters?.inStock) where.stock = { gt: 0 };
@@ -53,6 +66,7 @@ export async function getProducts(filters?: {
       images: { orderBy: { position: 'asc' } }, 
       createdBy: true,
       category: true,
+      subCategory: true,
       supplier: true
     },
   });
@@ -72,6 +86,7 @@ export async function getProductById(id: string) {
       images: { orderBy: { position: 'asc' } }, 
       createdBy: true,
       category: true,
+      subCategory: true,
       supplier: true
     },
   });
@@ -83,6 +98,7 @@ export async function createProduct(data: {
   ref?: string;
   emoji?: string;
   category: string;
+  subCategory?: string;
   price: number;
   oldPrice?: number | null;
   description?: string;
@@ -102,8 +118,7 @@ export async function createProduct(data: {
   images?: Array<{ name: string; dataUrl: string }>;
   warehouseId?: string;
 }) {
-  const session = await getSession();
-  if (!session) throw new Error("Non authentifié");
+  const session = await ensureAuth(["admin", "stock"]);
 
   // 1. Upload images to S3
   const imageUrls = [];
@@ -122,6 +137,27 @@ export async function createProduct(data: {
   const mainLocation = data.variants.find(v => v.location)?.location || data.location || '';
   const slug = `${slugify(data.name)}-${Math.floor(Math.random() * 1000)}`;
 
+  let resolvedCategoryId: string | undefined = undefined;
+  if (data.category && data.category.trim() !== '') {
+    const cat = await prisma.category.upsert({
+      where: { name: data.category.trim() },
+      update: {},
+      create: { name: data.category.trim(), slug: slugify(data.category) }
+    });
+    resolvedCategoryId = cat.id;
+  }
+
+  let resolvedSubCategoryId: string | undefined = undefined;
+  if (data.subCategory && data.subCategory.trim() !== '' && resolvedCategoryId) {
+    const subCatSlug = slugify(data.subCategory);
+    const subCat = await prisma.subCategory.upsert({
+      where: { slug: subCatSlug },
+      update: {},
+      create: { name: data.subCategory.trim(), slug: subCatSlug, categoryId: resolvedCategoryId }
+    });
+    resolvedSubCategoryId = subCat.id;
+  }
+
   const product = await prisma.product.create({
     data: {
       name: data.name,
@@ -139,12 +175,8 @@ export async function createProduct(data: {
       status: data.isPublished === false ? 'DRAFT' : 'PUBLISHED',
       isFeatured: data.isFeatured ?? false,
       createdBy: { connect: { id: session.id } },
-      category: data.category ? {
-        connectOrCreate: {
-          where: { name: data.category },
-          create: { name: data.category, slug: slugify(data.category) }
-        }
-      } : undefined,
+      category: resolvedCategoryId ? { connect: { id: resolvedCategoryId } } : undefined,
+      subCategory: resolvedSubCategoryId ? { connect: { id: resolvedSubCategoryId } } : undefined,
       supplier: data.supplier ? {
         connectOrCreate: {
           where: { name: data.supplier },
@@ -194,6 +226,7 @@ export async function updateProductVariants(productId: string, variants: Array<{
   stock: number;
   location?: string;
 }>) {
+  await ensureAuth(["admin", "stock"]);
   // Delete existing variants and their stock levels (Cascade will handle StockLevel)
   await prisma.productVariant.deleteMany({ where: { productId } });
   
@@ -236,6 +269,7 @@ export async function updateProduct(id: string, data: Partial<{
   ref: string | null;
   emoji: string;
   category: string;
+  subCategory: string;
   price: number;
   oldPrice: number | null;
   description: string;
@@ -247,10 +281,12 @@ export async function updateProduct(id: string, data: Partial<{
   isPublished: boolean;
   isFeatured: boolean;
 }>) {
+  await ensureAuth(["admin", "stock"]);
   const updateData: any = { ...data };
   
   // Remove UI-only fields and relation strings to prevent Prisma validation errors
   delete updateData.category;
+  delete updateData.subCategory;
   delete updateData.supplier;
   delete updateData.isPublished;
   
@@ -258,24 +294,45 @@ export async function updateProduct(id: string, data: Partial<{
   if (data.oldPrice !== undefined) updateData.oldPrice = data.oldPrice ? new Prisma.Decimal(data.oldPrice) : null;
   if (data.isPublished !== undefined) updateData.status = data.isPublished ? 'PUBLISHED' : 'DRAFT';
   
-  // Handle Category relation properly
-  if (data.category && data.category.trim() !== "") {
-    updateData.category = {
-      connectOrCreate: {
-        where: { name: data.category },
-        create: { name: data.category, slug: slugify(data.category) }
+  // Handle Category & SubCategory
+  if (data.category !== undefined) {
+    if (data.category && data.category.trim() !== "") {
+      const cat = await prisma.category.upsert({
+        where: { name: data.category.trim() },
+        update: {},
+        create: { name: data.category.trim(), slug: slugify(data.category) }
+      });
+      updateData.category = { connect: { id: cat.id } };
+      
+      if (data.subCategory && data.subCategory.trim() !== "") {
+        const subCatSlug = slugify(data.subCategory);
+        const subCat = await prisma.subCategory.upsert({
+          where: { slug: subCatSlug },
+          update: {},
+          create: { name: data.subCategory.trim(), slug: subCatSlug, categoryId: cat.id }
+        });
+        updateData.subCategory = { connect: { id: subCat.id } };
+      } else if (data.subCategory === "") {
+        updateData.subCategory = { disconnect: true };
       }
-    };
+    } else {
+      updateData.category = { disconnect: true };
+      updateData.subCategory = { disconnect: true };
+    }
   }
 
-  // Handle Supplier relation properly
-  if (data.supplier && data.supplier.trim() !== "") {
-    updateData.supplier = {
-      connectOrCreate: {
-        where: { name: data.supplier },
-        create: { name: data.supplier }
-      }
-    };
+  // Handle Supplier
+  if (data.supplier !== undefined) {
+    if (data.supplier && data.supplier.trim() !== "") {
+      updateData.supplier = {
+        connectOrCreate: {
+          where: { name: data.supplier.trim() },
+          create: { name: data.supplier.trim() }
+        }
+      };
+    } else {
+      updateData.supplier = { disconnect: true };
+    }
   }
 
   await prisma.product.update({
@@ -290,6 +347,7 @@ export async function updateProduct(id: string, data: Partial<{
 
 // ============ DELETE ============
 export async function deleteProduct(id: string) {
+  await ensureAuth(["admin"]);
   await prisma.product.delete({ where: { id } });
   revalidatePath("/zangochap-manager/products");
   revalidatePath("/");
@@ -298,6 +356,7 @@ export async function deleteProduct(id: string) {
 
 // ============ MARK SENT TO SUPPLIER ============
 export async function markProductSent(productId: string) {
+  await ensureAuth(["admin", "stock", "collection"]);
   await prisma.product.update({
     where: { id: productId },
     data: { sentToSupplierAt: new Date() },
@@ -308,6 +367,7 @@ export async function markProductSent(productId: string) {
 
 // ============ MAINTENANCE ============
 export async function fixAllProductStocks() {
+  await ensureAuth(["admin"]);
   const products = await prisma.product.findMany({
     select: { id: true }
   });

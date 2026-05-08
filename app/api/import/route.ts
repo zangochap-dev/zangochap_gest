@@ -1,13 +1,13 @@
 import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { getSession } from "@/modules/auth/actions";
 import { generateUniqueRef } from "@/modules/orders/actions";
 
 export async function POST(req: NextRequest) {
   try {
-    const userCookie = (await cookies()).get("zc_user");
-    if (!userCookie) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    const user = JSON.parse(userCookie.value);
+    const session = await getSession();
+    if (!session) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+    const user = session;
 
     const type = req.nextUrl.searchParams.get('type');
     const data = await req.json();

@@ -8,6 +8,16 @@ import { COMMUNES } from "@/lib/constants";
 
 // ============ ACCESS HELPER ============
 // Triggering recompilation for new schema fields... (v1)
+async function ensureAuth(roles?: string[]) {
+  const session = await getSession();
+  if (!session) throw new Error("Non authentifié");
+  if (roles && !roles.includes(session.role.toLowerCase())) {
+    throw new Error("Action non autorisée pour votre profil.");
+  }
+  return session;
+}
+
+// ============ ACCESS HELPER ============
 function checkOrderAccess(order: any, session: any) {
   if (!session) return false;
   const role = session.role?.toUpperCase();
@@ -21,6 +31,8 @@ function checkOrderAccess(order: any, session: any) {
   if (role === 'LIVREUR') {
     return order.deliverymanId === session.id;
   }
+
+  if (['PACKING', 'STOCK', 'COLLECTION'].includes(role)) return true; // Logistics roles can access all orders for processing
   
   return false;
 }
@@ -95,10 +107,15 @@ async function recordStockMovement(data: {
 }
 
 export async function getOrder(id: string) {
-  return await prisma.order.findUnique({
+  const session = await ensureAuth();
+  const order = await prisma.order.findUnique({
     where: { id },
     include: { items: true }
   });
+  if (order && !checkOrderAccess(order, session)) {
+    throw new Error("Accès refusé à cette commande.");
+  }
+  return order;
 }
 
 // ============ CREATE ORDER ============
@@ -495,6 +512,7 @@ export async function bulkAssignOrders(orderIds: string[], deliverymanId: string
 
 // ============ SETTLEMENTS ============
 export async function getPendingSettlements() {
+  await ensureAuth(["admin"]);
   const orders = await prisma.order.findMany({
     where: {
       status: { in: ['DELIVERED', 'PARTIALLY_DELIVERED'] },
@@ -510,6 +528,7 @@ export async function getPendingSettlements() {
 }
 
 export async function getSettlementHistory() {
+  await ensureAuth(["admin"]);
   const settlements = await prisma.settlement.findMany({
     where: { status: 'COMPLETED' },
     select: {
@@ -567,6 +586,7 @@ export async function createSettlement(deliverymanId: string, orderIds: string[]
 
 // ============ PERFORMANCE ============
 export async function getPerformanceStats(dateFrom?: string, dateTo?: string) {
+  await ensureAuth(["admin"]);
   const now = new Date();
   const start = dateFrom ? new Date(dateFrom) : new Date(now.getFullYear(), now.getMonth(), 1);
   const end = dateTo ? new Date(dateTo + 'T23:59:59') : new Date();
@@ -716,6 +736,11 @@ export async function getUserPerformanceDetails(userId: string, role: string, da
 }
 
 export async function getDashboardStats() {
+  const session = await ensureAuth();
+  // Restricted access: only specific roles see the global dashboard metrics
+  if (!['admin', 'commercial', 'stock', 'packing', 'collection'].includes(session.role.toLowerCase())) {
+    throw new Error("Accès au tableau de bord restreint.");
+  }
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -796,6 +821,7 @@ export async function getDashboardStats() {
 
 // ============ STOCK HISTORY ============
 export async function getStockHistory() {
+  await ensureAuth(["admin", "stock"]);
   const movements = await prisma.stockMovement.findMany({
     include: {
       variant: { include: { product: true } },

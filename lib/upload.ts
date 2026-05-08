@@ -22,7 +22,12 @@ export async function uploadImage(dataUrl: string, fileName: string): Promise<st
   if (!base64Data) {
     throw new Error("Format d'image invalide");
   }
+  
+  // Sécurité: Limitation de taille (10MB max pour l'image brute)
   const buffer = Buffer.from(base64Data, "base64");
+  if (buffer.length > 10 * 1024 * 1024) {
+    throw new Error("L'image est trop volumineuse (max 10Mo)");
+  }
   
   // Optimisation avec Sharp
   // - Redimensionnement max 1200px

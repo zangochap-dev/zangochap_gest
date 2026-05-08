@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import Topbar from "@/components/Topbar";
 import { getSession } from "@/modules/auth/actions";
 import ProductsClient from "./ProductsClient";
+import { getCategories, getSuppliers } from "@/modules/settings/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -62,7 +63,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
   const products = await prisma.product.findMany({
     where,
     orderBy: { createdAt: "desc" },
-    include: { variants: true, images: true, createdBy: true },
+    include: { variants: true, images: true, createdBy: true, category: true, subCategory: true, supplier: true },
     take: limit,
     skip: skip,
   });
@@ -74,6 +75,9 @@ export default async function ProductsPage({ searchParams }: PageProps) {
     where: { variants: { none: { stock: { gt: 0 } } } }
   });
 
+  const categories = await getCategories();
+  const suppliers = await getSuppliers();
+
   return (
     <>
       <Topbar title="Catalogue" subtitle="produits" />
@@ -84,6 +88,8 @@ export default async function ProductsPage({ searchParams }: PageProps) {
         currentPage={page}
         pageSize={limit}
         user={user}
+        categories={JSON.parse(JSON.stringify(categories))}
+        suppliers={JSON.parse(JSON.stringify(suppliers))}
       />
     </>
   );

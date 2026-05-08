@@ -7,7 +7,10 @@ import { revalidatePath } from "next/cache";
 export async function getCategories() {
   return prisma.category.findMany({
     orderBy: { name: 'asc' },
-    include: { _count: { select: { products: true } } }
+    include: { 
+      subCategories: { orderBy: { name: 'asc' }, include: { _count: { select: { products: true } } } },
+      _count: { select: { products: true } } 
+    }
   });
 }
 
@@ -27,6 +30,26 @@ export async function updateCategory(id: string, name: string) {
 
 export async function deleteCategory(id: string) {
   await prisma.category.delete({ where: { id } });
+  revalidatePath("/zangochap-manager/admin/settings/categories");
+}
+
+// ============ SUB-CATEGORIES ============
+export async function createSubCategory(categoryId: string, name: string) {
+  const slug = name.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^\w\-]+/g, '');
+  const subCat = await prisma.subCategory.create({ data: { name, slug, categoryId } });
+  revalidatePath("/zangochap-manager/admin/settings/categories");
+  return subCat;
+}
+
+export async function updateSubCategory(id: string, name: string) {
+  const slug = name.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^\w\-]+/g, '');
+  const subCat = await prisma.subCategory.update({ where: { id }, data: { name, slug } });
+  revalidatePath("/zangochap-manager/admin/settings/categories");
+  return subCat;
+}
+
+export async function deleteSubCategory(id: string) {
+  await prisma.subCategory.delete({ where: { id } });
   revalidatePath("/zangochap-manager/admin/settings/categories");
 }
 

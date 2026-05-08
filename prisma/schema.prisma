@@ -111,11 +111,24 @@ model Settlement {
 }
 
 model Category {
-  id        String    @id @default(cuid())
-  name      String    @unique
-  slug      String    @unique
-  products  Product[]
-  createdAt DateTime  @default(now())
+  id            String        @id @default(cuid())
+  name          String        @unique
+  slug          String        @unique
+  products      Product[]
+  subCategories SubCategory[]
+  createdAt     DateTime      @default(now())
+}
+
+model SubCategory {
+  id         String    @id @default(cuid())
+  name       String
+  slug       String    @unique
+  category   Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  categoryId String
+  products   Product[]
+  createdAt  DateTime  @default(now())
+
+  @@unique([name, categoryId])
 }
 
 model Supplier {
@@ -137,6 +150,8 @@ model Product {
   oldPrice          Decimal?         @db.Decimal(10, 2)
   category          Category?        @relation(fields: [categoryId], references: [id])
   categoryId        String?
+  subCategory       SubCategory?     @relation(fields: [subCategoryId], references: [id])
+  subCategoryId     String?
   material          String?
   origin            String?
   stock             Int              @default(0)
@@ -157,6 +172,7 @@ model Product {
   orderItems        OrderItem[]
 
   @@index([categoryId])
+  @@index([subCategoryId])
   @@index([supplierId])
 }
 

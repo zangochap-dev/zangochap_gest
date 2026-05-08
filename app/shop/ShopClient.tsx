@@ -6,12 +6,14 @@ import Link from "next/link";
 import { Filter, X, ChevronDown, SlidersHorizontal } from "lucide-react";
 import { Product, Category } from "@/lib/types";
 import ProductCard from "@/components/public/ProductCard";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function ShopClient({ initialProducts, categories }: { 
   initialProducts: Product[], 
   categories: Category[] 
 }) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedSubCategory, setSelectedSubCategory] = useState<string | null>(null);
   const [priceRange, setPriceRange] = useState<number>(500000);
   const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState("newest");
@@ -25,6 +27,9 @@ export default function ShopClient({ initialProducts, categories }: {
     if (selectedCategory) {
       result = result.filter(p => p.category?.name === selectedCategory);
     }
+    if (selectedSubCategory) {
+      result = result.filter(p => p.subCategory?.name === selectedSubCategory);
+    }
 
     result = result.filter(p => Number(p.price) <= priceRange);
 
@@ -33,7 +38,7 @@ export default function ShopClient({ initialProducts, categories }: {
     if (sortBy === "newest") result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     return result;
-  }, [initialProducts, selectedCategory, priceRange, sortBy]);
+  }, [initialProducts, selectedCategory, selectedSubCategory, priceRange, sortBy]);
 
   // Pagination Logic
   const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
@@ -60,27 +65,26 @@ export default function ShopClient({ initialProducts, categories }: {
             >
               <SlidersHorizontal size={16} /> FILTRER
             </button>
-            <div className="relative">
-              <select 
-                className="border-none bg-none text-[11px] font-semibold tracking-wider outline-none cursor-pointer appearance-none pr-6"
-                value={sortBy} 
-                onChange={(e) => { setSortBy(e.target.value); setCurrentPage(1); }}
-              >
-                <option value="newest">NOUVEAUTÉS</option>
-                <option value="price-asc">PRIX CROISSANT</option>
-                <option value="price-desc">PRIX DÉCROISSANT</option>
-              </select>
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none">
-                <ChevronDown size={14} />
-              </div>
-            </div>
+            <Select 
+              value={sortBy} 
+              onValueChange={(val) => { if (val) { setSortBy(val); setCurrentPage(1); } }}
+            >
+              <SelectTrigger className="border-none bg-transparent shadow-none text-[11px] font-semibold tracking-wider uppercase focus:ring-0 w-auto gap-2 p-0 h-auto">
+                <SelectValue placeholder="Trier par" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">NOUVEAUTÉS</SelectItem>
+                <SelectItem value="price-asc">PRIX CROISSANT</SelectItem>
+                <SelectItem value="price-desc">PRIX DÉCROISSANT</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
         {/* MOBILE CATEGORY CHIPS (Horizontal Scroll) */}
         <div className="lg:hidden -mx-4 px-4 flex overflow-x-auto gap-3 pb-4 mb-6 scrollbar-hide">
           <button 
-            onClick={() => { setSelectedCategory(null); setCurrentPage(1); }}
+            onClick={() => { setSelectedCategory(null); setSelectedSubCategory(null); setCurrentPage(1); }}
             className={`whitespace-nowrap px-5 py-2.5 rounded-full text-[10px] font-extrabold tracking-widest transition-all border ${!selectedCategory ? 'bg-[#1A1614] text-white border-[#1A1614]' : 'bg-white text-[#1A1614] border-[#eee]'}`}
           >
             TOUT VOIR
@@ -88,7 +92,7 @@ export default function ShopClient({ initialProducts, categories }: {
           {categories.map((cat: Category) => (
             <button 
               key={cat.id}
-              onClick={() => { setSelectedCategory(cat.name); setCurrentPage(1); }}
+              onClick={() => { setSelectedCategory(cat.name); setSelectedSubCategory(null); setCurrentPage(1); }}
               className={`whitespace-nowrap px-5 py-2.5 rounded-full text-[10px] font-extrabold tracking-widest transition-all border ${selectedCategory === cat.name ? 'bg-[#1A1614] text-white border-[#1A1614]' : 'bg-white text-[#1A1614] border-[#eee]'}`}
             >
               {cat.name.toUpperCase()}
@@ -104,18 +108,32 @@ export default function ShopClient({ initialProducts, categories }: {
               <div className="flex flex-col gap-3">
                 <button 
                   className={`text-left bg-none border-none text-[13px] cursor-pointer p-0 transition-colors ${!selectedCategory ? "text-[#1A1614] font-bold" : "text-[#666]"}`} 
-                  onClick={() => { setSelectedCategory(null); setCurrentPage(1); }}
+                  onClick={() => { setSelectedCategory(null); setSelectedSubCategory(null); setCurrentPage(1); }}
                 >
                   Tout voir
                 </button>
                 {categories.map((cat: Category) => (
-                  <button 
-                    key={cat.id}
-                    className={`text-left bg-none border-none text-[13px] cursor-pointer p-0 transition-colors flex justify-between items-center ${selectedCategory === cat.name ? "text-[#1A1614] font-bold" : "text-[#666]"}`}
-                    onClick={() => { setSelectedCategory(cat.name); setCurrentPage(1); }}
-                  >
-                    {cat.name} <span className="text-[#ccc] text-[11px]">({cat._count?.products})</span>
-                  </button>
+                  <div key={cat.id}>
+                    <button 
+                      className={`w-full text-left bg-none border-none text-[13px] cursor-pointer p-0 transition-colors flex justify-between items-center ${selectedCategory === cat.name && !selectedSubCategory ? "text-[#1A1614] font-bold" : "text-[#666]"}`}
+                      onClick={() => { setSelectedCategory(cat.name); setSelectedSubCategory(null); setCurrentPage(1); }}
+                    >
+                      {cat.name} <span className="text-[#ccc] text-[11px]">({cat._count?.products || 0})</span>
+                    </button>
+                    {(selectedCategory === cat.name || cat.subCategories?.some((s: any) => s.name === selectedSubCategory)) && cat.subCategories && cat.subCategories.length > 0 && (
+                      <div className="flex flex-col gap-2 mt-2 ml-3 pl-2 border-l border-[#eee]">
+                        {cat.subCategories.map((sub: any) => (
+                          <button
+                            key={sub.id}
+                            className={`text-left bg-none border-none text-[12px] cursor-pointer p-0 transition-colors ${selectedSubCategory === sub.name ? "text-[#D4541C] font-bold" : "text-[#888]"}`}
+                            onClick={() => { setSelectedCategory(cat.name); setSelectedSubCategory(sub.name); setCurrentPage(1); }}
+                          >
+                            {sub.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             </div>
@@ -185,7 +203,7 @@ export default function ShopClient({ initialProducts, categories }: {
                 <p className="text-[#666]">Aucun produit ne correspond à vos critères.</p>
                 <button 
                   className="mt-5 bg-[#1A1614] text-white border-none px-6 py-2.5 text-[11px] font-semibold cursor-pointer uppercase transition-transform active:scale-95"
-                  onClick={() => {setSelectedCategory(null); setPriceRange(500000);}}
+                  onClick={() => {setSelectedCategory(null); setSelectedSubCategory(null); setPriceRange(500000);}}
                 >
                   Réinitialiser
                 </button>
@@ -208,8 +226,8 @@ export default function ShopClient({ initialProducts, categories }: {
                 {categories.map((cat: Category) => (
                   <button 
                     key={cat.id}
-                    className={`p-3 border text-[11px] font-bold rounded transition-colors ${selectedCategory === cat.name ? "bg-[#1A1614] text-white border-[#1A1614]" : "bg-white text-[#1A1614] border-[#eee]"}`}
-                    onClick={() => {setSelectedCategory(cat.name); setShowFilters(false);}}
+                    className={`p-3 border text-[11px] font-bold rounded transition-colors ${selectedCategory === cat.name && !selectedSubCategory ? "bg-[#1A1614] text-white border-[#1A1614]" : "bg-white text-[#1A1614] border-[#eee]"}`}
+                    onClick={() => {setSelectedCategory(cat.name); setSelectedSubCategory(null); setShowFilters(false);}}
                   >
                     {cat.name}
                   </button>

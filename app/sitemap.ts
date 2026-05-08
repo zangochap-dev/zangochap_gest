@@ -52,11 +52,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   });
 
   const categoryPages: MetadataRoute.Sitemap = categories.map((cat: { name: string }) => ({
-    url: `${SITE_URL}/search?q=${encodeURIComponent(cat.name)}`,
+    url: `${SITE_URL}/shop?category=${encodeURIComponent(cat.name)}`,
     lastModified: new Date(),
     changeFrequency: "weekly" as const,
     priority: 0.6,
   }));
 
-  return [...staticPages, ...productPages, ...categoryPages];
+  const subCategories = await prisma.subCategory.findMany({
+    select: { name: true },
+  });
+
+  const subCategoryPages: MetadataRoute.Sitemap = subCategories.map((sub: { name: string }) => ({
+    url: `${SITE_URL}/shop?subCategory=${encodeURIComponent(sub.name)}`,
+    lastModified: new Date(),
+    changeFrequency: "weekly" as const,
+    priority: 0.5,
+  }));
+
+  return [...staticPages, ...productPages, ...categoryPages, ...subCategoryPages];
 }

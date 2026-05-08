@@ -4,10 +4,13 @@ import React, { useState, useTransition, useRef } from "react";
 import { TableCard } from "@/components/UI";
 import { useToast } from "@/components/Toast";
 import { createProduct } from "@/modules/products/actions";
-import { CATEGORIES } from "@/lib/constants";
 import { useRouter } from "next/navigation";
-import { X, RefreshCcw, Save, Sparkles, Warehouse } from "lucide-react";
+import { X, RefreshCcw, Save, Sparkles, Warehouse, Check, ChevronsUpDown, Plus } from "lucide-react";
 import Topbar from "@/components/Topbar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 
 /**
  * Compresse et redimensionne une image côté client
@@ -21,7 +24,7 @@ const compressImage = (file: File): Promise<string> => {
         const canvas = document.createElement('canvas');
         let width = img.width;
         let height = img.height;
-        
+
         // Redimensionnement intelligent (max 1200px)
         const MAX_SIZE = 1200;
         if (width > height) {
@@ -35,7 +38,7 @@ const compressImage = (file: File): Promise<string> => {
             height = MAX_SIZE;
           }
         }
-        
+
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext('2d');
@@ -45,7 +48,7 @@ const compressImage = (file: File): Promise<string> => {
           ctx.fillRect(0, 0, width, height);
           ctx.drawImage(img, 0, 0, width, height);
         }
-        
+
         // Conversion en WebP avec qualité 0.7 pour un poids plume
         resolve(canvas.toDataURL('image/webp', 0.7));
       };
@@ -55,7 +58,67 @@ const compressImage = (file: File): Promise<string> => {
   });
 };
 
-export default function NewProductClient({ warehouses }: { warehouses: any[] }) {
+function SupplierCombobox({ suppliers, value, onChange }: { suppliers: any[], value: string, onChange: (val: string) => void }) {
+  const [open, setOpen] = React.useState(false);
+  const [search, setSearch] = React.useState("");
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        className="w-full bg-white border-[1.5px] border-[#E8DDD0] rounded-[10px] py-[10px] px-[14px] font-semibold text-[14px] text-left flex justify-between items-center h-[45px] transition-all focus:ring-4 focus:ring-[#F4E4D7] outline-none"
+      >
+        <span className="truncate">{value || "Sélectionner un fournisseur..."}</span>
+        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+      </PopoverTrigger>
+      <PopoverContent className=" w-full p-0" align="start">
+        <Command>
+          <CommandInput
+            placeholder="Rechercher..."
+            value={search}
+            onValueChange={setSearch}
+          />
+          <CommandList>
+            <CommandEmpty className="p-0">
+              <button
+                type="button"
+                className="w-full text-left p-3 hover:bg-orange-50 rounded-none text-sm font-semibold text-[#D4541C] flex items-center gap-2 border-t border-[#eee]"
+                onClick={() => {
+                  onChange(search);
+                  setOpen(false);
+                }}
+              >
+                <Plus size={14} /> Créer "{search}"
+              </button>
+            </CommandEmpty>
+            <CommandGroup>
+              {suppliers.map((s) => (
+                <CommandItem
+                  key={s.id}
+                  value={s.name}
+                  onSelect={(currentValue) => {
+                    onChange(currentValue);
+                    setOpen(false);
+                  }}
+                  className="flex items-center gap-2 p-2"
+                >
+                  <Check
+                    className={cn(
+                      "h-4 w-4",
+                      value === s.name ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                  {s.name}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+export default function NewProductClient({ warehouses, categories, suppliers = [] }: { warehouses: any[], categories: any[], suppliers?: any[] }) {
   const [isPending, startTransition] = useTransition();
   const { showToast } = useToast();
   const router = useRouter();
@@ -64,7 +127,8 @@ export default function NewProductClient({ warehouses }: { warehouses: any[] }) 
   // -- States --
   const [images, setImages] = useState<Array<{ name: string; dataUrl: string }>>([]);
   const [name, setName] = useState('');
-  const [category, setCategory] = useState('shoes');
+  const [category, setCategory] = useState(categories[0]?.name || '');
+  const [subCategory, setSubCategory] = useState('');
   const [price, setPrice] = useState<number>(0);
   const [oldPrice, setOldPrice] = useState<number | null>(null);
   const [material, setMaterial] = useState('');
@@ -72,14 +136,15 @@ export default function NewProductClient({ warehouses }: { warehouses: any[] }) 
   const [origin, setOrigin] = useState('');
   const [supplier, setSupplier] = useState('');
   const [selectedWarehouse, setSelectedWarehouse] = useState(warehouses[0]?.id || '');
-  
+
   const [sizes, setSizes] = useState<string[]>([]);
   const [colors, setColors] = useState<string[]>([]);
   const [sizeInput, setSizeInput] = useState('');
   const [colorInput, setColorInput] = useState('');
-  
+
   const [variants, setVariants] = useState<Array<{ size: string; color: string; stock: number; location: string }>>([]);
   const [isUnpublished, setIsUnpublished] = useState(false);
+  const [isFeatured, setIsFeatured] = useState(false);
 
   // -- Handlers --
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -146,9 +211,9 @@ export default function NewProductClient({ warehouses }: { warehouses: any[] }) 
 
   const updateVariant = (idx: number, field: string, value: any) => {
     const newVariants = [...variants];
-    newVariants[idx] = { 
-      ...newVariants[idx], 
-      [field]: field === 'stock' ? (parseInt(value) || 0) : value 
+    newVariants[idx] = {
+      ...newVariants[idx],
+      [field]: field === 'stock' ? (parseInt(value) || 0) : value
     };
     setVariants(newVariants);
   };
@@ -157,8 +222,8 @@ export default function NewProductClient({ warehouses }: { warehouses: any[] }) 
     setVariants(variants.filter((_, i) => i !== idx));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!name || price <= 0) {
       showToast("Nom et prix requis", "error");
       return;
@@ -174,6 +239,7 @@ export default function NewProductClient({ warehouses }: { warehouses: any[] }) 
         await createProduct({
           name,
           category,
+          subCategory,
           price,
           oldPrice,
           description,
@@ -181,6 +247,7 @@ export default function NewProductClient({ warehouses }: { warehouses: any[] }) 
           origin,
           supplier: supplier || 'Non spécifié',
           isPublished: !isUnpublished,
+          isFeatured,
           variants: finalVariants,
           images: images.length > 0 ? images : undefined,
           emoji: "📦",
@@ -196,424 +263,415 @@ export default function NewProductClient({ warehouses }: { warehouses: any[] }) 
   };
 
   return (
-    <div style={{ background: '#F8F5F2', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <Topbar 
-        title="Ajouter un" 
-        subtitle="produit"
-        actions={
-          <div style={{ display: 'flex', gap: 10 }}>
-             <button className="btn-secondary" onClick={() => router.back()}>Annuler</button>
-             <button className="btn-orange" onClick={handleSubmit} disabled={isPending}>
-                {isPending ? <RefreshCcw size={16} className="animate-spin" /> : <Save size={16} />}
-                Enregistrer
-             </button>
-          </div>
-        }
-      />
-
-      <div className="content animate-fade-in" style={{ flex: 1, padding: '24px', maxWidth: '1000px', margin: '0 auto', width: '100%' }}>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          
-          {/* 1. IMAGES */}
-          <TableCard title="1. Images du produit" meta="La première image sera l'image principale">
-            <div style={{ padding: 20 }}>
-              <div 
-                onClick={() => imgInputRef.current?.click()}
-                style={{ 
-                  border: '2px dashed var(--line)', 
-                  borderRadius: 16, 
-                  padding: '40px 20px', 
-                  textAlign: 'center', 
-                  cursor: 'pointer',
-                  background: 'var(--cream)',
-                  transition: 'all 0.2s'
-                }}
-                onMouseOver={e => e.currentTarget.style.borderColor = 'var(--orange)'}
-                onMouseOut={e => e.currentTarget.style.borderColor = 'var(--line)'}
-              >
-                <div style={{ fontSize: 40, marginBottom: 12 }}>📸</div>
-                <div style={{ fontWeight: 700, color: 'var(--ink)', fontSize: 15 }}>Cliquer pour ajouter des images</div>
-                <div style={{ color: 'var(--brown-soft)', fontSize: 12, marginTop: 6 }}>JPG, PNG, WebP — plusieurs fichiers acceptés</div>
-              </div>
-              <input 
-                type="file" 
-                ref={imgInputRef}
-                multiple 
-                accept="image/*" 
-                style={{ display: 'none' }} 
-                onChange={handleImageUpload} 
-              />
-
-              {images.length > 0 && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 12, marginTop: 20 }}>
-                  {images.map((img, idx) => (
-                    <div key={idx} style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', border: `2px solid ${idx === 0 ? 'var(--orange)' : 'var(--line)'}`, aspectRatio: '1/1' }}>
-                      <img src={img.dataUrl} alt={img.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      
-                      {idx === 0 ? (
-                        <div style={{ position: 'absolute', top: 6, left: 6, background: 'var(--orange)', color: 'white', fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase' }}>
-                          Principale
-                        </div>
-                      ) : (
-                        <button 
-                          type="button"
-                          onClick={() => setMainImage(idx)}
-                          style={{ position: 'absolute', top: 6, left: 6, background: 'rgba(255,255,255,0.9)', border: 'none', padding: '4px', borderRadius: 6, cursor: 'pointer' }}
-                        >
-                          <Sparkles size={12} color="var(--orange)" />
-                        </button>
-                      )}
-
-                      <button 
-                        type="button"
-                        onClick={() => removeImage(idx)}
-                        style={{ position: 'absolute', top: 6, right: 6, background: 'rgba(199,62,29,0.9)', color: 'white', border: 'none', width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </TableCard>
-
-          {/* 2. INFORMATIONS PRINCIPALES */}
-          <TableCard title="2. Informations principales">
-            <div style={{ padding: 20 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-                <div style={{ gridColumn: 'span 2' }}>
-                  <label className="field-label">Nom du produit *</label>
-                  <input 
-                    type="text" 
-                    className="field-input" 
-                    value={name} 
-                    onChange={e => setName(e.target.value)} 
-                    placeholder="Ex. Sneakers cuir blanches"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="field-label">Catégorie</label>
-                  <select className="field-input" value={category} onChange={e => setCategory(e.target.value)}>
-                    {Object.entries(CATEGORIES).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="field-label">Prix standard (FCFA) *</label>
-                  <input 
-                    type="number" 
-                    className="field-input" 
-                    value={price || ''} 
-                    onChange={e => setPrice(parseInt(e.target.value) || 0)} 
-                    placeholder="12000"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="field-label">Prix promo</label>
-                  <input 
-                    type="number" 
-                    className="field-input" 
-                    value={oldPrice || ''} 
-                    onChange={e => setOldPrice(parseInt(e.target.value) || null)} 
-                    placeholder="Laissé vide si pas de promo"
-                  />
-                </div>
-                <div>
-                  <label className="field-label">Matière</label>
-                  <input 
-                    type="text" 
-                    className="field-input" 
-                    value={material} 
-                    onChange={e => setMaterial(e.target.value)} 
-                    placeholder="Ex. Cuir véritable"
-                  />
-                </div>
-                <div style={{ gridColumn: 'span 2' }}>
-                  <label className="field-label">Description</label>
-                  <textarea 
-                    className="field-input" 
-                    value={description} 
-                    onChange={e => setDescription(e.target.value)} 
-                    placeholder="Description courte du produit..."
-                    style={{ minHeight: 80, padding: '12px' }}
-                  />
-                </div>
-                <div>
-                  <label className="field-label">Provenance</label>
-                  <input 
-                    type="text" 
-                    className="field-input" 
-                    value={origin} 
-                    onChange={e => setOrigin(e.target.value)} 
-                    placeholder="Ex. Adjamé"
-                  />
-                </div>
-                <div>
-                  <label className="field-label">Fournisseur</label>
-                  <input 
-                    type="text" 
-                    className="field-input" 
-                    value={supplier} 
-                    onChange={e => setSupplier(e.target.value)} 
-                    placeholder="Ex. Adjamé Mode"
-                  />
-                </div>
-              </div>
-            </div>
-          </TableCard>
-
-          {/* 3. TAILLES & COULEURS */}
-          <TableCard title="3. Tailles & couleurs" meta="Optionnel — pour les produits qui ont des variantes">
-            <div style={{ padding: 20 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-                <div>
-                  <label className="field-label">Tailles disponibles</label>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <input 
-                      type="text" 
-                      className="field-input" 
-                      value={sizeInput} 
-                      onChange={e => setSizeInput(e.target.value)} 
-                      placeholder="Ex. 39, 40, M, L..."
-                      onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addSize())}
-                    />
-                    <button type="button" className="btn-secondary" onClick={addSize} style={{ padding: '0 15px' }}>+</button>
-                  </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
-                    {sizes.map(s => (
-                      <span key={s} style={{ background: 'var(--ink)', color: 'white', padding: '4px 10px', borderRadius: 6, fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
-                        {s}
-                        <X size={12} style={{ cursor: 'pointer', opacity: 0.7 }} onClick={() => setSizes(sizes.filter(x => x !== s))} />
-                      </span>
-                    ))}
-                    {sizes.length === 0 && <span style={{ color: 'var(--brown-soft)', fontSize: 12 }}>Aucune taille ajoutée</span>}
-                  </div>
-                </div>
-                <div>
-                  <label className="field-label">Couleurs disponibles</label>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <input 
-                      type="text" 
-                      className="field-input" 
-                      value={colorInput} 
-                      onChange={e => setColorInput(e.target.value)} 
-                      placeholder="Ex. Noir, Rouge bordeaux..."
-                      onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addColor())}
-                    />
-                    <button type="button" className="btn-secondary" onClick={addColor} style={{ padding: '0 15px' }}>+</button>
-                  </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
-                    {colors.map(c => (
-                      <span key={c} style={{ background: 'var(--cream)', color: 'var(--ink)', border: '1px solid var(--line)', padding: '4px 10px', borderRadius: 100, fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                        {c}
-                        <X size={12} style={{ cursor: 'pointer', opacity: 0.7 }} onClick={() => setColors(colors.filter(x => x !== c))} />
-                      </span>
-                    ))}
-                    {colors.length === 0 && <span style={{ color: 'var(--brown-soft)', fontSize: 12 }}>Aucune couleur ajoutée</span>}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </TableCard>
-
-          {/* 4. ENTREPÔT DE STOCKAGE */}
-          <TableCard title="4. Entrepôt de stockage" meta="Lieu où sera enregistré le stock initial">
-             <div style={{ padding: 20 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16, background: 'var(--cream)', padding: 16, borderRadius: 12, border: '1.5px solid var(--line)' }}>
-                   <div style={{ background: 'var(--orange-soft)', color: 'var(--orange)', width: 40, height: 40, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Warehouse size={20} />
-                   </div>
-                   <div style={{ flex: 1 }}>
-                      <label className="field-label" style={{ marginBottom: 4 }}>Choisir l'entrepôt</label>
-                      <select 
-                        className="field-input" 
-                        value={selectedWarehouse} 
-                        onChange={e => setSelectedWarehouse(e.target.value)}
-                        style={{ border: 'none', background: 'transparent', padding: 0, fontWeight: 700, fontSize: 15 }}
-                      >
-                        {warehouses.map(w => (
-                          <option key={w.id} value={w.id}>{w.name} {w.location ? `(${w.location})` : ''}</option>
-                        ))}
-                      </select>
-                   </div>
-                </div>
-             </div>
-          </TableCard>
-
-          {/* 5. VARIANTES */}
-          <TableCard 
-            title="5. Variantes : quantité & emplacement" 
-            meta="Pour chaque combinaison taille × couleur, indique le stock et l'emplacement"
-            actions={
-              <button type="button" className="btn-secondary" onClick={generateAllVariants} style={{ fontSize: 11 }}>
-                <RefreshCcw size={14} />
-                Générer les combinaisons
-              </button>
-            }
+    <div className="flex flex-col min-h-screen bg-[#FDFCFB]">
+      {/* HEADER FIXE */}
+      <div className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-[#E8DDD0] px-6 py-4 flex items-center justify-between">
+        <div>
+          <div className="text-[10px] font-extrabold uppercase tracking-widest text-[#D4541C] mb-1">Catalogue</div>
+          <h1 className="text-xl font-bold text-[#1A1410] tracking-tight">Nouveau produit</h1>
+        </div>
+        <div className="flex items-center gap-3">
+          <button 
+            type="button" 
+            className="px-4 py-2 text-[13px] font-semibold text-[#6B4838] hover:bg-[#FAF6F1] rounded-lg transition-colors"
+            onClick={() => router.back()}
           >
-            {variants.length === 0 ? (
-              <div style={{ padding: '40px 20px', textAlign: 'center' }}>
-                <div style={{ fontSize: 32, marginBottom: 12 }}>📋</div>
-                <h4 style={{ fontWeight: 700, color: 'var(--ink)' }}>Aucune variante</h4>
-                <p style={{ color: 'var(--brown-soft)', fontSize: 13, maxWidth: 300, margin: '8px auto' }}>
-                  Ajoutez des tailles et couleurs, puis cliquez sur <strong>"Générer les combinaisons"</strong>.
-                </p>
-              </div>
-            ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ background: 'var(--cream)', borderBottom: '1px solid var(--line)' }}>
-                      <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, textTransform: 'uppercase', color: 'var(--brown-soft)' }}>Taille</th>
-                      <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, textTransform: 'uppercase', color: 'var(--brown-soft)' }}>Couleur</th>
-                      <th style={{ padding: '12px 16px', textAlign: 'center', fontSize: 11, textTransform: 'uppercase', color: 'var(--brown-soft)' }}>Stock</th>
-                      <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, textTransform: 'uppercase', color: 'var(--brown-soft)' }}>Emplacement</th>
-                      <th style={{ padding: '12px 16px' }}></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {variants.map((v, idx) => (
-                      <tr key={idx} style={{ borderBottom: '1px solid var(--line)' }}>
-                        <td style={{ padding: '12px 16px' }}>
-                          <span style={{ background: 'var(--cream)', color: 'var(--ink)', padding: '2px 8px', borderRadius: 4, fontSize: 12, fontWeight: 800 }}>{v.size}</span>
-                        </td>
-                        <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600 }}>{v.color}</td>
-                        <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                          <input 
-                            type="number" 
-                            className="field-input" 
-                            style={{ width: 80, textAlign: 'center', height: 36, fontSize: 13, fontWeight: 700 }}
-                            value={v.stock} 
-                            onChange={e => updateVariant(idx, 'stock', e.target.value)} 
-                          />
-                        </td>
-                        <td style={{ padding: '12px 16px' }}>
-                          <input 
-                            type="text" 
-                            className="field-input" 
-                            style={{ height: 36, fontSize: 13, fontFamily: 'monospace' }}
-                            placeholder="Ex. A1-03"
-                            value={v.location} 
-                            onChange={e => updateVariant(idx, 'location', e.target.value)} 
-                          />
-                        </td>
-                        <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                          <button 
-                            type="button" 
-                            className="action-btn" 
-                            onClick={() => removeVariant(idx)}
-                            style={{ background: 'var(--red-soft)', color: 'var(--red)' }}
-                          >
-                            <X size={14} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr style={{ background: 'var(--cream)', fontWeight: 800 }}>
-                      <td colSpan={2} style={{ padding: '14px 16px' }}>TOTAL STOCK</td>
-                      <td style={{ padding: '14px 16px', textAlign: 'center', color: 'var(--orange)', fontSize: 18 }}>
-                        {variants.reduce((s, v) => s + v.stock, 0)}
-                      </td>
-                      <td colSpan={2}></td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            )}
-          </TableCard>
-
-          {/* 6. PUBLICATION */}
-          <TableCard title="6. Statut de publication">
-            <div style={{ padding: 20 }}>
-              <label 
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'flex-start', 
-                  gap: 12, 
-                  cursor: 'pointer', 
-                  padding: 16, 
-                  background: isUnpublished ? 'var(--amber-soft)' : 'var(--cream)', 
-                  border: `2px solid ${isUnpublished ? 'var(--amber)' : 'var(--line)'}`, 
-                  borderRadius: 12, 
-                  transition: 'all 0.2s' 
-                }}
-              >
-                <input 
-                  type="checkbox" 
-                  checked={isUnpublished} 
-                  onChange={e => setIsUnpublished(e.target.checked)}
-                  style={{ marginTop: 4, width: 18, height: 18, accentColor: 'var(--orange)' }} 
-                />
-                <div>
-                  <div style={{ fontWeight: 800, fontSize: 14, color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {isUnpublished ? '🔒 Brouillon (Non publié)' : '🌍 Publié sur la boutique'}
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--brown-soft)', marginTop: 4, lineHeight: 1.5 }}>
-                    {isUnpublished 
-                      ? "Le produit sera enregistré mais pas visible par les clients. Idéal pour préparer un stock avant lancement."
-                      : "Le produit sera immédiatement visible et achetable sur le site web par les clients."}
-                  </div>
-                </div>
-              </label>
-            </div>
-          </TableCard>
-
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginBottom: 40 }}>
-            <button type="button" className="btn-secondary" onClick={() => router.back()} style={{ padding: '12px 30px' }}>
-              Annuler
-            </button>
-            <button type="submit" className="btn-orange" style={{ padding: '12px 40px', fontSize: 15 }} disabled={isPending}>
-              {isPending ? 'Enregistrement...' : 'Ajouter le produit'}
-            </button>
-          </div>
-
-        </form>
+            Annuler
+          </button>
+          <button 
+            type="button" 
+            className="btn-orange shadow-lg shadow-orange-500/20 px-6 py-2.5 rounded-lg flex items-center gap-2"
+            onClick={() => handleSubmit()}
+            disabled={isPending}
+          >
+            {isPending ? <RefreshCcw size={16} className="animate-spin" /> : <Save size={16} />}
+            <span>Enregistrer</span>
+          </button>
+        </div>
       </div>
 
-      <style jsx>{`
-        .field-label {
-          display: block;
-          font-size: 11px;
-          font-weight: 800;
-          text-transform: uppercase;
-          color: var(--brown-soft);
-          letter-spacing: 0.05em;
-          margin-bottom: 8px;
-        }
-        .field-input {
-          width: 100%;
-          border: 1.5px solid var(--line);
-          border-radius: 10px;
-          padding: 10px 14px;
-          font-size: 14px;
-          font-weight: 600;
-          transition: all 0.2s;
-          background: white;
-        }
-        .field-input:focus {
-          outline: none;
-          border-color: var(--orange);
-          box-shadow: 0 0 0 4px var(--orange-soft);
-        }
-        .action-btn {
-          width: 28px;
-          height: 28px;
-          border-radius: 6px;
-          border: none;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-        .action-btn:hover {
-          transform: scale(1.1);
-        }
-      `}</style>
+      <div className="flex-1 max-w-[1200px] mx-auto w-full px-6 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          
+          {/* COLONNE PRINCIPALE (2/3) */}
+          <div className="lg:col-span-2 space-y-6">
+            
+            {/* CARD: GÉNÉRAL */}
+            <div className="bg-white border border-[#E8DDD0] rounded-xl overflow-hidden shadow-sm">
+              <div className="px-6 py-4 border-b border-[#F8F5F2] bg-[#FDFCFB]">
+                <h2 className="font-bold text-[#1A1410]">Général</h2>
+              </div>
+              <div className="p-6 space-y-5">
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-[#6B4838]">Titre du produit</label>
+                  <input 
+                    type="text" 
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                    placeholder="Ex: Sneakers cuir Blanc"
+                    className="w-full bg-white border border-[#E8DDD0] rounded-lg p-3 text-sm font-semibold focus:ring-2 focus:ring-[#D4541C]/10 focus:border-[#D4541C] outline-none transition-all"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-[#6B4838]">Description</label>
+                  <textarea 
+                    value={description}
+                    onChange={e => setDescription(e.target.value)}
+                    placeholder="Décrivez les caractéristiques du produit..."
+                    className="w-full bg-white border border-[#E8DDD0] rounded-lg p-3 text-sm font-medium min-h-[120px] focus:ring-2 focus:ring-[#D4541C]/10 focus:border-[#D4541C] outline-none transition-all"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* CARD: MÉDIAS */}
+            <div className="bg-white border border-[#E8DDD0] rounded-xl overflow-hidden shadow-sm">
+              <div className="px-6 py-4 border-b border-[#F8F5F2] bg-[#FDFCFB] flex items-center justify-between">
+                <h2 className="font-bold text-[#1A1410]">Médias</h2>
+                <button 
+                  type="button"
+                  onClick={() => imgInputRef.current?.click()}
+                  className="text-[12px] font-bold text-[#D4541C] hover:underline flex items-center gap-1"
+                >
+                  <Plus size={14} /> Ajouter
+                </button>
+              </div>
+              <div className="p-6">
+                <div 
+                  onClick={() => imgInputRef.current?.click()}
+                  className="group border-2 border-dashed border-[#E8DDD0] hover:border-[#D4541C] bg-[#FAF6F1]/50 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition-all"
+                >
+                  <div className="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center text-[#D4541C] group-hover:scale-110 transition-transform">
+                    <Plus size={24} />
+                  </div>
+                  <p className="mt-4 text-sm font-bold text-[#1A1410]">Ajouter des images</p>
+                  <p className="text-xs text-[#6B4838] mt-1">PNG, JPG, WebP jusqu'à 10MB</p>
+                </div>
+                <input type="file" ref={imgInputRef} multiple accept="image/*" className="hidden" onChange={handleImageUpload} />
+
+                {images.length > 0 && (
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4 mt-6">
+                    {images.map((img, idx) => (
+                      <div key={idx} className={cn(
+                        "group relative aspect-square rounded-lg border-2 overflow-hidden transition-all",
+                        idx === 0 ? "border-[#D4541C] shadow-md ring-2 ring-[#D4541C]/10" : "border-[#E8DDD0] hover:border-[#D4541C]/50"
+                      )}>
+                        <img src={img.dataUrl} className="w-full h-full object-cover" alt="" />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                          {idx !== 0 && (
+                            <button type="button" onClick={() => setMainImage(idx)} className="p-1.5 bg-white rounded-md text-[#D4541C] hover:scale-110 transition-transform">
+                              <Sparkles size={14} />
+                            </button>
+                          )}
+                          <button type="button" onClick={() => removeImage(idx)} className="p-1.5 bg-red-500 rounded-md text-white hover:scale-110 transition-transform">
+                            <X size={14} />
+                          </button>
+                        </div>
+                        {idx === 0 && (
+                          <div className="absolute bottom-2 left-2 right-2 bg-white/90 text-[#D4541C] text-[8px] font-black uppercase tracking-tighter text-center py-0.5 rounded shadow-sm">
+                            Principale
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* CARD: PRIX */}
+            <div className="bg-white border border-[#E8DDD0] rounded-xl overflow-hidden shadow-sm">
+              <div className="px-6 py-4 border-b border-[#F8F5F2] bg-[#FDFCFB]">
+                <h2 className="font-bold text-[#1A1410]">Prix</h2>
+              </div>
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-[#6B4838]">Prix de vente</label>
+                    <div className="relative">
+                      <input 
+                        type="number" 
+                        value={price || ''}
+                        onChange={e => setPrice(parseInt(e.target.value) || 0)}
+                        placeholder="0"
+                        className="w-full bg-white border border-[#E8DDD0] rounded-lg p-3 pr-12 text-sm font-bold focus:ring-2 focus:ring-[#D4541C]/10 focus:border-[#D4541C] outline-none transition-all"
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-[#6B4838]">FCFA</span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-[#6B4838]">Prix comparatif</label>
+                    <div className="relative">
+                      <input 
+                        type="number" 
+                        value={oldPrice || ''}
+                        onChange={e => setOldPrice(parseInt(e.target.value) || null)}
+                        placeholder="0"
+                        className="w-full bg-[#FDFCFB] border border-[#E8DDD0] rounded-lg p-3 pr-12 text-sm font-semibold text-[#6B4838] focus:ring-2 focus:ring-[#D4541C]/10 focus:border-[#D4541C] outline-none transition-all"
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-[#6B4838]">FCFA</span>
+                    </div>
+                    <p className="text-[10px] text-[#6B4838]/60 italic">Pour afficher un badge "Promo"</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* CARD: INVENTAIRE & VARIANTES */}
+            <div className="bg-white border border-[#E8DDD0] rounded-xl overflow-hidden shadow-sm">
+              <div className="px-6 py-4 border-b border-[#F8F5F2] bg-[#FDFCFB] flex items-center justify-between">
+                <h2 className="font-bold text-[#1A1410]">Variantes & Stock</h2>
+                <button 
+                  type="button" 
+                  className="px-3 py-1.5 bg-[#D4541C]/10 text-[#D4541C] text-[11px] font-bold rounded-lg hover:bg-[#D4541C]/20 transition-colors flex items-center gap-1.5"
+                  onClick={generateAllVariants}
+                >
+                  <RefreshCcw size={12} /> Générer
+                </button>
+              </div>
+              <div className="p-6 space-y-8">
+                {/* Configuration des attributs */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-[#6B4838]">Tailles</label>
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        value={sizeInput}
+                        onChange={e => setSizeInput(e.target.value)}
+                        placeholder="Ex: 39, 40, 41"
+                        onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addSize())}
+                        className="flex-1 bg-white border border-[#E8DDD0] rounded-lg p-2.5 text-sm font-semibold outline-none focus:border-[#D4541C]"
+                      />
+                      <button type="button" onClick={addSize} className="w-10 h-10 bg-[#1A1410] text-white rounded-lg flex items-center justify-center hover:bg-[#D4541C] transition-colors"><Plus size={18} /></button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {sizes.map(s => (
+                        <span key={s} className="px-2 py-1 bg-[#1A1410] text-white text-[10px] font-bold rounded-md flex items-center gap-2">
+                          {s} <X size={10} className="cursor-pointer hover:text-red-400" onClick={() => setSizes(sizes.filter(x => x !== s))} />
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-[#6B4838]">Couleurs</label>
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        value={colorInput}
+                        onChange={e => setColorInput(e.target.value)}
+                        placeholder="Ex: Noir, Blanc"
+                        onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addColor())}
+                        className="flex-1 bg-white border border-[#E8DDD0] rounded-lg p-2.5 text-sm font-semibold outline-none focus:border-[#D4541C]"
+                      />
+                      <button type="button" onClick={addColor} className="w-10 h-10 bg-[#1A1410] text-white rounded-lg flex items-center justify-center hover:bg-[#D4541C] transition-colors"><Plus size={18} /></button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {colors.map(c => (
+                        <span key={c} className="px-3 py-1 border border-[#E8DDD0] bg-[#FDFCFB] text-[#1A1410] text-[10px] font-bold rounded-full flex items-center gap-2">
+                          {c} <X size={10} className="cursor-pointer hover:text-red-400" onClick={() => setColors(colors.filter(x => x !== c))} />
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Table des variantes */}
+                {variants.length > 0 && (
+                  <div className="border border-[#E8DDD0] rounded-xl overflow-hidden">
+                    <table className="w-full text-left text-sm border-collapse">
+                      <thead className="bg-[#FAF6F1] border-b border-[#E8DDD0]">
+                        <tr>
+                          <th className="px-4 py-3 text-[10px] font-black uppercase text-[#6B4838] tracking-widest">Variante</th>
+                          <th className="px-4 py-3 text-[10px] font-black uppercase text-[#6B4838] tracking-widest text-center w-24">Stock</th>
+                          <th className="px-4 py-3 text-[10px] font-black uppercase text-[#6B4838] tracking-widest">Emplacement</th>
+                          <th className="px-4 py-3 w-10"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#F8F5F2]">
+                        {variants.map((v, idx) => (
+                          <tr key={idx} className="hover:bg-[#FDFCFB] transition-colors">
+                            <td className="px-4 py-3">
+                              <div className="flex flex-col">
+                                <span className="font-bold text-[#1A1410]">{v.size}</span>
+                                <span className="text-[11px] text-[#6B4838]">{v.color}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <input 
+                                type="number" 
+                                value={v.stock}
+                                onChange={e => updateVariant(idx, 'stock', e.target.value)}
+                                className="w-full bg-white border border-[#E8DDD0] rounded-md p-1.5 text-center font-bold outline-none focus:border-[#D4541C]"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input 
+                                type="text" 
+                                value={v.location}
+                                onChange={e => updateVariant(idx, 'location', e.target.value)}
+                                placeholder="A1-24"
+                                className="w-full bg-[#FAF6F1]/30 border border-transparent hover:border-[#E8DDD0] rounded-md p-1.5 text-xs font-mono font-bold outline-none focus:border-[#D4541C] focus:bg-white transition-all"
+                              />
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <button type="button" onClick={() => removeVariant(idx)} className="text-[#C73E1D] hover:scale-110 transition-transform"><X size={16} /></button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot className="bg-[#FDFCFB] border-t border-[#E8DDD0]">
+                        <tr>
+                          <td className="px-4 py-3 font-bold text-[11px] text-[#6B4838] uppercase">Total cumulé</td>
+                          <td className="px-4 py-3 text-center text-lg font-black text-[#D4541C]">{variants.reduce((s, v) => s + v.stock, 0)}</td>
+                          <td colSpan={2}></td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+
+          </div>
+
+          {/* COLONNE LATÉRALE (1/3) */}
+          <div className="space-y-6">
+            
+            {/* CARD: STATUT & VISIBILITÉ */}
+            <div className="bg-white border border-[#E8DDD0] rounded-xl overflow-hidden shadow-sm">
+              <div className="px-6 py-4 border-b border-[#F8F5F2] bg-[#FDFCFB]">
+                <h2 className="font-bold text-[#1A1410]">Statut</h2>
+              </div>
+              <div className="p-6 space-y-4">
+                <label className="flex items-center gap-3 p-3 rounded-lg border-2 border-transparent hover:bg-[#FAF6F1] cursor-pointer transition-all">
+                  <div className={cn(
+                    "w-10 h-10 rounded-full flex items-center justify-center transition-all",
+                    !isUnpublished ? "bg-green-100 text-green-600" : "bg-[#FAF6F1] text-[#6B4838]"
+                  )}>
+                    <Check size={20} className={!isUnpublished ? "opacity-100" : "opacity-30"} />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[13px] font-bold text-[#1A1410]">Actif</p>
+                    <p className="text-[11px] text-[#6B4838]">Visible sur la boutique</p>
+                  </div>
+                  <input type="radio" checked={!isUnpublished} onChange={() => setIsUnpublished(false)} className="accent-[#D4541C] w-4 h-4" />
+                </label>
+                <label className="flex items-center gap-3 p-3 rounded-lg border-2 border-transparent hover:bg-[#FAF6F1] cursor-pointer transition-all">
+                  <div className={cn(
+                    "w-10 h-10 rounded-full flex items-center justify-center transition-all",
+                    isUnpublished ? "bg-amber-100 text-amber-600" : "bg-[#FAF6F1] text-[#6B4838]"
+                  )}>
+                    <X size={20} className={isUnpublished ? "opacity-100" : "opacity-30"} />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[13px] font-bold text-[#1A1410]">Brouillon</p>
+                    <p className="text-[11px] text-[#6B4838]">Masqué pour les clients</p>
+                  </div>
+                  <input type="radio" checked={isUnpublished} onChange={() => setIsUnpublished(true)} className="accent-[#D4541C] w-4 h-4" />
+                </label>
+
+                <div className="pt-4 border-t border-[#F8F5F2]">
+                   <label className="flex items-center justify-between cursor-pointer group">
+                      <div className="flex items-center gap-2">
+                        <Sparkles size={16} className={isFeatured ? "text-amber-500" : "text-[#6B4838]"} />
+                        <span className="text-[13px] font-bold text-[#1A1410]">Mettre en avant</span>
+                      </div>
+                      <input 
+                        type="checkbox" 
+                        checked={isFeatured} 
+                        onChange={e => setIsFeatured(e.target.checked)}
+                        className="w-5 h-5 accent-[#D4541C] rounded border-[#E8DDD0]"
+                      />
+                   </label>
+                   <p className="text-[10px] text-[#6B4838] mt-2">S'affichera dans la section "Nouveautés" ou "Populaire".</p>
+                </div>
+              </div>
+            </div>
+
+            {/* CARD: ORGANISATION */}
+            <div className="bg-white border border-[#E8DDD0] rounded-xl overflow-hidden shadow-sm">
+              <div className="px-6 py-4 border-b border-[#F8F5F2] bg-[#FDFCFB]">
+                <h2 className="font-bold text-[#1A1410]">Organisation</h2>
+              </div>
+              <div className="p-6 space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-[#6B4838]">Catégorie</label>
+                  <Select value={category || undefined} onValueChange={(val) => { if (val) { setCategory(val); setSubCategory(''); } }}>
+                    <SelectTrigger className="w-full bg-white border border-[#E8DDD0] rounded-lg h-11 font-semibold focus:ring-2 focus:ring-[#D4541C]/10 outline-none">
+                      <SelectValue placeholder="Choisir..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-[#6B4838]">Sous-catégorie</label>
+                  <Select value={subCategory || undefined} onValueChange={(val) => { if (val) setSubCategory(val === "none" ? "" : val); }}>
+                    <SelectTrigger className="w-full bg-white border border-[#E8DDD0] rounded-lg h-11 font-semibold focus:ring-2 focus:ring-[#D4541C]/10 outline-none">
+                      <SelectValue placeholder="Aucune" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Aucune</SelectItem>
+                      {categories.find(c => c.name === category)?.subCategories?.map((s: any) => (
+                        <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-[#6B4838]">Fournisseur</label>
+                  <SupplierCombobox suppliers={suppliers} value={supplier} onChange={setSupplier} />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                   <div className="space-y-2">
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-[#6B4838]">Matière</label>
+                      <input type="text" value={material} onChange={e => setMaterial(e.target.value)} placeholder="Ex: Coton" className="w-full border border-[#E8DDD0] rounded-lg p-2.5 text-sm font-semibold outline-none" />
+                   </div>
+                   <div className="space-y-2">
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-[#6B4838]">Provenance</label>
+                      <input type="text" value={origin} onChange={e => setOrigin(e.target.value)} placeholder="Ex: Adjamé" className="w-full border border-[#E8DDD0] rounded-lg p-2.5 text-sm font-semibold outline-none" />
+                   </div>
+                </div>
+              </div>
+            </div>
+
+            {/* CARD: LOGISTIQUE */}
+            <div className="bg-white border border-[#E8DDD0] rounded-xl overflow-hidden shadow-sm">
+              <div className="px-6 py-4 border-b border-[#F8F5F2] bg-[#FDFCFB]">
+                <h2 className="font-bold text-[#1A1410]">Logistique</h2>
+              </div>
+              <div className="p-6">
+                 <div className="bg-[#FAF6F1] rounded-xl p-4 border border-[#E8DDD0]">
+                    <div className="flex items-center gap-3 mb-4">
+                       <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-[#D4541C] shadow-sm"><Warehouse size={16} /></div>
+                       <span className="text-[13px] font-bold text-[#1A1410]">Lieu de stockage</span>
+                    </div>
+                    <Select value={selectedWarehouse || undefined} onValueChange={(val) => { if (val) setSelectedWarehouse(val); }}>
+                      <SelectTrigger className="w-full bg-white border border-[#E8DDD0] rounded-lg h-11 font-bold text-sm shadow-none">
+                        <SelectValue placeholder="Choisir..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {warehouses.map(w => (
+                          <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[10px] text-[#6B4838] mt-3 leading-relaxed">
+                      Les quantités saisies seront initialisées dans cet entrepôt par défaut.
+                    </p>
+                 </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
+

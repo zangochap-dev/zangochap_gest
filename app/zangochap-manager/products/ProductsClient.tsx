@@ -7,8 +7,12 @@ import { useToast } from "@/components/Toast";
 import { updateProductVariants, markProductSent, deleteProduct, updateProduct, createProduct, fixAllProductStocks } from "@/modules/products/actions";
 import { formatPrice, formatDay, CATEGORIES } from "@/lib/constants";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, Eye, Package, Trash2, Minus, Search, X, ChevronLeft, ChevronRight, RefreshCw, Copy, Edit3, Box, Maximize, LayoutDashboard, AlertTriangle, MapPin, Save, Edit2, Warehouse } from "lucide-react";
+import { Plus, Eye, Package, Trash2, Minus, Search, X, ChevronLeft, ChevronRight, RefreshCw, Copy, Edit3, Box, Maximize, LayoutDashboard, AlertTriangle, MapPin, Save, Edit2, Warehouse, Check, ChevronsUpDown } from "lucide-react";
 import Topbar from "@/components/Topbar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 
 const PRODUCTS_PER_PAGE = 30;
 
@@ -19,9 +23,11 @@ interface ProductsClientProps {
   oosCount: number;
   currentPage: number;
   pageSize: number;
+  categories?: any[];
+  suppliers?: any[];
 }
 
-export default function ProductsClient({ initialProducts, user, totalCount, oosCount, currentPage: serverPage, pageSize }: ProductsClientProps) {
+export default function ProductsClient({ initialProducts, user, totalCount, oosCount, currentPage: serverPage, pageSize, categories = [], suppliers = [] }: ProductsClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -216,7 +222,7 @@ export default function ProductsClient({ initialProducts, user, totalCount, oosC
                               {p.isFeatured && <span title="Mis en avant" style={{ color: '#EAB308' }}>⭐</span>}
                               {p.status !== 'PUBLISHED' && <span title="Non publié" style={{ fontSize: 10, padding: '1px 4px', background: '#FEE2E2', color: '#EF4444', borderRadius: 4, fontWeight: 700 }}>Privé</span>}
                             </div>
-                            <div className="cell-muted">{p.material || '—'}</div>
+                            <div className="cell-muted">{p.category?.name || 'Non catégorisé'} {p.subCategory ? ` > ${p.subCategory.name}` : ''} • {p.material || '—'}</div>
                           </div>
                         </div>
                       </td>
@@ -320,7 +326,7 @@ export default function ProductsClient({ initialProducts, user, totalCount, oosC
 
         {/* PRODUCT EDIT MODAL */}
         {editingProduct && (
-          <ProductEditModal product={editingProduct} onClose={() => setEditingProduct(null)} />
+          <ProductEditModal product={editingProduct} categories={categories} suppliers={suppliers} onClose={() => setEditingProduct(null)} />
         )}
 
       {/* IMMERSIVE LIGHTBOX */}
@@ -438,7 +444,7 @@ function ProductDetailModal({ product: p, onClose, onEditVariants, onShowImage }
         )}
 
         <div className="product-detail-info-header">
-          <div className="category-tag">{CATEGORIES[p.category] || p.category}</div>
+          <div className="category-tag">{p.category?.name || p.category || 'Non catégorisé'} {p.subCategory ? ` > ${p.subCategory.name}` : ''}</div>
           <h2 className="product-detail-name">{p.name}</h2>
           <div className="product-detail-price-row">
             <span className="price-main">{formatPrice(Number(p.price))}</span>
@@ -640,15 +646,76 @@ function VariantsEditorModal({ product, variants: initialVariants, onClose }: { 
   );
 }
 
+function SupplierCombobox({ suppliers, value, onChange }: { suppliers: any[], value: string, onChange: (val: string) => void }) {
+  const [open, setOpen] = React.useState(false);
+  const [search, setSearch] = React.useState("");
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger 
+        className="w-full bg-white border-[1px] border-[#E8DDD0] rounded-[4px] px-[12px] h-[40px] text-[14px] text-left flex justify-between items-center transition-all focus:ring-2 focus:ring-[#D4541C] outline-none"
+      >
+        <span className="truncate">{value || "Sélectionner..."}</span>
+        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+        <Command>
+          <CommandInput 
+            placeholder="Rechercher..." 
+            value={search}
+            onValueChange={setSearch}
+          />
+          <CommandList>
+            <CommandEmpty className="p-0">
+              <button
+                type="button"
+                className="w-full text-left p-3 hover:bg-orange-50 rounded-none text-sm font-semibold text-[#D4541C] flex items-center gap-2 border-t border-[#eee]"
+                onClick={() => {
+                  onChange(search);
+                  setOpen(false);
+                }}
+              >
+                <Plus size={14} /> Créer "{search}"
+              </button>
+            </CommandEmpty>
+            <CommandGroup>
+              {suppliers.map((s) => (
+                <CommandItem
+                  key={s.id}
+                  value={s.name}
+                  onSelect={(currentValue) => {
+                    onChange(currentValue);
+                    setOpen(false);
+                  }}
+                  className="flex items-center gap-2 p-2"
+                >
+                  <Check
+                    className={cn(
+                      "h-4 w-4",
+                      value === s.name ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                  {s.name}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 // ============================================
 // PRODUCT EDIT MODAL
 // ============================================
-function ProductEditModal({ product, onClose }: { product: any; onClose: () => void }) {
+function ProductEditModal({ product, categories, suppliers, onClose }: { product: any; categories: any[]; suppliers: any[]; onClose: () => void }) {
   const [formData, setFormData] = useState({
     name: product.name,
     price: Number(product.price),
     oldPrice: product.oldPrice ? Number(product.oldPrice) : null,
     category: product.category?.name || '',
+    subCategory: product.subCategory?.name || '',
     description: product.description || '',
     material: product.material || '',
     origin: product.origin || '',
@@ -692,9 +759,38 @@ function ProductEditModal({ product, onClose }: { product: any; onClose: () => v
         </div>
         <div className="form-row">
           <label className="field-label">Catégorie</label>
-          <select className="field-input" value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })}>
-            {Object.entries(CATEGORIES).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
-          </select>
+          <Select 
+            value={formData.category || undefined} 
+            onValueChange={(val) => {
+              if (val) setFormData({ ...formData, category: val, subCategory: '' });
+            }}
+          >
+            <SelectTrigger className="w-full bg-white border-[1px] border-[#E8DDD0] rounded-[4px] px-[12px] h-[40px] text-[14px]">
+              <SelectValue placeholder="Sélectionner..." />
+            </SelectTrigger>
+            <SelectContent>
+              {categories.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="form-row">
+          <label className="field-label">Sous-catégorie</label>
+          <Select 
+            value={formData.subCategory || undefined} 
+            onValueChange={(val) => {
+              if (val) setFormData({ ...formData, subCategory: val === "none" ? "" : val });
+            }}
+          >
+            <SelectTrigger className="w-full bg-white border-[1px] border-[#E8DDD0] rounded-[4px] px-[12px] h-[40px] text-[14px]">
+              <SelectValue placeholder="Aucune" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Aucune</SelectItem>
+              {categories.find(c => c.name === formData.category)?.subCategories?.map((s: any) => (
+                <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="form-row">
           <label className="field-label">Prix (FCFA)</label>
@@ -706,7 +802,11 @@ function ProductEditModal({ product, onClose }: { product: any; onClose: () => v
         </div>
         <div className="form-row">
           <label className="field-label">Fournisseur</label>
-          <input className="field-input" value={formData.supplier} onChange={e => setFormData({ ...formData, supplier: e.target.value })} />
+          <SupplierCombobox 
+            suppliers={suppliers}
+            value={formData.supplier}
+            onChange={(val) => setFormData({ ...formData, supplier: val })}
+          />
         </div>
         <div className="form-row">
           <label className="field-label">Matière</label>

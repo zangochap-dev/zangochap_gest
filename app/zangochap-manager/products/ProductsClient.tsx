@@ -12,7 +12,7 @@ import Topbar from "@/components/Topbar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { cn } from "@/lib/utils";
+import { cn, getImageUrl } from "@/lib/utils";
 
 const PRODUCTS_PER_PAGE = 30;
 
@@ -121,7 +121,7 @@ export default function ProductsClient({ initialProducts, user, totalCount, oosC
           onClick={() => setSelectedImage(null)}
         >
           <div className="lightbox-content animate-zoom-in" onClick={e => e.stopPropagation()}>
-            <img src={selectedImage} alt="Preview" />
+            <img src={getImageUrl(selectedImage)} alt="Preview" />
             <button className="lightbox-close" onClick={() => setSelectedImage(null)}>
               <X size={24} />
             </button>
@@ -203,12 +203,12 @@ export default function ProductsClient({ initialProducts, user, totalCount, oosC
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                           <div
                             style={{ width: 48, height: 48, borderRadius: 10, overflow: 'hidden', border: '1px solid var(--line)', cursor: 'zoom-in', flexShrink: 0, background: 'var(--cream-2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                            onClick={() => p.images?.[0] && setSelectedImage(p.images[0].url)}
+                            onClick={() => p.images?.[0] && setSelectedImage(getImageUrl(p.images[0].url))}
                             className="hover-scale"
                           >
                             {p.images?.[0] ? (
                               <img
-                                src={p.images[0].url}
+                                src={getImageUrl(p.images[0].url)}
                                 style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s' }}
                                 alt=""
                               />
@@ -257,7 +257,7 @@ export default function ProductsClient({ initialProducts, user, totalCount, oosC
                           <button className="action-btn" title="Détail" onClick={() => setSelectedProduct(p)}>
                             <Eye size={14} />
                           </button>
-                          <button className="action-btn" title="Modifier" onClick={() => setEditingProduct(p)} style={{ background: 'var(--blue-soft)', color: 'var(--blue)' }}>
+                          <button className="action-btn" title="Modifier" onClick={() => router.push(`/zangochap-manager/products/${p.id}/edit`)} style={{ background: 'var(--blue-soft)', color: 'var(--blue)' }}>
                             <Edit3 size={14} />
                           </button>
                           <button className="action-btn" title="Dupliquer" onClick={() => handleDuplicate(p)} style={{ background: 'var(--blue-soft)', color: 'var(--blue)' }}>
@@ -324,10 +324,6 @@ export default function ProductsClient({ initialProducts, user, totalCount, oosC
           <VariantsEditorModal product={editingVariants.product} variants={editingVariants.variants} onClose={() => setEditingVariants(null)} />
         )}
 
-        {/* PRODUCT EDIT MODAL */}
-        {editingProduct && (
-          <ProductEditModal product={editingProduct} categories={categories} suppliers={suppliers} onClose={() => setEditingProduct(null)} />
-        )}
 
       {/* IMMERSIVE LIGHTBOX */}
       {selectedImage && (
@@ -338,7 +334,7 @@ export default function ProductsClient({ initialProducts, user, totalCount, oosC
         >
           <div className="lightbox-content animate-zoom-in" onClick={e => e.stopPropagation()} style={{ position: 'relative', maxWidth: '90%', maxHeight: '90%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <img
-              src={selectedImage}
+              src={getImageUrl(selectedImage)}
               alt="Preview"
               style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 12, boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}
             />
@@ -435,9 +431,9 @@ function ProductDetailModal({ product: p, onClose, onEditVariants, onShowImage }
         {p.images?.[0] && (
           <div className="product-detail-image-section">
             <img
-              src={p.images[0].url}
+              src={getImageUrl(p.images[0].url)}
               className="product-detail-hero-img"
-              onClick={() => onShowImage(p.images[0].url)}
+              onClick={() => onShowImage(getImageUrl(p.images[0].url))}
             />
             <div className="image-zoom-hint"><Maximize size={12} /> Cliquer pour agrandir</div>
           </div>
@@ -582,7 +578,7 @@ function VariantsEditorModal({ product, variants: initialVariants, onClose }: { 
       <div className="variants-editor-header">
         <div className="editor-product-info">
           {product.images?.[0] ? (
-            <img src={product.images[0].url} className="editor-thumb" />
+            <img src={getImageUrl(product.images[0].url)} className="editor-thumb" />
           ) : (
             <div className="editor-thumb-placeholder">📦</div>
           )}
@@ -646,204 +642,3 @@ function VariantsEditorModal({ product, variants: initialVariants, onClose }: { 
   );
 }
 
-function SupplierCombobox({ suppliers, value, onChange }: { suppliers: any[], value: string, onChange: (val: string) => void }) {
-  const [open, setOpen] = React.useState(false);
-  const [search, setSearch] = React.useState("");
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger 
-        className="w-full bg-white border-[1px] border-[#E8DDD0] rounded-[4px] px-[12px] h-[40px] text-[14px] text-left flex justify-between items-center transition-all focus:ring-2 focus:ring-[#D4541C] outline-none"
-      >
-        <span className="truncate">{value || "Sélectionner..."}</span>
-        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-      </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-        <Command>
-          <CommandInput 
-            placeholder="Rechercher..." 
-            value={search}
-            onValueChange={setSearch}
-          />
-          <CommandList>
-            <CommandEmpty className="p-0">
-              <button
-                type="button"
-                className="w-full text-left p-3 hover:bg-orange-50 rounded-none text-sm font-semibold text-[#D4541C] flex items-center gap-2 border-t border-[#eee]"
-                onClick={() => {
-                  onChange(search);
-                  setOpen(false);
-                }}
-              >
-                <Plus size={14} /> Créer "{search}"
-              </button>
-            </CommandEmpty>
-            <CommandGroup>
-              {suppliers.map((s) => (
-                <CommandItem
-                  key={s.id}
-                  value={s.name}
-                  onSelect={(currentValue) => {
-                    onChange(currentValue);
-                    setOpen(false);
-                  }}
-                  className="flex items-center gap-2 p-2"
-                >
-                  <Check
-                    className={cn(
-                      "h-4 w-4",
-                      value === s.name ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  {s.name}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-// ============================================
-// PRODUCT EDIT MODAL
-// ============================================
-function ProductEditModal({ product, categories, suppliers, onClose }: { product: any; categories: any[]; suppliers: any[]; onClose: () => void }) {
-  const [formData, setFormData] = useState({
-    name: product.name,
-    price: Number(product.price),
-    oldPrice: product.oldPrice ? Number(product.oldPrice) : null,
-    category: product.category?.name || '',
-    subCategory: product.subCategory?.name || '',
-    description: product.description || '',
-    material: product.material || '',
-    origin: product.origin || '',
-    supplier: product.supplier?.name || '',
-    location: product.location || '',
-    isPublished: product.status === 'PUBLISHED',
-    isFeatured: product.isFeatured ?? false,
-  });
-  const [isPending, startTransition] = useTransition();
-  const { showToast } = useToast();
-  const router = useRouter();
-
-  const handleSave = () => {
-    startTransition(async () => {
-      try {
-        await updateProduct(product.id, formData);
-        showToast('Produit mis à jour ✓', 'success');
-        router.refresh();
-        onClose();
-      } catch (e: any) {
-        showToast(e.message || 'Erreur', 'error');
-      }
-    });
-  };
-
-  return (
-    <Modal isOpen={true} onClose={onClose} title={`Modifier · ${product.name}`}
-      footer={
-        <>
-          <button className="btn-secondary" onClick={onClose}>Annuler</button>
-          <button className="btn-orange" onClick={handleSave} disabled={isPending}>
-            {isPending ? 'Sauvegarde...' : 'Enregistrer'}
-          </button>
-        </>
-      }
-    >
-      <div className="form-grid">
-        <div className="form-row">
-          <label className="field-label">Nom du produit</label>
-          <input className="field-input" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
-        </div>
-        <div className="form-row">
-          <label className="field-label">Catégorie</label>
-          <Select 
-            value={formData.category || undefined} 
-            onValueChange={(val) => {
-              if (val) setFormData({ ...formData, category: val, subCategory: '' });
-            }}
-          >
-            <SelectTrigger className="w-full bg-white border-[1px] border-[#E8DDD0] rounded-[4px] px-[12px] h-[40px] text-[14px]">
-              <SelectValue placeholder="Sélectionner..." />
-            </SelectTrigger>
-            <SelectContent>
-              {categories.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="form-row">
-          <label className="field-label">Sous-catégorie</label>
-          <Select 
-            value={formData.subCategory || undefined} 
-            onValueChange={(val) => {
-              if (val) setFormData({ ...formData, subCategory: val === "none" ? "" : val });
-            }}
-          >
-            <SelectTrigger className="w-full bg-white border-[1px] border-[#E8DDD0] rounded-[4px] px-[12px] h-[40px] text-[14px]">
-              <SelectValue placeholder="Aucune" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">Aucune</SelectItem>
-              {categories.find(c => c.name === formData.category)?.subCategories?.map((s: any) => (
-                <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="form-row">
-          <label className="field-label">Prix (FCFA)</label>
-          <input type="number" className="field-input" value={formData.price} onChange={e => setFormData({ ...formData, price: parseInt(e.target.value) || 0 })} />
-        </div>
-        <div className="form-row">
-          <label className="field-label">Ancien prix (optionnel)</label>
-          <input type="number" className="field-input" value={formData.oldPrice || ''} onChange={e => setFormData({ ...formData, oldPrice: parseInt(e.target.value) || null })} />
-        </div>
-        <div className="form-row">
-          <label className="field-label">Fournisseur</label>
-          <SupplierCombobox 
-            suppliers={suppliers}
-            value={formData.supplier}
-            onChange={(val) => setFormData({ ...formData, supplier: val })}
-          />
-        </div>
-        <div className="form-row">
-          <label className="field-label">Matière</label>
-          <input className="field-input" value={formData.material} onChange={e => setFormData({ ...formData, material: e.target.value })} placeholder="Ex. Cuir" />
-        </div>
-        <div className="form-row">
-          <label className="field-label">Provenance</label>
-          <input className="field-input" value={formData.origin} onChange={e => setFormData({ ...formData, origin: e.target.value })} placeholder="Ex. Côte d'Ivoire" />
-        </div>
-        <div className="form-row">
-          <label className="field-label">Emplacement principal</label>
-          <input className="field-input" value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} />
-        </div>
-        <div className="form-row" style={{ gridColumn: '1 / -1' }}>
-          <label className="field-label">Description</label>
-          <textarea className="field-input" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} style={{ minHeight: 80 }} />
-        </div>
-
-        <div className="form-row" style={{ gridColumn: '1 / -1', display: 'flex', gap: 20, paddingTop: 10, borderTop: '1px solid var(--line)' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
-            <input
-              type="checkbox"
-              checked={formData.isPublished}
-              onChange={e => setFormData({ ...formData, isPublished: e.target.checked })}
-            />
-            Publié sur le site
-          </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
-            <input
-              type="checkbox"
-              checked={formData.isFeatured}
-              onChange={e => setFormData({ ...formData, isFeatured: e.target.checked })}
-            />
-            ⭐ Mettre en avant
-          </label>
-        </div>
-      </div>
-    </Modal>
-  );
-}

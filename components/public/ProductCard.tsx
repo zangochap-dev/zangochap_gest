@@ -6,6 +6,7 @@ import { formatPrice } from "@/lib/constants";
 import { Product } from "@/lib/types";
 import { useCart } from "@/lib/CartContext";
 import { ShoppingBag, Plus, Check } from "lucide-react";
+import { getImageUrl } from "@/lib/utils";
 
 export default function ProductCard({ p }: { p: Product }) {
   const { addToCart } = useCart();
@@ -27,7 +28,7 @@ export default function ProductCard({ p }: { p: Product }) {
         qty: 1,
         size: v.size,
         color: v.color,
-        image: p.images?.[0]?.url
+        image: getImageUrl(p.images?.[0]?.url)
       });
       
       setAdded(true);
@@ -40,7 +41,7 @@ export default function ProductCard({ p }: { p: Product }) {
       <div className="relative aspect-[3.5/4.5] bg-[#F7F6F3] overflow-hidden mb-4 rounded-sm">
         {p.images?.[0] ? (
           <img 
-            src={p.images[0].url} 
+            src={getImageUrl(p.images[0].url)} 
             alt={p.name} 
             loading="lazy" 
             className="w-full h-full object-cover transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-105" 

@@ -281,6 +281,8 @@ export async function updateProduct(id: string, data: Partial<{
   lowStockThreshold: number;
   isPublished: boolean;
   isFeatured: boolean;
+  variants?: Array<{ size: string; color: string; stock: number; location: string }>;
+  images?: Array<{ name: string; dataUrl: string }>;
 }>) {
   await ensureAuth(["admin", "stock"]);
   const updateData: any = { ...data };
@@ -290,6 +292,8 @@ export async function updateProduct(id: string, data: Partial<{
   delete updateData.subCategory;
   delete updateData.supplier;
   delete updateData.isPublished;
+  delete updateData.variants;
+  delete updateData.images;
   
   if (data.price) updateData.price = new Prisma.Decimal(data.price);
   if (data.oldPrice !== undefined) updateData.oldPrice = data.oldPrice ? new Prisma.Decimal(data.oldPrice) : null;
@@ -334,6 +338,61 @@ export async function updateProduct(id: string, data: Partial<{
     } else {
       updateData.supplier = { disconnect: true };
     }
+  }
+
+  // Handle Variants
+  if (data.variants) {
+    // Delete existing variants
+    await prisma.productVariant.deleteMany({ where: { productId: id } });
+    
+    const defaultWarehouse = await getOrCreateDefaultWarehouse();
+    
+    // Create new variants
+    for (const v of data.variants) {
+      const newVariant = await prisma.productVariant.create({
+        data: {
+          productId: id,
+          size: v.size,
+          color: v.color,
+          stock: v.stock,
+          location: v.location || '',
+        }
+      });
+
+      // Create stock level in default warehouse
+      await prisma.stockLevel.create({
+        data: {
+          variantId: newVariant.id,
+          warehouseId: defaultWarehouse.id,
+          quantity: v.stock,
+          position: v.location || null
+        }
+      });
+    }
+    
+    // Sync total stock
+    const totalStock = data.variants.reduce((sum, v) => sum + v.stock, 0);
+    updateData.stock = totalStock;
+  }
+
+  // Handle Images
+  if (data.images) {
+    // Delete old image records
+    await prisma.productImage.deleteMany({ where: { productId: id } });
+    
+    const imageUrls = [];
+    for (const img of data.images) {
+      if (img.dataUrl.startsWith('http')) {
+        imageUrls.push({ name: img.name, url: img.dataUrl });
+      } else {
+        const url = await uploadImage(img.dataUrl, img.name);
+        imageUrls.push({ name: img.name, url });
+      }
+    }
+    
+    updateData.images = {
+      create: imageUrls
+    };
   }
 
   await prisma.product.update({

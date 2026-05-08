@@ -34,8 +34,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=4000
 ENV HOSTNAME="0.0.0.0"
 
-RUN addgroup --system --gid 1001 nodejs
-RUN useradd --system --uid 1001 --create-home nextjs
+RUN addgroup -S -g 1001 nodejs
+RUN adduser -S -u 1001 -G nodejs nextjs
 
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma

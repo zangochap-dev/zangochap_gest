@@ -14,14 +14,12 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Generate Prisma Client
-RUN npx prisma generate
-
-# Disable telemetry during the build
+# Disable telemetry and set Dummy DB URL for build
 ENV NEXT_TELEMETRY_DISABLED=1
-# Dummy DB URL for build
 ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
 
+# Generate Prisma Client
+RUN npx prisma generate
 RUN npm run build
 
 # Stage 3: Runner

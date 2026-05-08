@@ -112,9 +112,16 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
         {/* Footer Bottom */}
         <div className="bg-[#151210] py-6 px-6 flex flex-col md:flex-row items-center justify-between gap-3 text-center w-full">
           <span className="text-[11px] text-white/25 tracking-wide">&copy; {new Date().getFullYear()} Zangochap. Tous droits réservés.</span>
-          <div className="flex gap-6">
+          <div className="flex items-center gap-6">
             <Link href="#" className="text-[11px] text-white/25 no-underline transition-colors hover:text-white/60">Politique de Confidentialité</Link>
             <Link href="#" className="text-[11px] text-white/25 no-underline transition-colors hover:text-white/60">Conditions Générales</Link>
+            <Link 
+              href="/zangochap-manager" 
+              className="text-[11px] text-white/20 no-underline transition-all hover:text-[#FF6B2C] flex items-center gap-1.5 px-3 py-1 border border-white/5 rounded-full hover:border-[#FF6B2C]/30"
+            >
+              <div className="w-1 h-1 rounded-full bg-white/20 group-hover:bg-[#FF6B2C]" />
+              Accès Manager
+            </Link>
           </div>
         </div>
       </footer>

@@ -93,6 +93,9 @@ model StockMovement {
   by          String // userId or email
   byName      String
   createdAt   DateTime       @default(now())
+
+  @@index([variantId])
+  @@index([createdAt])
 }
 
 model Settlement {
@@ -287,6 +290,11 @@ model Order {
   
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
+
+  @@index([status])
+  @@index([customerPhone])
+  @@index([commercialId])
+  @@index([createdAt])
 }
 
 model OrderItem {
@@ -308,6 +316,9 @@ model OrderItem {
   orderId   String
   product   Product? @relation(fields: [productId], references: [id])
   productId String?
+
+  @@index([orderId])
+  @@index([productId])
 }
 
 model CollectionRecord {
@@ -350,6 +361,8 @@ model PromoUsage {
   customerPhone String
   orderTotal    Float
   createdAt     DateTime  @default(now())
+
+  @@index([promoCode])
 }
 
 model Customer {

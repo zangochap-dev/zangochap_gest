@@ -24,7 +24,7 @@ RUN npm run build
 
 # Stage 3: Runner
 FROM node:20-alpine AS runner
-RUN apk add --no-cache openssl
+RUN apk add --no-cache openssl libc6-compat
 WORKDIR /app
 
 ENV NODE_ENV=production
@@ -35,20 +35,20 @@ ENV HOSTNAME="0.0.0.0"
 RUN addgroup -S -g 1001 nodejs
 RUN adduser -S -u 1001 -G nodejs nextjs
 
+# Important for standalone mode: copy public and static files
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
 
-# Set the correct permission for prerender cache and uploads
-RUN mkdir -p .next public/uploads
-RUN chown -R nextjs:nodejs .next public/uploads
-
-# Automatically leverage output traces to reduce image size
+# Copy standalone build
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Ensure uploads directory exists with correct permissions
+RUN mkdir -p public/uploads && chown -R nextjs:nodejs public/uploads
 
 USER nextjs
 
 EXPOSE 3000
 
-# Start the application directly
+# Start the application
 CMD ["node", "server.js"]

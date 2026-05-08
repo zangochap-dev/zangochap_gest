@@ -7,8 +7,7 @@ import { useToast } from "@/components/Toast";
 import { useRouter } from "next/navigation";
 import { Plus, Edit2, Trash2, Tag, ArrowLeft, Eye } from "lucide-react";
 import Link from "next/link";
-import { formatPrice } from "@/lib/constants";
-import { formatDate } from "@/lib/utils";
+import { formatPrice, formatDate } from "@/lib/constants";
 
 // Server actions for promos
 async function createPromo(data: any) {

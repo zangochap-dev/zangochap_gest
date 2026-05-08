@@ -68,4 +68,4 @@ ENV HOSTNAME="0.0.0.0"
 
 # Use a shell script to run prisma db push before starting the app
 # We use || true to prevent the container from crashing if db push fails (optional)
-CMD if [ -z "$DATABASE_URL" ]; then echo "DATABASE_URL is not set"; exit 1; fi && prisma db push && node server.js
+CMD if [ -z "$DATABASE_URL" ]; then echo "DATABASE_URL is not set"; exit 1; fi && prisma db push --url "$DATABASE_URL" && node server.js

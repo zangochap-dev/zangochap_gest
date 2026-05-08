@@ -5,6 +5,8 @@ import CartPageClient from "./cart-page-client";
 import { getCommunes } from "@/modules/settings/actions";
 import { SITE_NAME, SITE_URL, SITE_LOCALE, DEFAULT_OG_IMAGE } from "@/lib/seo";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: `Panier — ${SITE_NAME}`,
   description: `Votre panier d'achat sur ${SITE_NAME}. Finalisez votre commande et profitez de la livraison rapide à Abidjan.`,

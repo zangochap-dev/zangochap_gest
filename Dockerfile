@@ -42,7 +42,10 @@ ENV HOSTNAME="0.0.0.0"
 
 # Create a non-root user
 RUN groupadd --system --gid 1001 nodejs
-RUN useradd --system --uid 1001 nextjs
+RUN useradd --system --uid 1001 --create-home nextjs
+
+# Install prisma CLI globally to have it available in the runner
+RUN npm install -g prisma@7.8.0
 
 # Set up public and standalone folders
 COPY --from=builder /app/public ./public

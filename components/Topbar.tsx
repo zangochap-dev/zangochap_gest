@@ -76,7 +76,7 @@ export default function Topbar({ title, subtitle, actions }: TopbarProps) {
         .topbar-search input { flex: 1; border: none; outline: none; background: transparent; font-size: 13px; }
 
         @media (max-width: 768px) {
-          .topbar { padding: 12px 16px 12px 60px; gap: 8px; }
+          .topbar { padding: 12px 16px; gap: 8px; }
           .topbar h1 { font-size: 18px; }
           .topbar-search { width: 40px; padding: 8px; justify-content: center; }
           .topbar-search input { display: none; }

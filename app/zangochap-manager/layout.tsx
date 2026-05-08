@@ -1,5 +1,4 @@
 import Sidebar from "@/components/Sidebar";
-import MobileNav from "@/components/MobileNav";
 import { getSession } from "@/modules/auth/actions";
 import prisma from "@/lib/prisma";
 import { redirect } from "next/navigation";
@@ -81,7 +80,6 @@ export default async function ManagerLayout({
           {children}
         </div>
       </main>
-      <MobileNav user={user} />
 
       <style>{`
         .app-container {

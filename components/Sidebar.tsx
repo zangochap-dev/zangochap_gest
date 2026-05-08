@@ -9,8 +9,8 @@ import { logoutAction } from "@/modules/auth/actions";
 import { ROLE_LABELS } from "@/lib/constants";
 import {
   LayoutDashboard, ShoppingBag, Package, Truck, Box, Users, BarChart3,
-  Tag, Upload, FileText, LogOut, Menu, X, ClipboardList,
-  AlertTriangle, Settings, MapPin, Store, ChevronRight, History, Wallet, Warehouse,
+  Tag, Upload, FileText, LogOut, ClipboardList,
+  AlertTriangle, Settings, MapPin, Store, ChevronRight, ChevronLeft, History, Wallet, Warehouse,
   User, ExternalLink
 } from "lucide-react";
 
@@ -190,7 +190,7 @@ const NAV_FOR_ROLE: Record<string, (counts?: any) => NavSection[]> = {
 
 export default function Sidebar({ user, counts }: SidebarProps) {
   const pathname = usePathname();
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
   const getSections = NAV_FOR_ROLE[user.role] || NAV_FOR_ROLE.admin;
@@ -204,167 +204,135 @@ export default function Sidebar({ user, counts }: SidebarProps) {
     return () => nav?.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Save/Load collapse preference
+  useEffect(() => {
+    const saved = localStorage.getItem('sidebar-collapsed');
+    if (saved === 'true') setIsCollapsed(true);
+  }, []);
+
+  const toggleCollapse = () => {
+    const next = !isCollapsed;
+    setIsCollapsed(next);
+    localStorage.setItem('sidebar-collapsed', String(next));
+    window.dispatchEvent(new Event('resize'));
+  };
+
   return (
-    <>
-      {/* Mobile Toggle */}
-      <motion.button
-        initial={false}
-        animate={{ backgroundColor: mobileOpen ? "#FF6B2C" : "#0F1115" }}
-        className="sidebar-mobile-toggle"
-        onClick={() => setMobileOpen(!mobileOpen)}
-        aria-label="Menu"
-      >
-        <AnimatePresence mode="wait">
-          {mobileOpen ? (
-            <motion.div key="close" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }}>
-              <X size={20} />
-            </motion.div>
-          ) : (
-            <motion.div key="menu" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }}>
-              <Menu size={20} />
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.button>
-
-      {/* Overlay */}
-      <AnimatePresence>
-        {mobileOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="sidebar-overlay"
-            onClick={() => setMobileOpen(false)}
-          />
-        )}
-      </AnimatePresence>
-
-      <aside className={`sidebar ${mobileOpen ? 'open' : ''}`}>
-        {/* LOGO */}
-        <div className={`sidebar-header ${scrolled ? 'is-scrolled' : ''}`}>
-          <div className="sidebar-logo">
+    <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+      {/* LOGO */}
+      <div className={`sidebar-header ${scrolled ? 'is-scrolled' : ''}`}>
+        <div className="sidebar-logo">
+          <Link href="/zangochap-manager/dashboard" className="logo-link">
             <Image 
               src="/logo.png" 
               alt="ZANGOCHAP" 
-              width={160} 
-              height={45} 
+              width={140} 
+              height={40} 
               className="logo-img"
               style={{ objectFit: 'contain' }}
               priority
             />
-          </div>
-        </div>
-
-        {/* NAV WITH SECTIONS */}
-        <nav className="sidebar-nav">
-          <div className="nav-container">
-            {sections.map((section, sIdx) => (
-              <div key={sIdx} className="sidebar-section">
-                {section.title && (
-                  <div className="sidebar-section-title">{section.title}</div>
-                )}
-                {section.items.map(item => {
-                  const isActive = pathname === item.href ||
-                    (item.href !== '/zangochap-manager/dashboard' && pathname.startsWith(item.href));
-                  
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={`sidebar-link ${isActive ? 'active' : ''}`}
-                      onClick={() => setMobileOpen(false)}
-                    >
-                      <div className="sidebar-link-inner">
-                        <span className="icon-wrapper">
-                          {item.icon}
-                        </span>
-                        <span className="label-text">{item.label}</span>
-                      </div>
-                      
-                      {isActive && (
-                        <motion.div 
-                          layoutId="activeIndicator"
-                          className="active-indicator"
-                          transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                        />
-                      )}
-
-                      {item.badge !== undefined && item.badge > 0 && (
-                        <motion.span 
-                          initial={{ scale: 0 }} 
-                          animate={{ scale: 1 }}
-                          className="sidebar-badge"
-                        >
-                          {item.badge}
-                        </motion.span>
-                      )}
-                    </Link>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-        </nav>
-
-        {/* SHOP LINK */}
-        <div className="sidebar-extra">
-          <Link href="/" className="shop-link-btn" target="_blank">
-            <div className="shop-link-icon">
-              <Store size={14} />
-            </div>
-            <span>Boutique</span>
-            <ExternalLink size={12} className="external-icon" />
+            <div className="logo-icon-mini">Z</div>
           </Link>
         </div>
+      </div>
 
-        {/* USER / LOGOUT */}
-        <div className="sidebar-footer">
-          <div className="user-card">
-            <div className="sidebar-user">
-              <div className="sidebar-avatar">
-                {user.initials}
-                <div className="online-indicator" />
-              </div>
+      {/* NAV WITH SECTIONS */}
+      <nav className="sidebar-nav">
+        <div className="nav-container">
+          {sections.map((section, sIdx) => (
+            <div key={sIdx} className="sidebar-section">
+              {section.title && !isCollapsed && (
+                <div className="sidebar-section-title">{section.title}</div>
+              )}
+              {isCollapsed && section.title && <div className="sidebar-section-divider" />}
+              
+              {section.items.map(item => {
+                const isActive = pathname === item.href ||
+                  (item.href !== '/zangochap-manager/dashboard' && pathname.startsWith(item.href));
+                
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`sidebar-link ${isActive ? 'active' : ''}`}
+                    title={isCollapsed ? item.label : undefined}
+                  >
+                    <div className="sidebar-link-inner">
+                      <span className="icon-wrapper">
+                        {item.icon}
+                      </span>
+                      {!isCollapsed && <span className="label-text">{item.label}</span>}
+                    </div>
+                    
+                    {isActive && (
+                      <motion.div 
+                        layoutId="activeIndicator"
+                        className="active-indicator"
+                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                      />
+                    )}
+
+                    {item.badge !== undefined && item.badge > 0 && (
+                      <motion.span 
+                        initial={{ scale: 0 }} 
+                        animate={{ scale: 1 }}
+                        className="sidebar-badge"
+                      >
+                        {item.badge}
+                      </motion.span>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </nav>
+
+      {/* SHOP LINK */}
+      <div className="sidebar-extra">
+        <Link href="/" className="shop-link-btn" target="_blank" title={isCollapsed ? "Boutique" : undefined}>
+          <div className="shop-link-icon">
+            <Store size={14} />
+          </div>
+          {!isCollapsed && <span>Boutique</span>}
+          {!isCollapsed && <ExternalLink size={12} className="external-icon" />}
+        </Link>
+      </div>
+
+      {/* USER / LOGOUT */}
+      <div className="sidebar-footer">
+        <div className="user-card">
+          <div className="sidebar-user">
+            <div className="sidebar-avatar">
+              {user.initials}
+              <div className="online-indicator" />
+            </div>
+            {!isCollapsed && (
               <div className="sidebar-user-info">
                 <div className="sidebar-user-name">{user.name}</div>
                 <div className="sidebar-role-badge">{roleLabel}</div>
               </div>
-            </div>
+            )}
+          </div>
+          {!isCollapsed && (
             <form action={logoutAction}>
               <button type="submit" className="sidebar-logout" title="Déconnexion">
                 <LogOut size={14} />
               </button>
             </form>
-          </div>
+          )}
         </div>
-      </aside>
+
+        {/* RETRACTION BUTTON */}
+        <button className="sidebar-collapse-toggle" onClick={toggleCollapse} title={isCollapsed ? "Développer" : "Réduire"}>
+          {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          {!isCollapsed && <span>Réduire le menu</span>}
+        </button>
+      </div>
 
       <style jsx>{`
-        .sidebar-mobile-toggle {
-          display: none;
-          position: fixed;
-          top: 16px;
-          left: 16px;
-          z-index: 100;
-          width: 44px;
-          height: 44px;
-          border-radius: 14px;
-          color: white;
-          align-items: center;
-          justify-content: center;
-          box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-          border: 1px solid rgba(255,255,255,0.1);
-          cursor: pointer;
-        }
-        .sidebar-overlay {
-          display: none;
-          position: fixed;
-          inset: 0;
-          background: rgba(0,0,0,0.4);
-          z-index: 80;
-          backdrop-filter: blur(12px);
-        }
         .sidebar {
           width: var(--sidebar-w);
           background: #0F1115;
@@ -377,12 +345,17 @@ export default function Sidebar({ user, counts }: SidebarProps) {
           flex-shrink: 0;
           z-index: 90;
           border-right: 1px solid rgba(255,255,255,0.05);
+          transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .sidebar.collapsed {
+          width: 76px;
         }
 
         .sidebar-header {
-          padding: 32px 24px 20px;
+          padding: 32px 18px 20px;
           transition: all 0.3s;
           border-bottom: 1px solid transparent;
+          overflow: hidden;
         }
         .sidebar-header.is-scrolled {
           background: rgba(15, 17, 21, 0.8);
@@ -393,41 +366,26 @@ export default function Sidebar({ user, counts }: SidebarProps) {
         .sidebar-logo {
           display: flex;
           align-items: center;
-          gap: 14px;
+          min-width: 140px;
         }
-        .sidebar-logo-dot {
-          width: 36px;
-          height: 36px;
+        :global(.logo-link) { text-decoration: none; display: flex; align-items: center; }
+        .logo-icon-mini {
+          display: none;
+          width: 40px;
+          height: 40px;
           background: linear-gradient(135deg, #FF6B2C 0%, #E65A1F 100%);
           border-radius: 12px;
-          flex-shrink: 0;
-          display: flex;
           align-items: center;
           justify-content: center;
+          font-family: 'Outfit', sans-serif;
+          font-weight: 900;
+          font-size: 22px;
+          color: white;
           box-shadow: 0 4px 15px rgba(255, 107, 44, 0.3);
         }
-        .inner-dot {
-          width: 14px;
-          height: 14px;
-          background: white;
-          border-radius: 4px;
-        }
-        .sidebar-logo-text {
-          font-family: 'Outfit', sans-serif;
-          font-size: 19px;
-          font-weight: 900;
-          letter-spacing: -0.01em;
-          color: #FFFFFF;
-          line-height: 1;
-        }
-        .sidebar-logo-sub {
-          font-size: 10px;
-          font-weight: 700;
-          opacity: 0.3;
-          text-transform: uppercase;
-          letter-spacing: 0.12em;
-          margin-top: 4px;
-        }
+        .sidebar.collapsed .logo-img { display: none; }
+        .sidebar.collapsed .logo-icon-mini { display: flex; }
+        .sidebar.collapsed .sidebar-logo { min-width: 0; justify-content: center; width: 100%; }
 
         /* NAV */
         .sidebar-nav {
@@ -439,9 +397,11 @@ export default function Sidebar({ user, counts }: SidebarProps) {
         .sidebar-nav::-webkit-scrollbar { display: none; }
         
         .nav-container {
-          padding: 0 16px;
+          padding: 0 14px;
           padding-bottom: 32px;
         }
+
+        .sidebar.collapsed .nav-container { padding: 0 12px; }
 
         .sidebar-section {
           margin-bottom: 24px;
@@ -453,6 +413,11 @@ export default function Sidebar({ user, counts }: SidebarProps) {
           letter-spacing: 0.1em;
           color: rgba(255,255,255,0.25);
           padding: 0 12px 12px;
+        }
+        .sidebar-section-divider {
+          height: 1px;
+          background: rgba(255,255,255,0.05);
+          margin: 10px 0;
         }
 
         /* LINKS */
@@ -485,7 +450,8 @@ export default function Sidebar({ user, counts }: SidebarProps) {
           opacity: 0.5;
           transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .label-text { transition: transform 0.3s; }
+        .sidebar.collapsed .icon-wrapper { width: 100%; }
+        .label-text { transition: transform 0.3s; white-space: nowrap; }
 
         :global(.sidebar-link:hover) {
           background: rgba(255,255,255,0.03);
@@ -496,10 +462,6 @@ export default function Sidebar({ user, counts }: SidebarProps) {
           transform: scale(1.1);
           color: #FF6B2C;
         }
-        :global(.sidebar-link:hover .label-text) {
-          transform: translateX(2px);
-        }
-
         :global(.sidebar-link.active) {
           color: #FF6B2C;
           background: rgba(255, 107, 44, 0.08);
@@ -535,12 +497,23 @@ export default function Sidebar({ user, counts }: SidebarProps) {
           text-align: center;
           box-shadow: 0 4px 12px rgba(255, 107, 44, 0.4);
         }
+        .sidebar.collapsed .sidebar-badge {
+          position: absolute;
+          top: 6px;
+          right: 6px;
+          min-width: 8px;
+          height: 8px;
+          padding: 0;
+          font-size: 0;
+          border-radius: 50%;
+        }
 
         /* EXTRA SECTION */
         .sidebar-extra {
           padding: 16px;
           border-top: 1px solid rgba(255,255,255,0.03);
         }
+        .sidebar.collapsed .sidebar-extra { padding: 12px; }
         :global(.shop-link-btn) {
           display: flex;
           align-items: center;
@@ -556,6 +529,7 @@ export default function Sidebar({ user, counts }: SidebarProps) {
           border: 1px solid rgba(255,255,255,0.05);
           transition: all 0.3s;
         }
+        .sidebar.collapsed .shop-link-btn { justify-content: center; padding: 10px; }
         .shop-link-icon {
           width: 28px;
           height: 28px;
@@ -565,8 +539,9 @@ export default function Sidebar({ user, counts }: SidebarProps) {
           align-items: center;
           justify-content: center;
           transition: 0.3s;
+          flex-shrink: 0;
         }
-        :global(.shop-link-btn span) { flex: 1; }
+        :global(.shop-link-btn span) { flex: 1; white-space: nowrap; }
         :global(.shop-link-btn:hover) {
           border-color: rgba(255,255,255,0.15);
           color: white;
@@ -583,7 +558,11 @@ export default function Sidebar({ user, counts }: SidebarProps) {
         .sidebar-footer {
           padding: 16px;
           background: linear-gradient(to top, #0F1115 80%, transparent);
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
         }
+        .sidebar.collapsed .sidebar-footer { padding: 12px; }
         .user-card {
           display: flex;
           align-items: center;
@@ -594,10 +573,7 @@ export default function Sidebar({ user, counts }: SidebarProps) {
           border-radius: 16px;
           transition: all 0.3s;
         }
-        .user-card:hover {
-          background: rgba(255,255,255,0.05);
-          border-color: rgba(255,255,255,0.1);
-        }
+        .sidebar.collapsed .user-card { justify-content: center; padding: 6px; }
         .sidebar-user {
           display: flex;
           align-items: center;
@@ -668,20 +644,24 @@ export default function Sidebar({ user, counts }: SidebarProps) {
           box-shadow: 0 4px 15px rgba(255, 59, 48, 0.4);
         }
 
-        @media (max-width: 768px) {
-          .sidebar-mobile-toggle { display: flex; }
-          .sidebar-overlay { display: block; }
-          .sidebar {
-            position: fixed;
-            left: -100%;
-            top: 0;
-            transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 20px 0 60px rgba(0,0,0,0.6);
-            width: 280px;
-          }
-          .sidebar.open { left: 0; }
+        .sidebar-collapse-toggle {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          background: transparent;
+          border: none;
+          color: rgba(255,255,255,0.2);
+          font-size: 11px;
+          font-weight: 700;
+          padding: 8px 12px;
+          cursor: pointer;
+          transition: all 0.2s;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
         }
+        .sidebar-collapse-toggle:hover { color: white; background: rgba(255,255,255,0.05); border-radius: 8px; }
+        .sidebar.collapsed .sidebar-collapse-toggle { justify-content: center; }
       `}</style>
-    </>
+    </aside>
   );
 }

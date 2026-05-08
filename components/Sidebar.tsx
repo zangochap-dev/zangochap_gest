@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
+import { motion, AnimatePresence } from "framer-motion";
 import { logoutAction } from "@/modules/auth/actions";
 import { ROLE_LABELS } from "@/lib/constants";
 import {
@@ -24,6 +26,7 @@ interface SidebarProps {
     packing?: number;
     collection?: number;
     toProcess?: number;
+    myDeliveries?: number;
   };
 }
 
@@ -39,10 +42,9 @@ type NavSection = {
   items: NavItem[];
 };
 
-// ============ ORGANIZED NAV BY ROLE (with sections) ============
+// ============ ORGANIZED NAV BY ROLE ============
 
 const NAV_FOR_ROLE: Record<string, (counts?: any) => NavSection[]> = {
-
   commercial: (counts) => [
     {
       items: [
@@ -144,7 +146,6 @@ const NAV_FOR_ROLE: Record<string, (counts?: any) => NavSection[]> = {
         { label: 'Attribution livraisons', href: '/zangochap-manager/admin/delivery', icon: <Truck size={18} /> },
         { label: 'Fiche livreurs', href: '/zangochap-manager/admin/delivery-sheet', icon: <FileText size={18} /> },
         { label: 'Règlement livreurs', href: '/zangochap-manager/admin/delivery/settlement', icon: <Wallet size={18} /> },
-        { label: 'Accès Rider', href: '/zangochap-rider', icon: <User size={18} /> },
       ]
     },
     {
@@ -190,33 +191,68 @@ const NAV_FOR_ROLE: Record<string, (counts?: any) => NavSection[]> = {
 export default function Sidebar({ user, counts }: SidebarProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
   const getSections = NAV_FOR_ROLE[user.role] || NAV_FOR_ROLE.admin;
   const sections = getSections(counts);
   const roleLabel = ROLE_LABELS[user.role] || user.role;
 
+  useEffect(() => {
+    const nav = document.querySelector('.sidebar-nav');
+    const handleScroll = () => setScrolled((nav?.scrollTop || 0) > 10);
+    nav?.addEventListener('scroll', handleScroll);
+    return () => nav?.removeEventListener('scroll', handleScroll);
+  }, []);
+
   return (
     <>
       {/* Mobile Toggle */}
-      <button
+      <motion.button
+        initial={false}
+        animate={{ backgroundColor: mobileOpen ? "#FF6B2C" : "#0F1115" }}
         className="sidebar-mobile-toggle"
         onClick={() => setMobileOpen(!mobileOpen)}
         aria-label="Menu"
       >
-        {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-      </button>
+        <AnimatePresence mode="wait">
+          {mobileOpen ? (
+            <motion.div key="close" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }}>
+              <X size={20} />
+            </motion.div>
+          ) : (
+            <motion.div key="menu" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }}>
+              <Menu size={20} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.button>
 
       {/* Overlay */}
-      {mobileOpen && <div className="sidebar-overlay" onClick={() => setMobileOpen(false)} />}
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="sidebar-overlay"
+            onClick={() => setMobileOpen(false)}
+          />
+        )}
+      </AnimatePresence>
 
       <aside className={`sidebar ${mobileOpen ? 'open' : ''}`}>
         {/* LOGO */}
-        <div className="sidebar-logo">
-          <div className="sidebar-logo-dot">
-             <div className="inner-dot" />
-          </div>
-          <div>
-            <div className="sidebar-logo-text">ZANGOCHAP</div>
-            <div className="sidebar-logo-sub">Back Office</div>
+        <div className={`sidebar-header ${scrolled ? 'is-scrolled' : ''}`}>
+          <div className="sidebar-logo">
+            <Image 
+              src="/logo.png" 
+              alt="ZANGOCHAP" 
+              width={160} 
+              height={45} 
+              className="logo-img"
+              style={{ objectFit: 'contain' }}
+              priority
+            />
           </div>
         </div>
 
@@ -231,6 +267,7 @@ export default function Sidebar({ user, counts }: SidebarProps) {
                 {section.items.map(item => {
                   const isActive = pathname === item.href ||
                     (item.href !== '/zangochap-manager/dashboard' && pathname.startsWith(item.href));
+                  
                   return (
                     <Link
                       key={item.href}
@@ -239,11 +276,28 @@ export default function Sidebar({ user, counts }: SidebarProps) {
                       onClick={() => setMobileOpen(false)}
                     >
                       <div className="sidebar-link-inner">
-                        <span className="icon-wrapper">{item.icon}</span>
-                        <span>{item.label}</span>
+                        <span className="icon-wrapper">
+                          {item.icon}
+                        </span>
+                        <span className="label-text">{item.label}</span>
                       </div>
+                      
+                      {isActive && (
+                        <motion.div 
+                          layoutId="activeIndicator"
+                          className="active-indicator"
+                          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                        />
+                      )}
+
                       {item.badge !== undefined && item.badge > 0 && (
-                        <span className="sidebar-badge">{item.badge}</span>
+                        <motion.span 
+                          initial={{ scale: 0 }} 
+                          animate={{ scale: 1 }}
+                          className="sidebar-badge"
+                        >
+                          {item.badge}
+                        </motion.span>
                       )}
                     </Link>
                   );
@@ -253,11 +307,13 @@ export default function Sidebar({ user, counts }: SidebarProps) {
           </div>
         </nav>
 
-        {/* BOUTIQUE LINK */}
-        <div className="sidebar-shop-link">
+        {/* SHOP LINK */}
+        <div className="sidebar-extra">
           <Link href="/" className="shop-link-btn" target="_blank">
-            <Store size={14} />
-            <span>Voir la boutique</span>
+            <div className="shop-link-icon">
+              <Store size={14} />
+            </div>
+            <span>Boutique</span>
             <ExternalLink size={12} className="external-icon" />
           </Link>
         </div>
@@ -276,7 +332,7 @@ export default function Sidebar({ user, counts }: SidebarProps) {
               </div>
             </div>
             <form action={logoutAction}>
-              <button type="submit" className="sidebar-logout">
+              <button type="submit" className="sidebar-logout" title="Déconnexion">
                 <LogOut size={14} />
               </button>
             </form>
@@ -288,17 +344,16 @@ export default function Sidebar({ user, counts }: SidebarProps) {
         .sidebar-mobile-toggle {
           display: none;
           position: fixed;
-          top: 12px;
-          left: 12px;
-          z-index: 60;
-          width: 42px;
-          height: 42px;
-          border-radius: 12px;
-          background: #0F1115;
+          top: 16px;
+          left: 16px;
+          z-index: 100;
+          width: 44px;
+          height: 44px;
+          border-radius: 14px;
           color: white;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+          box-shadow: 0 8px 24px rgba(0,0,0,0.2);
           border: 1px solid rgba(255,255,255,0.1);
           cursor: pointer;
         }
@@ -307,8 +362,8 @@ export default function Sidebar({ user, counts }: SidebarProps) {
           position: fixed;
           inset: 0;
           background: rgba(0,0,0,0.4);
-          z-index: 40;
-          backdrop-filter: blur(8px);
+          z-index: 80;
+          backdrop-filter: blur(12px);
         }
         .sidebar {
           width: var(--sidebar-w);
@@ -320,37 +375,48 @@ export default function Sidebar({ user, counts }: SidebarProps) {
           position: sticky;
           top: 0;
           flex-shrink: 0;
-          z-index: 50;
-          border-right: 1px solid rgba(255,255,255,0.06);
+          z-index: 90;
+          border-right: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .sidebar-header {
+          padding: 32px 24px 20px;
+          transition: all 0.3s;
+          border-bottom: 1px solid transparent;
+        }
+        .sidebar-header.is-scrolled {
+          background: rgba(15, 17, 21, 0.8);
+          backdrop-filter: blur(10px);
+          border-bottom-color: rgba(255,255,255,0.05);
         }
 
         .sidebar-logo {
-          padding: 32px 24px 24px;
           display: flex;
           align-items: center;
           gap: 14px;
         }
         .sidebar-logo-dot {
-          width: 34px;
-          height: 34px;
-          background: #FF6B2C;
-          border-radius: 10px;
+          width: 36px;
+          height: 36px;
+          background: linear-gradient(135deg, #FF6B2C 0%, #E65A1F 100%);
+          border-radius: 12px;
           flex-shrink: 0;
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 0 20px rgba(255, 107, 44, 0.2);
+          box-shadow: 0 4px 15px rgba(255, 107, 44, 0.3);
         }
         .inner-dot {
-          width: 12px;
-          height: 12px;
+          width: 14px;
+          height: 14px;
           background: white;
-          border-radius: 3px;
+          border-radius: 4px;
         }
         .sidebar-logo-text {
-          font-size: 18px;
+          font-family: 'Outfit', sans-serif;
+          font-size: 19px;
           font-weight: 900;
-          letter-spacing: 0.02em;
+          letter-spacing: -0.01em;
           color: #FFFFFF;
           line-height: 1;
         }
@@ -359,53 +425,57 @@ export default function Sidebar({ user, counts }: SidebarProps) {
           font-weight: 700;
           opacity: 0.3;
           text-transform: uppercase;
-          letter-spacing: 0.15em;
+          letter-spacing: 0.12em;
           margin-top: 4px;
         }
 
-        /* NAV WITH SECTIONS */
+        /* NAV */
         .sidebar-nav {
           flex: 1;
           overflow-y: auto;
-          scrollbar-width: none; /* Firefox */
+          scrollbar-width: none;
+          padding: 8px 0;
         }
-        .sidebar-nav::-webkit-scrollbar { display: none; } /* Chrome/Safari */
+        .sidebar-nav::-webkit-scrollbar { display: none; }
         
         .nav-container {
           padding: 0 16px;
-          padding-bottom: 24px;
+          padding-bottom: 32px;
         }
 
         .sidebar-section {
-          margin-bottom: 20px;
+          margin-bottom: 24px;
         }
         .sidebar-section-title {
           font-size: 10px;
           font-weight: 800;
           text-transform: uppercase;
-          letter-spacing: 0.15em;
-          color: rgba(255,255,255,0.2);
-          padding: 0 12px 10px;
+          letter-spacing: 0.1em;
+          color: rgba(255,255,255,0.25);
+          padding: 0 12px 12px;
         }
 
         /* LINKS */
         :global(.sidebar-link) {
+          position: relative;
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 10px 12px;
-          border-radius: 10px;
+          padding: 11px 12px;
+          border-radius: 12px;
           font-size: 13px;
           font-weight: 600;
-          color: rgba(255,255,255,0.45);
-          transition: all 0.2s ease;
+          color: rgba(255,255,255,0.4);
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
           text-decoration: none;
           margin-bottom: 2px;
+          overflow: hidden;
         }
         .sidebar-link-inner {
           display: flex;
           align-items: center;
           gap: 12px;
+          z-index: 2;
         }
         .icon-wrapper {
           display: flex;
@@ -413,97 +483,142 @@ export default function Sidebar({ user, counts }: SidebarProps) {
           justify-content: center;
           width: 20px;
           opacity: 0.5;
-          transition: 0.2s;
+          transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
+        .label-text { transition: transform 0.3s; }
+
         :global(.sidebar-link:hover) {
-          background: rgba(255,255,255,0.04);
-          color: rgba(255,255,255,0.9);
+          background: rgba(255,255,255,0.03);
+          color: rgba(255,255,255,0.8);
         }
         :global(.sidebar-link:hover .icon-wrapper) {
           opacity: 1;
           transform: scale(1.1);
-        }
-        :global(.sidebar-link.active) {
-          background: rgba(255, 107, 44, 0.1);
           color: #FF6B2C;
-          box-shadow: inset 0 0 0 1px rgba(255, 107, 44, 0.1);
+        }
+        :global(.sidebar-link:hover .label-text) {
+          transform: translateX(2px);
+        }
+
+        :global(.sidebar-link.active) {
+          color: #FF6B2C;
+          background: rgba(255, 107, 44, 0.08);
+          font-weight: 700;
         }
         :global(.sidebar-link.active .icon-wrapper) {
           opacity: 1;
           color: #FF6B2C;
         }
+
+        .active-indicator {
+          position: absolute;
+          left: 0;
+          top: 0;
+          bottom: 0;
+          width: 3px;
+          background: #FF6B2C;
+          border-radius: 0 4px 4px 0;
+          box-shadow: 0 0 15px rgba(255, 107, 44, 0.5);
+          z-index: 1;
+        }
+
         .sidebar-badge {
+          position: relative;
+          z-index: 2;
           background: #FF6B2C;
           color: white;
           font-size: 10px;
           font-weight: 900;
-          padding: 1px 6px;
+          padding: 2px 6px;
           border-radius: 6px;
           min-width: 18px;
           text-align: center;
-          box-shadow: 0 4px 10px rgba(255, 107, 44, 0.3);
+          box-shadow: 0 4px 12px rgba(255, 107, 44, 0.4);
         }
 
-        /* SHOP LINK */
-        .sidebar-shop-link {
+        /* EXTRA SECTION */
+        .sidebar-extra {
           padding: 16px;
+          border-top: 1px solid rgba(255,255,255,0.03);
         }
         :global(.shop-link-btn) {
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 12px;
           width: 100%;
-          padding: 12px 14px;
+          padding: 10px 14px;
           border-radius: 12px;
           font-size: 12px;
           font-weight: 700;
-          color: rgba(255,255,255,0.3);
+          color: rgba(255,255,255,0.4);
           text-decoration: none;
           background: rgba(255,255,255,0.02);
           border: 1px solid rgba(255,255,255,0.05);
-          transition: all 0.2s;
+          transition: all 0.3s;
+        }
+        .shop-link-icon {
+          width: 28px;
+          height: 28px;
+          background: rgba(255,255,255,0.03);
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: 0.3s;
         }
         :global(.shop-link-btn span) { flex: 1; }
         :global(.shop-link-btn:hover) {
-          border-color: rgba(255,255,255,0.1);
-          color: rgba(255,255,255,0.7);
+          border-color: rgba(255,255,255,0.15);
+          color: white;
           background: rgba(255,255,255,0.05);
         }
-        .external-icon { opacity: 0.5; }
+        :global(.shop-link-btn:hover .shop-link-icon) {
+          background: #FF6B2C;
+          color: white;
+          box-shadow: 0 4px 10px rgba(255, 107, 44, 0.3);
+        }
+        .external-icon { opacity: 0.3; }
 
-        /* FOOTER / USER CARD */
+        /* FOOTER */
         .sidebar-footer {
           padding: 16px;
-          background: linear-gradient(to top, #0F1115, transparent);
+          background: linear-gradient(to top, #0F1115 80%, transparent);
         }
         .user-card {
           display: flex;
           align-items: center;
-          justify-content: space-between;
+          gap: 12px;
           background: rgba(255,255,255,0.03);
           border: 1px solid rgba(255,255,255,0.06);
-          padding: 12px;
+          padding: 10px;
           border-radius: 16px;
+          transition: all 0.3s;
+        }
+        .user-card:hover {
+          background: rgba(255,255,255,0.05);
+          border-color: rgba(255,255,255,0.1);
         }
         .sidebar-user {
           display: flex;
           align-items: center;
-          gap: 12px;
+          gap: 10px;
+          flex: 1;
           min-width: 0;
         }
         .sidebar-avatar {
-          width: 40px;
-          height: 40px;
+          width: 38px;
+          height: 38px;
           background: linear-gradient(135deg, #FF6B2C 0%, #D4541C 100%);
           border-radius: 10px;
           display: flex;
           align-items: center;
           justify-content: center;
           font-weight: 800;
-          font-size: 14px;
+          font-size: 13px;
           flex-shrink: 0;
           color: white;
           position: relative;
+          box-shadow: 0 4px 10px rgba(0,0,0,0.2);
         }
         .online-indicator {
           position: absolute;
@@ -514,23 +629,24 @@ export default function Sidebar({ user, counts }: SidebarProps) {
           background: #34C759;
           border: 2px solid #0F1115;
           border-radius: 50%;
+          box-shadow: 0 0 10px rgba(52, 199, 89, 0.5);
         }
         .sidebar-user-info { flex: 1; min-width: 0; }
         .sidebar-user-name { 
           font-size: 13px; 
-          font-weight: 800; 
+          font-weight: 700; 
           white-space: nowrap; 
           overflow: hidden; 
           text-overflow: ellipsis; 
           color: white;
-          margin-bottom: 2px;
         }
         .sidebar-role-badge {
           color: #FF6B2C;
           font-size: 9px;
-          font-weight: 900;
+          font-weight: 800;
           text-transform: uppercase;
           letter-spacing: 0.05em;
+          margin-top: 1px;
         }
         .sidebar-logout {
           width: 32px;
@@ -538,17 +654,18 @@ export default function Sidebar({ user, counts }: SidebarProps) {
           display: flex;
           align-items: center;
           justify-content: center;
-          border-radius: 8px;
+          border-radius: 10px;
           background: rgba(255,255,255,0.05);
-          color: rgba(255,255,255,0.4);
-          border: none;
+          color: rgba(255,255,255,0.3);
+          border: 1px solid rgba(255,255,255,0.05);
           cursor: pointer;
           transition: all 0.2s;
         }
         .sidebar-logout:hover { 
           background: #FF3B30; 
           color: white; 
-          box-shadow: 0 4px 12px rgba(255, 59, 48, 0.3);
+          border-color: #FF3B30;
+          box-shadow: 0 4px 15px rgba(255, 59, 48, 0.4);
         }
 
         @media (max-width: 768px) {
@@ -556,10 +673,11 @@ export default function Sidebar({ user, counts }: SidebarProps) {
           .sidebar-overlay { display: block; }
           .sidebar {
             position: fixed;
-            left: -260px;
+            left: -100%;
             top: 0;
-            transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 20px 0 60px rgba(0,0,0,0.5);
+            transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 20px 0 60px rgba(0,0,0,0.6);
+            width: 280px;
           }
           .sidebar.open { left: 0; }
         }

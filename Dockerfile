@@ -32,6 +32,9 @@ FROM node:22-alpine AS runner
 RUN apk add --no-cache openssl
 WORKDIR /app
 
+# Install prisma CLI globally to have it available in the runner
+RUN npm install -g prisma@7.8.0
+
 ENV NODE_ENV=production
 # Uncomment the following line in case you want to disable telemetry during runtime.
 # ENV NEXT_TELEMETRY_DISABLED=1
@@ -51,9 +54,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # We need the prisma schema and config to run migrations/db push at runtime
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
-COPY --from=builder /app/.env* ./ 
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
+COPY --from=builder --chown=nextjs:nodejs /app/.env* ./ 
 # Note: we copy .env if it exists, but the container should get env from docker-compose
 
 USER nextjs
@@ -66,4 +69,4 @@ ENV HOSTNAME="0.0.0.0"
 
 # Use a shell script to run prisma db push before starting the app
 # We use || true to prevent the container from crashing if db push fails (optional)
-CMD if [ -z "$DATABASE_URL" ]; then echo "DATABASE_URL is not set"; exit 1; fi && ./node_modules/.bin/prisma db push && node server.js
+CMD if [ -z "$DATABASE_URL" ]; then echo "DATABASE_URL is not set"; exit 1; fi && prisma db push && node server.js

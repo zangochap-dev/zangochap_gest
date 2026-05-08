@@ -20,7 +20,7 @@ COPY . .
 # ENV NEXT_TELEMETRY_DISABLED=1
 
 # Prisma generate needs DATABASE_URL to be defined even if it doesn't connect
-ENV DATABASE_URL="postgresql://postgres:aa90AsmvXjeilRt8yvJA@72.62.45.245:5433/zangochapdb"
+ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
 ENV NEXT_PUBLIC_APP_NAME="Zangochap Back Office"
 
 # Prisma generate must run before next build

@@ -57,20 +57,17 @@ export default async function ProductsPage({ searchParams }: PageProps) {
     ];
   }
 
-  const [products, totalCount, stats] = await Promise.all([
-    prisma.product.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      include: { variants: true, images: true, createdBy: true },
-      take: limit,
-      skip: skip,
-    }),
-    prisma.product.count({ where }),
-    prisma.product.aggregate({
-      _count: { id: true },
-      _sum: { stock: true } // Note: this is legacy stock field, might not be accurate if using variants
-    })
-  ]);
+  // Sequentialize queries to avoid "Connection terminated unexpectedly" 
+  // which often happens in serverless/Neon environments with concurrent bursts
+  const products = await prisma.product.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    include: { variants: true, images: true, createdBy: true },
+    take: limit,
+    skip: skip,
+  });
+
+  const totalCount = await prisma.product.count({ where });
 
   // For accurate stats, we might need a separate count for OOS
   const oosCount = await prisma.product.count({

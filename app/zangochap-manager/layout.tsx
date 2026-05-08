@@ -41,7 +41,7 @@ export default async function ManagerLayout({
   try {
     // Fetch counts for Sidebar badges
     const [ordersCount, packingCount, toProcessCount, deliveriesCount, collectionCount] = await Promise.all([
-      prisma.order.count({ where: { status: { not: OrderStatus.CANCELLED } } }),
+      prisma.order.count({ where: { status: { notIn: [OrderStatus.CANCELLED, OrderStatus.TO_PROCESS] } } }),
       prisma.order.count({ where: { status: OrderStatus.CONFIRMED } }),
       prisma.order.count({ where: { status: OrderStatus.TO_PROCESS } }),
       prisma.order.count({ where: { deliverymanId: user.id, status: { notIn: [OrderStatus.DELIVERED, OrderStatus.CANCELLED] } } }),

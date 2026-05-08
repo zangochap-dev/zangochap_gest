@@ -34,6 +34,10 @@ export default async function OrdersPage({ searchParams }: PageProps) {
 
   if (params.status && params.status !== 'all') {
     where.status = params.status.toUpperCase() as OrderStatus;
+  } else {
+    // Par défaut (ou si 'all'), on cache TOUJOURS les commandes TO_PROCESS
+    // Elles sont réservées à la section "À traiter (site)"
+    where.status = { not: OrderStatus.TO_PROCESS };
   }
 
   if (params.commune && params.commune !== 'all') {

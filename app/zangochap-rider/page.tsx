@@ -57,16 +57,34 @@ export default async function DeliveryPage() {
       .filter(Boolean) as { name: string; phone: string | null }[];
 
     return {
-      ...o,
+      id: o.id,
+      ref: o.ref,
+      customerName: o.customerName,
+      customerPhone: o.customerPhone,
+      customerPhone2: o.customerPhone2,
+      customerLocation: o.customerLocation,
+      commune: o.commune,
       total: Number(o.total),
       deliveryFee: Number(o.deliveryFee),
       discount: Number(o.discount || 0),
+      deliveryNote: o.deliveryNote,
+      status: o.status,
       isCommercialContacted: o.isCommercialContacted,
       updatedAt: o.updatedAt.toISOString(),
       createdAt: o.createdAt.toISOString(),
+      settlementId: o.settlementId,
       items: o.items.map(i => ({
-        ...i,
+        id: i.id,
+        name: i.name,
+        size: i.size,
+        color: i.color,
+        qty: i.qty,
         price: Number(i.price),
+        emoji: i.emoji,
+        image: i.image,
+        isCustom: i.isCustom,
+        isGift: i.isGift,
+        isDelivered: i.isDelivered,
         verifiedAt: i.verifiedAt?.toISOString() || null,
       })),
       commercial: o.commercial ? {
@@ -79,7 +97,7 @@ export default async function DeliveryPage() {
       } : (o.packedByName ? { name: o.packedByName, phone: null } : null),
       collectors: collectors,
     };
-  }) as any;
+  });
 
   return (
     <DeliveryClient orders={orders} user={user} />

@@ -34,6 +34,13 @@ export default function DeliveryClient({
 }) {
   // ── State ──
   const [activeTab, setActiveTab] = useState<"missions" | "wallet" | "profile">("missions");
+  const [localOrders, setLocalOrders] = useState<RiderOrder[]>(orders);
+  
+  // Sync local state when props change
+  React.useEffect(() => {
+    setLocalOrders(orders);
+  }, [orders]);
+
   const [missionFilter, setMissionFilter] = useState<"pending" | "current" | "history">("pending");
   const [historyFilter, setHistoryFilter] = useState<"all" | "DELIVERED" | "CANCELLED" | "PARTIALLY_DELIVERED">("all");
   const [historyTodayOnly, setHistoryTodayOnly] = useState(false);
@@ -55,26 +62,24 @@ export default function DeliveryClient({
   const todayStr = new Date().toDateString();
 
   const pending = useMemo(
-    () => orders.filter((o) => {
+    () => localOrders.filter((o) => {
       const isCompleted = ["DELIVERED", "RETURNED", "CANCELLED"].includes(o.status);
-      const isToday = new Date(o.updatedAt || o.createdAt).toDateString() === todayStr;
-      return !isCompleted && isToday && o.status !== "ON_DELIVERY";
+      return !isCompleted;
     }),
-    [orders, todayStr]
+    [localOrders]
   );
 
   const inProgress = useMemo(
-    () => orders.filter((o) => o.status === "ON_DELIVERY"),
-    [orders]
+    () => localOrders.filter((o) => o.status === "ON_DELIVERY"),
+    [localOrders]
   );
 
   const history = useMemo(
-    () => orders.filter((o) => {
+    () => localOrders.filter((o) => {
       const isCompleted = ["DELIVERED", "RETURNED", "CANCELLED"].includes(o.status);
-      const isPast = new Date(o.updatedAt || o.createdAt).toDateString() !== todayStr;
-      return (isCompleted || (isPast && !isCompleted)) && o.status !== "ON_DELIVERY";
+      return isCompleted;
     }),
-    [orders, todayStr]
+    [localOrders]
   );
 
   const displayedOrders = useMemo(() => {
@@ -103,17 +108,17 @@ export default function DeliveryClient({
         o.ref?.toLowerCase().includes(q) ||
         o.commune?.toLowerCase().includes(q)
     );
-  }, [missionFilter, historyFilter, historyTodayOnly, pending, history, searchQuery]);
+  }, [missionFilter, historyFilter, historyTodayOnly, pending, inProgress, history, searchQuery]);
 
   // Cash Management: Orders delivered but not yet settled
   const ordersToSettle = useMemo(
-    () => orders.filter(o => ["DELIVERED", "PARTIALLY_DELIVERED"].includes(o.status) && !o.settlementId),
-    [orders]
+    () => localOrders.filter(o => ["DELIVERED", "PARTIALLY_DELIVERED"].includes(o.status) && !o.settlementId),
+    [localOrders]
   );
 
   const stats = useMemo<RiderStats>(
     () => ({
-      cash: ordersToSettle.reduce((acc, o) => acc + o.total + o.deliveryFee - (o.discount || 0), 0),
+      cash: ordersToSettle.reduce((acc, o) => acc + o.total, 0),
       count: pending.length,
       inProgressCount: inProgress.length,
       deliveredToday: history.filter((o) => {
@@ -157,6 +162,10 @@ export default function DeliveryClient({
   const executeStatusUpdate = useCallback(
     (id: string, status: string, reason?: string) => {
       setConfirmingStatus(null);
+      
+      // Optimistic Update
+      setLocalOrders(prev => prev.map(o => o.id === id ? { ...o, status: status as any, updatedAt: new Date().toISOString() } : o));
+      
       startTransition(async () => {
         try {
           await updateOrderStatus(id, status, reason);
@@ -164,12 +173,14 @@ export default function DeliveryClient({
           setSelectedOrder(null);
           router.refresh();
         } catch (e: unknown) {
+          // Rollback
+          setLocalOrders(orders);
           const msg = e instanceof Error ? e.message : "Erreur inconnue";
           showToast(msg, "error");
         }
       });
     },
-    [router, showToast]
+    [router, showToast, orders]
   );
 
   const handlePartialConfirm = useCallback(() => {
@@ -193,6 +204,9 @@ export default function DeliveryClient({
         ? "Motifs spécifiques : " + noteParts.join(" | ")
         : undefined;
 
+    // Optimistic Update for partial
+    setLocalOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, status: 'PARTIALLY_DELIVERED', updatedAt: new Date().toISOString() } : o));
+
     startTransition(async () => {
       try {
         await markPartialDelivery(
@@ -205,11 +219,13 @@ export default function DeliveryClient({
         setSelectedOrder(null);
         router.refresh();
       } catch (e: unknown) {
+        // Rollback
+        setLocalOrders(orders);
         const msg = e instanceof Error ? e.message : "Erreur inconnue";
         showToast(msg, "error");
       }
     });
-  }, [selectedOrder, deliveredQuantities, returnReasons, includeDeliveryFee, router, showToast]);
+  }, [selectedOrder, deliveredQuantities, returnReasons, includeDeliveryFee, router, showToast, orders]);
 
   const handleLogout = useCallback(async () => {
     await logoutAction();

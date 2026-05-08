@@ -43,6 +43,7 @@ export default function CartPageClient({ communes = [] }: { communes?: Commune[]
           customerLocation: address,
           commune,
           deliveryFee,
+          status: 'TO_PROCESS',
           items: cart.map(item => ({
             productId: item.productId,
             name: item.name,

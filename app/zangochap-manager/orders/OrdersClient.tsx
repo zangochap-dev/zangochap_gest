@@ -614,7 +614,6 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
   const filters = [
     { key: 'all', label: 'Toutes' },
-    { key: 'to_process', label: 'À traiter' },
     { key: 'pending', label: 'En attente' },
     { key: 'confirmed', label: 'Confirmées' },
     { key: 'packed', label: 'Emballées' },

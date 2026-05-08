@@ -10,11 +10,19 @@ import { COMMUNES } from "@/lib/constants";
 // Triggering recompilation for new schema fields... (v1)
 function checkOrderAccess(order: any, session: any) {
   if (!session) return false;
-  if (session.role === 'admin') return true;
-  if (session.role === 'commercial') {
+  const role = session.role?.toUpperCase();
+  
+  if (role === 'ADMIN') return true;
+  
+  if (role === 'COMMERCIAL') {
     return order.commercialId === session.id;
   }
-  return true;
+  
+  if (role === 'LIVREUR') {
+    return order.deliverymanId === session.id;
+  }
+  
+  return false;
 }
 
 // ============ GENERATORS ============
@@ -122,11 +130,12 @@ export async function createOrder(data: {
   total?: number;
   deliveryDate?: string;
   paymentMethod?: string;
+  status?: string;
 }) {
   const session = await getSession();
 
-  // Ã¢â€â‚¬Ã¢â€â‚¬ Validation du stock dÃƒÂ©sactivÃƒÂ©e pour permettre la vente en rupture (flux tendu) Ã¢â€â‚¬Ã¢â€â‚¬
-  // L'ordre sera crÃƒÂ©ÃƒÂ© et passera en collecte normalement.
+  // ── ── Validation du stock désactivée pour permettre la vente en rupture (flux tendu) ── ──
+  // L'ordre sera créé et passera en collecte normalement.
 
   const ref = await generateUniqueRef(data.commune || undefined, data.type);
   const calculatedTotal = data.items.reduce((sum, item) => sum + Number(item.price) * Number(item.qty), 0);
@@ -154,7 +163,7 @@ export async function createOrder(data: {
       deliveryFee: Number(data.deliveryFee || 0),
       deliveryNote: data.deliveryNote,
       paymentMethod: data.paymentMethod,
-      status: session ? 'CONFIRMED' : 'TO_PROCESS',
+      status: (data.status as any) || (session ? 'CONFIRMED' : 'TO_PROCESS'),
       commercialId: session?.id || null,
       commercialName: session?.name || "Site Web",
       deliveryDate: data.deliveryDate ? new Date(data.deliveryDate) : null,
@@ -171,7 +180,7 @@ export async function createOrder(data: {
           color: item.color,
           qty: Number(item.qty),
           price: Number(item.price),
-          emoji: item.emoji || 'Ã°Å¸â€œÂ¦',
+          emoji: item.emoji || '📦',
           image: item.image || null,
           productId: item.productId,
           isCustom: item.isCustom || false,
@@ -181,7 +190,7 @@ export async function createOrder(data: {
       history: [
         {
           at: new Date().toISOString(),
-          action: session ? "Commande crÃƒÂ©ÃƒÂ©e par commercial" : "Commande passÃƒÂ©e sur le site web",
+          action: session ? "Commande créée par commercial" : "Commande passée sur le site web",
           by: session ? session.email : "public",
           byName: session ? session.name : "Client Web",
         },
@@ -319,27 +328,23 @@ export async function markPartialDelivery(orderId: string, deliveredQuantities: 
     const returnedQty = item.qty - dQty;
 
     if (dQty === 0) {
-      // Entièrement retourné
       await prisma.orderItem.update({
         where: { id: item.id },
         data: { isDelivered: false }
       });
     } else if (dQty === item.qty) {
-      // Entièrement livré
       await prisma.orderItem.update({
         where: { id: item.id },
         data: { isDelivered: true }
       });
       newSubtotal += (item.price * item.qty);
     } else if (dQty > 0 && dQty < item.qty) {
-      // Livraison d'une quantité partielle -> On divise la ligne
       await prisma.orderItem.update({
         where: { id: item.id },
         data: { qty: dQty, isDelivered: true }
       });
       newSubtotal += (item.price * dQty);
 
-      // Création de la ligne "Retournée" pour garder la trace
       await prisma.orderItem.create({
         data: {
           orderId: order.id,
@@ -363,8 +368,15 @@ export async function markPartialDelivery(orderId: string, deliveredQuantities: 
       const variant = await prisma.productVariant.findFirst({
         where: { productId: item.productId, size: item.size, color: item.color }
       });
+
       if (variant) {
-        const warehouse = await getOrCreateDefaultWarehouse();
+        // RÉCUPÉRATION DE L'ENTREPÔT D'ORIGINE (depuis l'historique des mouvements)
+        const lastMovement = await prisma.stockMovement.findFirst({
+          where: { orderId: order.id, variantId: variant.id, type: 'SALE' },
+          orderBy: { createdAt: 'desc' }
+        });
+
+        const targetWarehouseId = lastMovement?.warehouseId || (await getOrCreateDefaultWarehouse()).id;
 
         await prisma.productVariant.update({
           where: { id: variant.id },
@@ -372,14 +384,14 @@ export async function markPartialDelivery(orderId: string, deliveredQuantities: 
         });
         
         await prisma.stockLevel.upsert({
-          where: { variantId_warehouseId: { variantId: variant.id, warehouseId: warehouse.id } },
+          where: { variantId_warehouseId: { variantId: variant.id, warehouseId: targetWarehouseId } },
           update: { quantity: { increment: returnedQty } },
-          create: { variantId: variant.id, warehouseId: warehouse.id, quantity: returnedQty }
+          create: { variantId: variant.id, warehouseId: targetWarehouseId, quantity: returnedQty }
         });
 
         await recordStockMovement({
           variantId: variant.id,
-          warehouseId: warehouse.id,
+          warehouseId: targetWarehouseId,
           type: 'RESTOCK',
           quantity: returnedQty,
           orderId: order.id,
@@ -391,13 +403,14 @@ export async function markPartialDelivery(orderId: string, deliveredQuantities: 
   }
 
   const finalDeliveryFee = includeDeliveryFee ? order.deliveryFee : 0;
-  const finalTotal = newSubtotal + finalDeliveryFee - order.discount;
+  // On s'assure que le total ne tombe pas en dessous de 0 (ex: gros coupon sur petit achat partiel)
+  const finalTotal = Math.max(0, newSubtotal + finalDeliveryFee - order.discount);
 
   await prisma.order.update({
     where: { id: orderId },
     data: {
       status: 'PARTIALLY_DELIVERED',
-      total: Math.max(0, finalTotal),
+      total: finalTotal,
       deliveryFee: finalDeliveryFee,
       history,
     }
@@ -410,13 +423,13 @@ export async function markPartialDelivery(orderId: string, deliveredQuantities: 
 // ============ ASSIGN TO DELIVERYMAN ============
 export async function assignOrderToDeliveryman(orderId: string, deliverymanId: string) {
   const session = await getSession();
-  if (!session) throw new Error("Non authentifiÃƒÂ©");
+  if (!session) throw new Error("Non authentifié");
 
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order) throw new Error("Commande introuvable");
 
   if (!checkOrderAccess(order, session)) {
-    throw new Error("AccÃƒÂ¨s refusÃƒÂ©");
+    throw new Error("Accès refusé");
   }
 
   const driver = await prisma.user.findUnique({ where: { id: deliverymanId } });
@@ -425,7 +438,7 @@ export async function assignOrderToDeliveryman(orderId: string, deliverymanId: s
   const history = Array.isArray(order.history) ? [...(order.history as any[])] : [];
   history.push({
     at: new Date().toISOString(),
-    action: `Livreur attribuÃƒÂ© : ${driver.name}`,
+    action: `Livreur attribué : ${driver.name}`,
     by: session.email,
     byName: session.name,
   });
@@ -1003,7 +1016,7 @@ export async function reprogramOrder(orderId: string, deliveryDate: string) {
     where: { id: orderId },
     data: {
       deliveryDate: new Date(deliveryDate),
-      type: "ReprogrammÃ©",
+      type: "Reprogrammé",
       status: "REPROGRAMMED",
       history
     }
@@ -1016,7 +1029,7 @@ export async function reprogramOrder(orderId: string, deliveryDate: string) {
 // Refreshing stats logic for new schema fields (paymentMethod)...
 export async function getSettlementStats(from?: string, to?: string, commercialId?: string, method?: string) {
   const session = await getSession();
-  if (!session || session.role !== 'admin') throw new Error("AccÃ¨s refusÃ©");
+  if (!session || session.role !== 'admin') throw new Error("Accès refusé");
 
   const where: any = {
     paymentMethod: method ? method : { not: null },

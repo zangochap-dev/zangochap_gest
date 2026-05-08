@@ -3,7 +3,7 @@
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/modules/auth/actions";
-import { uploadToS3 } from "@/lib/s3";
+import { uploadImage } from "@/lib/upload";
 import { Prisma } from "@prisma/client";
 import { getOrCreateDefaultWarehouse } from "@/modules/orders/actions";
 import { syncProductStock } from "@/lib/stock-sync";
@@ -112,7 +112,7 @@ export async function createProduct(data: {
       if (img.dataUrl.startsWith('http')) {
         imageUrls.push({ name: img.name, url: img.dataUrl });
       } else {
-        const url = await uploadToS3(img.dataUrl, img.name);
+        const url = await uploadImage(img.dataUrl, img.name);
         imageUrls.push({ name: img.name, url });
       }
     }

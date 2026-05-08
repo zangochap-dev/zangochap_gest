@@ -77,7 +77,7 @@ export default function ToProcessClient({ orders }: ToProcessClientProps) {
                   <td><span className="cell-price">{formatPrice(order.total)}</span></td>
                   <td><span className="cell-muted">{formatDate(order.createdAt)}</span></td>
                   <td style={{ textAlign: 'right' }}>
-                    <Link href={`/orders?ref=${order.ref}`} className="btn-orange">
+                    <Link href={`/zangochap-manager/orders?q=${order.ref}&status=to_process`} className="btn-orange">
                       Traiter <ArrowRight size={14} style={{ marginLeft: 4 }} />
                     </Link>
                   </td>

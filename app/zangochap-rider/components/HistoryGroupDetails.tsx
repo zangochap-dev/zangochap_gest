@@ -16,7 +16,7 @@ interface HistoryGroupDetailsProps {
 
 export function HistoryGroupDetails({ date, orders, onClose, onOpenOrder }: HistoryGroupDetailsProps) {
   const stats = {
-    total: orders.reduce((acc, o) => acc + o.total + o.deliveryFee - (o.discount || 0), 0),
+    total: orders.reduce((acc, o) => acc + o.total, 0),
     delivered: orders.filter(o => o.status === "DELIVERED").length,
     returned: orders.filter(o => o.status === "RETURNED" || o.status === "CANCELLED").length,
     partial: orders.filter(o => o.status === "PARTIALLY_DELIVERED").length,

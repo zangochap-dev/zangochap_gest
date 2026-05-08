@@ -9,6 +9,52 @@ import { useRouter } from "next/navigation";
 import { X, RefreshCcw, Save, Sparkles, Warehouse } from "lucide-react";
 import Topbar from "@/components/Topbar";
 
+/**
+ * Compresse et redimensionne une image côté client
+ */
+const compressImage = (file: File): Promise<string> => {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        
+        // Redimensionnement intelligent (max 1200px)
+        const MAX_SIZE = 1200;
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height *= MAX_SIZE / width;
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width *= MAX_SIZE / height;
+            height = MAX_SIZE;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          // Fond blanc pour les PNG transparents (évite le noir en WebP/JPG)
+          ctx.fillStyle = 'white';
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, height);
+        }
+        
+        // Conversion en WebP avec qualité 0.7 pour un poids plume
+        resolve(canvas.toDataURL('image/webp', 0.7));
+      };
+      img.src = e.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+};
+
 export default function NewProductClient({ warehouses }: { warehouses: any[] }) {
   const [isPending, startTransition] = useTransition();
   const { showToast } = useToast();
@@ -38,12 +84,13 @@ export default function NewProductClient({ warehouses }: { warehouses: any[] }) 
   // -- Handlers --
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = ev => {
-        setImages(prev => [...prev, { name: file.name, dataUrl: ev.target?.result as string }]);
-      };
-      reader.readAsDataURL(file);
+    files.forEach(async (file) => {
+      try {
+        const optimizedDataUrl = await compressImage(file);
+        setImages(prev => [...prev, { name: file.name, dataUrl: optimizedDataUrl }]);
+      } catch (err) {
+        console.error("Erreur d'optimisation image:", err);
+      }
     });
     e.target.value = '';
   };

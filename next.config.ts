@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
   experimental: {
     serverActions: {
       allowedOrigins: ["172.20.10.2", "localhost:3000", "russel-unclinging-incalculably.ngrok-free.dev"],

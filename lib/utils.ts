@@ -17,8 +17,8 @@ export function getImageUrl(url: string | null | undefined): string {
     return url;
   }
 
-  // Si c'est déjà un chemin relatif commençant par /
-  if (url.startsWith("/")) {
+  // Si c'est déjà un chemin relatif commençant par / ou une image en Base64 (data:)
+  if (url.startsWith("/") || url.startsWith("data:")) {
     return url;
   }
 

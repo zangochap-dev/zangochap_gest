@@ -276,6 +276,7 @@ export async function updateProduct(id: string, data: Partial<{
   isFeatured: boolean;
   variants?: Array<{ size: string; color: string; stock: number; location: string }>;
   images?: Array<{ name: string; dataUrl: string }>;
+  warehouseId?: string;
 }>) {
   await ensureAuth(["admin", "stock"]);
   const updateData: any = { ...data };
@@ -287,6 +288,7 @@ export async function updateProduct(id: string, data: Partial<{
   delete updateData.isPublished;
   delete updateData.variants;
   delete updateData.images;
+  delete updateData.warehouseId;
   
   if (data.price) updateData.price = new Prisma.Decimal(data.price);
   if (data.oldPrice !== undefined) updateData.oldPrice = data.oldPrice ? new Prisma.Decimal(data.oldPrice) : null;
@@ -338,7 +340,7 @@ export async function updateProduct(id: string, data: Partial<{
     // Delete existing variants
     await prisma.productVariant.deleteMany({ where: { productId: id } });
     
-    const defaultWarehouse = await getOrCreateDefaultWarehouse();
+    const targetWarehouseId = data.warehouseId || (await getOrCreateDefaultWarehouse()).id;
     
     // Create new variants
     for (const v of data.variants) {
@@ -351,12 +353,11 @@ export async function updateProduct(id: string, data: Partial<{
           location: v.location || '',
         }
       });
-
-      // Create stock level in default warehouse
+      // Create stock level in targeted warehouse
       await prisma.stockLevel.create({
         data: {
           variantId: newVariant.id,
-          warehouseId: defaultWarehouse.id,
+          warehouseId: targetWarehouseId,
           quantity: v.stock,
           position: v.location || null
         }

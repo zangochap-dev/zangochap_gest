@@ -4,6 +4,7 @@ import React, { useState, useMemo, useCallback } from "react";
 import { formatPrice } from "@/lib/constants";
 import { ShoppingBag, ChevronLeft, ShieldCheck, Truck, RotateCcw, Minus, Plus, Check, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { getImageUrl } from "@/lib/utils";
 import { useCart } from "@/lib/CartContext";
 import { useToast } from "@/components/Toast";
 
@@ -88,13 +89,13 @@ export default function ProductDetailClient({ product }: { product: any }) {
                 className={`w-[60px] h-[70px] lg:w-[72px] lg:h-[90px] border-2 bg-[#F5F3EF] cursor-pointer overflow-hidden p-0 transition-colors ${activeImg === idx ? 'border-[#1A1614]' : 'border-transparent'}`}
                 onClick={() => setActiveImg(idx)}
               >
-                <img src={img.url} alt="" loading="lazy" className="w-full h-full object-cover" />
+                <img src={getImageUrl(img.url)} alt="" loading="lazy" className="w-full h-full object-cover" />
               </button>
             ))}
           </div>
           <div className="aspect-[3/4] bg-[#F5F3EF] overflow-hidden relative order-1 lg:order-2 group">
             {product.images?.[activeImg] ? (
-              <img src={product.images[activeImg].url} alt={product.name} className="w-full h-full object-cover transition-transform duration-[6s] ease-[cubic-bezier(0.19,1,0.22,1)] group-hover:scale-105" />
+              <img src={getImageUrl(product.images[activeImg].url)} alt={product.name} className="w-full h-full object-cover transition-transform duration-[6s] ease-[cubic-bezier(0.19,1,0.22,1)] group-hover:scale-105" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-[100px] font-thin text-[#D5D0C8]">Z</div>
             )}

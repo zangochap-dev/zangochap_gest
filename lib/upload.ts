@@ -1,25 +1,23 @@
-import fs from "fs";
-import path from "path";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import sharp from "sharp";
 
 /**
- * Resolves the directory where media files should be stored.
- * Priority: 
- * 1. Process environment UPLOAD_DIR (useful for Docker/VPS absolute paths)
- * 2. Default project-relative public/uploads
+ * Cloudflare R2 Client Configuration
  */
-export function getUploadDir(): string {
-  if (process.env.UPLOAD_DIR) {
-    return process.env.UPLOAD_DIR;
-  }
-  return path.join(process.cwd(), "public", "uploads");
-}
+const r2Client = new S3Client({
+  region: "auto",
+  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  credentials: {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID || "",
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || "",
+  },
+});
 
 /**
- * Uploads an image locally to the uploads directory.
+ * Uploads an image to Cloudflare R2.
  * @param dataUrl Base64 data of the image
  * @param fileName Original filename
- * @returns The relative URL of the uploaded image
+ * @returns The public URL of the uploaded image
  */
 export async function uploadImage(dataUrl: string, fileName: string): Promise<string> {
   if (!dataUrl || !dataUrl.startsWith("data:image")) {
@@ -43,24 +41,28 @@ export async function uploadImage(dataUrl: string, fileName: string): Promise<st
     
     const finalFileName = `${timestamp}-${slugifiedName}.webp`;
     
-    const uploadDir = getUploadDir();
-    console.log(`[UPLOAD] Target directory: ${uploadDir}`);
-    
-    if (!fs.existsSync(uploadDir)) {
-      console.log(`[UPLOAD] Creating directory: ${uploadDir}`);
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
+    // Upload to R2
+    const uploadParams = {
+      Bucket: process.env.R2_BUCKET_NAME,
+      Key: finalFileName,
+      Body: optimizedBuffer,
+      ContentType: "image/webp",
+    };
 
-    const filePath = path.join(uploadDir, finalFileName);
-    console.log(`[UPLOAD] Writing to: ${filePath}`);
+    console.log(`[R2_UPLOAD] Uploading to bucket: ${process.env.R2_BUCKET_NAME} as ${finalFileName}`);
+    await r2Client.send(new PutObjectCommand(uploadParams));
     
-    fs.writeFileSync(filePath, optimizedBuffer);
-    console.log(`[UPLOAD] Success: ${finalFileName}`);
+    const publicUrl = `${process.env.R2_PUBLIC_URL}/${finalFileName}`;
+    console.log(`[R2_UPLOAD] Success: ${publicUrl}`);
 
-    // Return the relative URL (always served via /uploads in standard Next.js config)
-    return `/uploads/${finalFileName}`;
+    return publicUrl;
   } catch (error: any) {
-    console.error("[UPLOAD] Error:", error);
-    throw new Error(`Erreur d'upload: ${error.message || "Erreur inconnue"}`);
+    console.error("[R2_UPLOAD] Error:", error);
+    throw new Error(`Erreur d'upload Cloudflare R2: ${error.message || "Erreur inconnue"}`);
   }
+}
+
+// Keep the old function for local fallback if needed, but R2 is preferred now.
+export function getUploadDir(): string {
+  return ""; // Not needed for R2 but kept for API compatibility during transition
 }

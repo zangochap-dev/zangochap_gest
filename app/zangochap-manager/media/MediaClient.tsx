@@ -271,7 +271,10 @@ export default function MediaClient({ initialFiles }: MediaClientProps) {
                     <span>{selectedFile.url}</span>
                     <button 
                       onClick={() => {
-                        navigator.clipboard.writeText(window.location.origin + selectedFile.url);
+                        const fullUrl = selectedFile.url.startsWith('http') 
+                          ? selectedFile.url 
+                          : window.location.origin + selectedFile.url;
+                        navigator.clipboard.writeText(fullUrl);
                         showToast("URL copiée !", "success");
                       }}
                       className="copy-btn"

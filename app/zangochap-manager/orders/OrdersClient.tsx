@@ -884,7 +884,7 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
         >
           <div className="lightbox-content animate-zoom-in" onClick={e => e.stopPropagation()} style={{ position: 'relative', maxWidth: '90%', maxHeight: '90%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <img
-              src={previewImage}
+              src={getImageUrl(previewImage)}
               alt="Preview"
               style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 12, boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}
             />

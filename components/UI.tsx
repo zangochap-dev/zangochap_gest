@@ -1,5 +1,6 @@
 import React from "react";
 import { STATUS_LABELS, STATUS_CSS } from "@/lib/constants";
+import { getImageUrl } from "@/lib/utils";
 
 export const TableCard = ({ title, meta, children, actions, className }: { 
   title: string, 
@@ -89,8 +90,8 @@ export const ItemLine = ({ emoji, name, meta, price, image, onImageClick }: {
   onImageClick?: (url: string) => void;
 }) => (
   <div className="item-line">
-    <div className="item-emoji" onClick={() => image && onImageClick?.(image)} style={image ? { cursor: 'zoom-in', padding: 0, overflow: 'hidden', background: '#f8f9fa' } : undefined}>
-      {image ? <img src={image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (emoji || '📦')}
+    <div className="item-emoji" onClick={() => image && onImageClick?.(getImageUrl(image))} style={image ? { cursor: 'zoom-in', padding: 0, overflow: 'hidden', background: '#f8f9fa' } : undefined}>
+      {image ? <img src={getImageUrl(image)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (emoji || '📦')}
     </div>
     <div className="item-info">
       <div className="item-name">{name}</div>

@@ -1,73 +1,76 @@
 "use server";
 
-import fs from "fs";
-import path from "path";
+import { S3Client, ListObjectsV2Command, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { ensureAuth } from "../../lib/auth";
 import { revalidatePath } from "next/cache";
-
-import { uploadImage, getUploadDir } from "../../lib/upload";
+import { uploadImage } from "../../lib/upload";
 
 /**
- * Récupère la liste des fichiers dans le dossier public/uploads.
+ * Cloudflare R2 Client Configuration for Media Actions
+ */
+const r2Client = new S3Client({
+  region: "auto",
+  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  credentials: {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID || "",
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || "",
+  },
+});
+
+/**
+ * Récupère la liste des fichiers depuis Cloudflare R2.
  */
 export async function getMediaFiles() {
   await ensureAuth(["admin", "stock", "commercial"]);
-  const uploadDir = getUploadDir();
   
-  if (!fs.existsSync(uploadDir)) {
-    return [];
-  }
-
   try {
-    const files = fs.readdirSync(uploadDir);
-    const mediaFiles = [];
+    const command = new ListObjectsV2Command({
+      Bucket: process.env.R2_BUCKET_NAME,
+    });
 
-    for (const file of files) {
-      const filePath = path.join(uploadDir, file);
-      const stat = fs.lstatSync(filePath);
+    const response = await r2Client.send(command);
+    
+    if (!response.Contents) return [];
 
-      // On ne prend que les fichiers (pas les dossiers comme '2026')
-      if (stat.isFile()) {
-        mediaFiles.push({
-          name: file,
-          url: `/uploads/${file}`,
-          size: stat.size,
-          createdAt: stat.birthtime
-        });
-      }
-    }
+    const mediaFiles = response.Contents.map((file) => ({
+      name: file.Key!,
+      url: `${process.env.R2_PUBLIC_URL}/${file.Key}`,
+      size: file.Size || 0,
+      createdAt: file.LastModified || new Date(),
+    }));
 
     // Trier par date décroissante
     return mediaFiles.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   } catch (error) {
-    console.error("Erreur lors de la lecture des médias:", error);
+    console.error("Erreur lors de la lecture des médias R2:", error);
     return [];
   }
 }
 
 /**
- * Supprime un fichier média du dossier uploads.
+ * Supprime un fichier média depuis Cloudflare R2.
  */
 export async function deleteMediaFile(fileName: string) {
   await ensureAuth(["admin"]);
   
-  const filePath = path.join(getUploadDir(), fileName);
-  
   try {
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-      revalidatePath("/zangochap-manager/media");
-      return { success: true };
-    }
-    return { success: false, error: "Fichier non trouvé" };
+    const command = new DeleteObjectCommand({
+      Bucket: process.env.R2_BUCKET_NAME,
+      Key: fileName,
+    });
+
+    await r2Client.send(command);
+    
+    revalidatePath("/zangochap-manager/media");
+    return { success: true };
   } catch (error: any) {
-    console.error("Erreur suppression média:", error);
-    throw new Error(`Impossible de supprimer le fichier: ${error.message}`);
+    console.error("Erreur suppression média R2:", error);
+    return { success: false, error: error.message };
   }
 }
 
 /**
- * Upload un fichier média dans le dossier uploads.
+ * Upload un fichier média vers Cloudflare R2.
  */
 export async function uploadMediaFile(dataUrl: string, fileName: string) {
   await ensureAuth(["admin", "stock", "commercial"]);
@@ -77,7 +80,7 @@ export async function uploadMediaFile(dataUrl: string, fileName: string) {
     revalidatePath("/zangochap-manager/media");
     return { success: true, url };
   } catch (error: any) {
-    console.error("Erreur upload média:", error);
+    console.error("Erreur upload média R2:", error);
     return { success: false, error: error.message };
   }
 }

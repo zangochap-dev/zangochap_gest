@@ -3,8 +3,20 @@ import path from "path";
 import sharp from "sharp";
 
 /**
- * Uploads an image locally to the public/uploads directory.
- * Standardizes the storage to the 'uploads' folder as requested.
+ * Resolves the directory where media files should be stored.
+ * Priority: 
+ * 1. Process environment UPLOAD_DIR (useful for Docker/VPS absolute paths)
+ * 2. Default project-relative public/uploads
+ */
+export function getUploadDir(): string {
+  if (process.env.UPLOAD_DIR) {
+    return process.env.UPLOAD_DIR;
+  }
+  return path.join(process.cwd(), "public", "uploads");
+}
+
+/**
+ * Uploads an image locally to the uploads directory.
  * @param dataUrl Base64 data of the image
  * @param fileName Original filename
  * @returns The relative URL of the uploaded image
@@ -31,25 +43,24 @@ export async function uploadImage(dataUrl: string, fileName: string): Promise<st
     
     const finalFileName = `${timestamp}-${slugifiedName}.webp`;
     
-    // Ensure the uploads directory exists
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
-    console.log(`[UPLOAD] Resolving upload directory: ${uploadDir}`);
+    const uploadDir = getUploadDir();
+    console.log(`[UPLOAD] Target directory: ${uploadDir}`);
     
     if (!fs.existsSync(uploadDir)) {
-      console.log(`[UPLOAD] Directory does not exist, creating: ${uploadDir}`);
+      console.log(`[UPLOAD] Creating directory: ${uploadDir}`);
       fs.mkdirSync(uploadDir, { recursive: true });
     }
 
     const filePath = path.join(uploadDir, finalFileName);
-    console.log(`[UPLOAD] Writing file to: ${filePath}`);
+    console.log(`[UPLOAD] Writing to: ${filePath}`);
     
     fs.writeFileSync(filePath, optimizedBuffer);
-    console.log(`[UPLOAD] Success! File written: ${finalFileName}`);
+    console.log(`[UPLOAD] Success: ${finalFileName}`);
 
-    // Return the improved relative URL
+    // Return the relative URL (always served via /uploads in standard Next.js config)
     return `/uploads/${finalFileName}`;
   } catch (error: any) {
-    console.error("[UPLOAD] Failed:", error);
+    console.error("[UPLOAD] Error:", error);
     throw new Error(`Erreur d'upload: ${error.message || "Erreur inconnue"}`);
   }
 }

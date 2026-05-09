@@ -14,6 +14,7 @@ import Script from "next/script";
 import VariantSelectionModal from "@/components/VariantSelectionModal";
 import ProductCard from "@/components/ProductCard";
 import ReceiptModal from "@/components/ReceiptModal";
+import { getImageUrl } from "@/lib/utils";
 
 const ZANGOCHAP_LOGO_SVG = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%">
   <path d="M 70 60 Q 70 35 100 35 Q 130 35 130 60" stroke="#D4541C" stroke-width="9" fill="none" stroke-linecap="round"/>

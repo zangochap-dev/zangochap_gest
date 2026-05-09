@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/modules/auth/actions";
 import { ensureAuth } from "@/lib/auth";
-import { uploadImage } from "@/lib/upload";
+import { uploadImage, deleteImageFromR2 } from "@/lib/upload";
 import { Prisma } from "@prisma/client";
 import { getOrCreateDefaultWarehouse } from "@/modules/orders/actions";
 import { syncProductStock } from "@/lib/stock-sync";
@@ -371,6 +371,11 @@ export async function updateProduct(id: string, data: Partial<{
 
   // Handle Images
   if (data.images) {
+    // 1. Get current images to cleanup R2 later
+    const oldImages = await prisma.productImage.findMany({
+      where: { productId: id }
+    });
+
     // Delete old image records
     await prisma.productImage.deleteMany({ where: { productId: id } });
     
@@ -387,6 +392,24 @@ export async function updateProduct(id: string, data: Partial<{
     updateData.images = {
       create: imageUrls
     };
+
+    // 2. Cleanup R2 for removed images
+    const newUrls = imageUrls.map(i => i.url);
+    for (const oldImg of oldImages) {
+      if (!newUrls.includes(oldImg.url)) {
+        // Check if this image URL is used by other products before deleting from R2
+        const isUsedElsewhere = await prisma.productImage.findFirst({
+          where: {
+            url: oldImg.url,
+            productId: { not: id }
+          }
+        });
+
+        if (!isUsedElsewhere) {
+          await deleteImageFromR2(oldImg.url);
+        }
+      }
+    }
   }
 
   await prisma.product.update({
@@ -402,6 +425,29 @@ export async function updateProduct(id: string, data: Partial<{
 // ============ DELETE ============
 export async function deleteProduct(id: string) {
   await ensureAuth(["admin"]);
+
+  // Fetch product with images to cleanup R2
+  const product = await prisma.product.findUnique({
+    where: { id },
+    include: { images: true }
+  });
+
+  if (product) {
+    for (const img of product.images) {
+      // Check if this image URL is used by other products before deleting from R2
+      const isUsedElsewhere = await prisma.productImage.findFirst({
+        where: {
+          url: img.url,
+          productId: { not: id }
+        }
+      });
+
+      if (!isUsedElsewhere) {
+        await deleteImageFromR2(img.url);
+      }
+    }
+  }
+
   await prisma.product.delete({ where: { id } });
   revalidatePath("/zangochap-manager/products");
   revalidatePath("/");

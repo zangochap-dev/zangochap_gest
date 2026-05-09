@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import sharp from "sharp";
 
 /**
@@ -65,4 +65,33 @@ export async function uploadImage(dataUrl: string, fileName: string): Promise<st
 // Keep the old function for local fallback if needed, but R2 is preferred now.
 export function getUploadDir(): string {
   return ""; // Not needed for R2 but kept for API compatibility during transition
+}
+
+/**
+ * Supprime une image de Cloudflare R2.
+ * @param url URL complète de l'image ou nom du fichier (Key)
+ */
+export async function deleteImageFromR2(url: string): Promise<boolean> {
+  if (!url) return false;
+
+  try {
+    // Extraire la clé (Key) de l'URL si nécessaire
+    let key = url;
+    if (url.startsWith('http')) {
+      const publicUrl = process.env.R2_PUBLIC_URL || '';
+      key = url.replace(publicUrl + '/', '');
+    }
+
+    const deleteParams = {
+      Bucket: process.env.R2_BUCKET_NAME,
+      Key: key,
+    };
+
+    console.log(`[R2_DELETE] Deleting from bucket: ${process.env.R2_BUCKET_NAME}, key: ${key}`);
+    await r2Client.send(new DeleteObjectCommand(deleteParams));
+    return true;
+  } catch (error) {
+    console.error("[R2_DELETE] Error:", error);
+    return false;
+  }
 }

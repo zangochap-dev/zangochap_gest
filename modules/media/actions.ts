@@ -2,14 +2,16 @@
 
 import fs from "fs";
 import path from "path";
-import { ensureAuth } from "@/lib/auth";
+import { ensureAuth } from "../../lib/auth";
 import { revalidatePath } from "next/cache";
+
+import { uploadImage } from "../../lib/upload";
 
 /**
  * Récupère la liste des fichiers dans le dossier public/uploads.
  */
 export async function getMediaFiles() {
-  await ensureAuth(["admin", "stock"]);
+  await ensureAuth(["admin", "stock", "commercial"]);
   const uploadDir = path.join(process.cwd(), "public", "uploads");
   
   if (!fs.existsSync(uploadDir)) {
@@ -61,5 +63,21 @@ export async function deleteMediaFile(fileName: string) {
   } catch (error: any) {
     console.error("Erreur suppression média:", error);
     throw new Error(`Impossible de supprimer le fichier: ${error.message}`);
+  }
+}
+
+/**
+ * Upload un fichier média dans le dossier uploads.
+ */
+export async function uploadMediaFile(dataUrl: string, fileName: string) {
+  await ensureAuth(["admin", "stock", "commercial"]);
+  
+  try {
+    const url = await uploadImage(dataUrl, fileName);
+    revalidatePath("/zangochap-manager/media");
+    return { success: true, url };
+  } catch (error: any) {
+    console.error("Erreur upload média:", error);
+    return { success: false, error: error.message };
   }
 }

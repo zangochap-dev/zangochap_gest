@@ -14,12 +14,14 @@ import {
   CheckCircle2,
   AlertCircle,
   ExternalLink,
-  ChevronLeft
+  ChevronLeft,
+  Plus,
+  Upload
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
-import { deleteMediaFile } from "@/modules/media/actions";
+import { deleteMediaFile, uploadMediaFile } from "@/modules/media/actions";
 import { useToast } from "@/components/Toast";
 import Topbar from "@/components/Topbar";
 import Link from "next/link";
@@ -41,12 +43,51 @@ export default function MediaClient({ initialFiles }: MediaClientProps) {
   const [search, setSearch] = useState("");
   const [deleting, setDeleting] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<MediaFile | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const filteredFiles = useMemo(() => {
     return files.filter(f => 
       f.name.toLowerCase().includes(search.toLowerCase())
     );
   }, [files, search]);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      showToast("Seules les images sont autorisées", "error");
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const dataUrl = event.target?.result as string;
+        const res = await uploadMediaFile(dataUrl, file.name);
+        
+        if (res.success) {
+          showToast("Image ajoutée avec succès", "success");
+          // Refresh list
+          const newFile: MediaFile = {
+            name: res.url!.split('/').pop()!,
+            url: res.url!,
+            size: file.size,
+            createdAt: new Date()
+          };
+          setFiles(prev => [newFile, ...prev]);
+        } else {
+          showToast(res.error || "Erreur lors de l'upload", "error");
+        }
+        setIsUploading(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      showToast("Erreur lors de la lecture du fichier", "error");
+      setIsUploading(false);
+    }
+  };
 
   const handleDelete = async (fileName: string) => {
     try {
@@ -98,6 +139,23 @@ export default function MediaClient({ initialFiles }: MediaClientProps) {
                 <X size={14} />
               </button>
             )}
+          </div>
+          <div className="toolbar-actions">
+            <label className={`upload-btn ${isUploading ? 'loading' : ''}`}>
+              <input 
+                type="file" 
+                accept="image/*" 
+                onChange={handleUpload} 
+                disabled={isUploading}
+                style={{ display: 'none' }} 
+              />
+              {isUploading ? (
+                <div className="spinner-xs" />
+              ) : (
+                <Plus size={18} />
+              )}
+              <span>{isUploading ? "Envoi..." : "Ajouter"}</span>
+            </label>
           </div>
           
           <div className="toolbar-stats">
@@ -314,6 +372,33 @@ export default function MediaClient({ initialFiles }: MediaClientProps) {
           transform: translateY(-50%);
           color: #6B4838;
           opacity: 0.5;
+        }
+
+        .upload-btn {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 10px 18px;
+          background: #D4541C;
+          color: white;
+          border-radius: 12px;
+          font-size: 14px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.2s;
+          box-shadow: 0 4px 12px rgba(212, 84, 28, 0.2);
+        }
+
+        .upload-btn:hover {
+          background: #B33D0E;
+          transform: translateY(-2px);
+          box-shadow: 0 6px 16px rgba(212, 84, 28, 0.3);
+        }
+
+        .upload-btn.loading {
+          opacity: 0.7;
+          cursor: not-allowed;
+          transform: none;
         }
 
         .toolbar-stats {

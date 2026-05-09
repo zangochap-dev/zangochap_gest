@@ -5,14 +5,14 @@ import path from "path";
 import { ensureAuth } from "../../lib/auth";
 import { revalidatePath } from "next/cache";
 
-import { uploadImage } from "../../lib/upload";
+import { uploadImage, getUploadDir } from "../../lib/upload";
 
 /**
  * Récupère la liste des fichiers dans le dossier public/uploads.
  */
 export async function getMediaFiles() {
   await ensureAuth(["admin", "stock", "commercial"]);
-  const uploadDir = path.join(process.cwd(), "public", "uploads");
+  const uploadDir = getUploadDir();
   
   if (!fs.existsSync(uploadDir)) {
     return [];
@@ -51,7 +51,7 @@ export async function getMediaFiles() {
 export async function deleteMediaFile(fileName: string) {
   await ensureAuth(["admin"]);
   
-  const filePath = path.join(process.cwd(), "public", "uploads", fileName);
+  const filePath = path.join(getUploadDir(), fileName);
   
   try {
     if (fs.existsSync(filePath)) {

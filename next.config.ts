@@ -4,6 +4,7 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   experimental: {
     serverActions: {
+      bodySizeLimit: '20mb',
       allowedOrigins: [
         "172.20.10.2", 
         "localhost:3000", 

@@ -3,20 +3,13 @@
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/modules/auth/actions";
+import { ensureAuth } from "@/lib/auth";
 import { uploadImage } from "@/lib/upload";
 import { Prisma } from "@prisma/client";
 import { getOrCreateDefaultWarehouse } from "@/modules/orders/actions";
 import { syncProductStock } from "@/lib/stock-sync";
 import { getBestAutomaticDiscount, CartItem } from "@/lib/promo-engine";
 
-async function ensureAuth(roles?: string[]) {
-  const session = await getSession();
-  if (!session) throw new Error("Non authentifié");
-  if (roles && !roles.includes(session.role.toLowerCase())) {
-    throw new Error("Action non autorisée pour votre profil.");
-  }
-  return session;
-}
 
 function slugify(text: string) {
   return text

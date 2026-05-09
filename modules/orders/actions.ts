@@ -3,20 +3,13 @@
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getSession } from "../auth/actions";
+import { ensureAuth } from "@/lib/auth";
 import { syncProductStock } from "@/lib/stock-sync";
 import { uploadImage } from "@/lib/upload";
 import { COMMUNES } from "@/lib/constants";
 
 // ============ ACCESS HELPER ============
 // Triggering recompilation for new schema fields... (v1)
-async function ensureAuth(roles?: string[]) {
-  const session = await getSession();
-  if (!session) throw new Error("Non authentifié");
-  if (roles && !roles.includes(session.role.toLowerCase())) {
-    throw new Error("Action non autorisée pour votre profil.");
-  }
-  return session;
-}
 
 // ============ ACCESS HELPER ============
 function checkOrderAccess(order: any, session: any) {

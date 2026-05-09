@@ -11,7 +11,7 @@ import {
   LayoutDashboard, ShoppingBag, Package, Truck, Box, Users, BarChart3,
   Tag, Upload, FileText, LogOut, ClipboardList,
   AlertTriangle, Settings, MapPin, Store, ChevronRight, ChevronLeft, History, Wallet, Warehouse,
-  User, ExternalLink
+  User, ExternalLink, Image as ImageIcon
 } from "lucide-react";
 
 interface SidebarProps {
@@ -173,6 +173,7 @@ const NAV_FOR_ROLE: Record<string, (counts?: any) => NavSection[]> = {
         { label: 'Performance équipe', href: '/zangochap-manager/admin/performance', icon: <BarChart3 size={18} /> },
         { label: 'Top produits', href: '/zangochap-manager/admin/top-products', icon: <BarChart3 size={18} /> },
         { label: 'Configuration', href: '/zangochap-manager/admin/settings', icon: <Settings size={18} /> },
+        { label: 'Médiathèque', href: '/zangochap-manager/media', icon: <ImageIcon size={18} /> },
         { label: 'Importer données', href: '/zangochap-manager/admin/import', icon: <Upload size={18} /> },
       ]
     },

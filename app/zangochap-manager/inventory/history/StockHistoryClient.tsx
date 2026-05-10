@@ -64,8 +64,8 @@ export default function StockHistoryClient({ movements, warehouses }: StockHisto
       const matchesWarehouse = warehouseFilter === 'ALL' || m.warehouseId === warehouseFilter;
       
       const mDate = new Date(m.createdAt);
-      const matchesStart = !startDate || mDate >= new Date(startDate);
-      const matchesEnd = !endDate || mDate <= new Date(endDate + 'T23:59:59');
+      const matchesStart = !startDate || mDate >= new Date(startDate + 'T00:00:00');
+      const matchesEnd = !endDate || mDate <= new Date(endDate + 'T23:59:59.999');
 
       return matchesSearch && matchesType && matchesWarehouse && matchesStart && matchesEnd;
     });
@@ -89,6 +89,39 @@ export default function StockHistoryClient({ movements, warehouses }: StockHisto
     setWarehouseFilter('ALL');
     setStartDate('');
     setEndDate('');
+    setCurrentPage(1);
+  };
+
+  const setQuickDate = (range: 'today' | 'yesterday' | 'week' | 'month' | 'lastMonth' | 'all') => {
+    const now = new Date();
+    let from = '';
+    let to = now.toISOString().split('T')[0];
+
+    if (range === 'today') {
+      from = to;
+    } else if (range === 'yesterday') {
+      const y = new Date();
+      y.setDate(y.getDate() - 1);
+      from = y.toISOString().split('T')[0];
+      to = from;
+    } else if (range === 'week') {
+      const w = new Date();
+      w.setDate(w.getDate() - 7);
+      from = w.toISOString().split('T')[0];
+    } else if (range === 'month') {
+      from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    } else if (range === 'lastMonth') {
+      const lmFrom = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lmTo = new Date(now.getFullYear(), now.getMonth(), 0);
+      from = lmFrom.toISOString().split('T')[0];
+      to = lmTo.toISOString().split('T')[0];
+    } else if (range === 'all') {
+      from = '';
+      to = '';
+    }
+
+    setStartDate(from);
+    setEndDate(to);
     setCurrentPage(1);
   };
 
@@ -182,8 +215,17 @@ export default function StockHistoryClient({ movements, warehouses }: StockHisto
           </div>
 
           {/* DATES */}
-          <div>
-            <label style={{ fontSize: 10, fontWeight: 800, color: 'var(--brown-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 8 }}>Période (Du/Au)</label>
+          <div style={{ gridColumn: 'span 2' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <label style={{ fontSize: 10, fontWeight: 800, color: 'var(--brown-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>Période (Du/Au)</label>
+              <div style={{ display: 'flex', gap: 4, background: 'var(--cream)', padding: '2px 4px', borderRadius: 8, border: '1px solid var(--line)' }}>
+                <button className={`shortcut-btn ${!startDate && !endDate ? 'active' : ''}`} onClick={() => setQuickDate('all')}>Tout</button>
+                <button className="shortcut-btn" onClick={() => setQuickDate('today')}>Aujourd'hui</button>
+                <button className="shortcut-btn" onClick={() => setQuickDate('yesterday')}>Hier</button>
+                <button className="shortcut-btn" onClick={() => setQuickDate('week')}>7j</button>
+                <button className="shortcut-btn" onClick={() => setQuickDate('month')}>Mois</button>
+              </div>
+            </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <input 
                 type="date" 

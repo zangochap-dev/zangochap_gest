@@ -34,6 +34,38 @@ export default function PerformanceClient({ stats }: PerformanceClientProps) {
 
   const router = useRouter();
 
+  const setQuickDate = (range: 'today' | 'yesterday' | 'week' | 'month' | 'lastMonth' | 'all') => {
+    const now = new Date();
+    let from = '';
+    let to = now.toISOString().split('T')[0];
+
+    if (range === 'today') {
+      from = to;
+    } else if (range === 'yesterday') {
+      const y = new Date();
+      y.setDate(y.getDate() - 1);
+      from = y.toISOString().split('T')[0];
+      to = from;
+    } else if (range === 'week') {
+      const w = new Date();
+      w.setDate(w.getDate() - 7);
+      from = w.toISOString().split('T')[0];
+    } else if (range === 'month') {
+      from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    } else if (range === 'lastMonth') {
+      const lmFrom = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lmTo = new Date(now.getFullYear(), now.getMonth(), 0);
+      from = lmFrom.toISOString().split('T')[0];
+      to = lmTo.toISOString().split('T')[0];
+    } else if (range === 'all') {
+      from = '';
+      to = '';
+    }
+
+    setDateFrom(from);
+    setDateTo(to);
+  };
+
   // Update URL when dates change to trigger server re-fetch
   React.useEffect(() => {
     if (dateFrom || dateTo) {
@@ -71,8 +103,8 @@ export default function PerformanceClient({ stats }: PerformanceClientProps) {
     <div className="content animate-fade-in">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, gap: 16, flexWrap: 'wrap' }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 800, color: 'white', marginBottom: 4 }}>Équipe & Performance</h1>
-          <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>Analyse détaillée de l'activité par collaborateur.</p>
+          <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--ink)', marginBottom: 4 }}>Équipe & Performance</h1>
+          <p style={{ color: 'var(--brown-soft)', fontSize: 14 }}>Analyse détaillée de l'activité par collaborateur.</p>
         </div>
 
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
@@ -86,14 +118,17 @@ export default function PerformanceClient({ stats }: PerformanceClientProps) {
             />
           </div>
 
-          <div className="filters-bar" style={{ margin: 0, padding: '8px 12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Calendar size={14} color="var(--brown-soft)" />
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--brown)' }}>Période :</span>
+          <div className="filters-bar" style={{ margin: 0, padding: '4px 12px', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--cream)', padding: '2px 6px', borderRadius: 10, border: '1px solid var(--line)' }}>
+              <button className={`shortcut-btn ${!dateFrom && !dateTo ? 'active' : ''}`} onClick={() => setQuickDate('all')}>Tout</button>
+              <button className="shortcut-btn" onClick={() => setQuickDate('today')}>Aujourd'hui</button>
+              <button className="shortcut-btn" onClick={() => setQuickDate('month')}>Mois</button>
             </div>
-            <input type="date" className="filter-date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-            <span style={{ color: 'var(--line)' }}>→</span>
-            <input type="date" className="filter-date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <input type="date" className="filter-date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+              <span style={{ color: 'var(--line)', fontSize: 10 }}>→</span>
+              <input type="date" className="filter-date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+            </div>
           </div>
         </div>
       </div>

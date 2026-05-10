@@ -55,6 +55,7 @@ export default function OrdersClient({
   const [scope, setScope] = useState(searchParams.get('scope') || (user?.role === 'commercial' ? 'mine' : 'all'));
   const [dateFrom, setDateFrom] = useState(searchParams.get('from') || '');
   const [dateTo, setDateTo] = useState(searchParams.get('to') || '');
+  const [dateType, setDateType] = useState(searchParams.get('dateType') || 'created');
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
 
@@ -89,6 +90,7 @@ export default function OrdersClient({
     if (scope !== (user?.role === 'commercial' ? 'mine' : 'all')) params.set('scope', scope); else params.delete('scope');
     if (dateFrom) params.set('from', dateFrom); else params.delete('from');
     if (dateTo) params.set('to', dateTo); else params.delete('to');
+    if (dateType !== 'created') params.set('dateType', dateType); else params.delete('dateType');
     if (debouncedSearch) params.set('q', debouncedSearch); else params.delete('q');
 
     // Always reset to page 1 on filter change
@@ -102,6 +104,38 @@ export default function OrdersClient({
     const params = new URLSearchParams(searchParams.toString());
     params.set('page', page.toString());
     router.push(`?${params.toString()}`);
+  };
+
+  const setQuickDate = (range: 'today' | 'yesterday' | 'week' | 'month' | 'lastMonth' | 'all') => {
+    const now = new Date();
+    let from = '';
+    let to = now.toISOString().split('T')[0];
+
+    if (range === 'today') {
+      from = to;
+    } else if (range === 'yesterday') {
+      const y = new Date();
+      y.setDate(y.getDate() - 1);
+      from = y.toISOString().split('T')[0];
+      to = from;
+    } else if (range === 'week') {
+      const w = new Date();
+      w.setDate(w.getDate() - 7);
+      from = w.toISOString().split('T')[0];
+    } else if (range === 'month') {
+      from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    } else if (range === 'lastMonth') {
+      const lmFrom = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lmTo = new Date(now.getFullYear(), now.getMonth(), 0);
+      from = lmFrom.toISOString().split('T')[0];
+      to = lmTo.toISOString().split('T')[0];
+    } else if (range === 'all') {
+      from = '';
+      to = '';
+    }
+
+    setDateFrom(from);
+    setDateTo(to);
   };
 
   const paginatedOrders = initialOrders;
@@ -656,7 +690,6 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
             {f.label}
           </button>
         ))}
-        <div className="filter-spacer" />
         <select className="filter-select" value={communeFilter} onChange={e => setCommuneFilter(e.target.value)}>
           <option value="all">Toutes communes</option>
           {Object.keys(COMMUNES).map(c => <option key={c} value={c}>{c}</option>)}
@@ -667,8 +700,22 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
             <option value="all">Toutes les commandes</option>
           </select>
         )}
-        <input type="date" className="filter-date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-        <input type="date" className="filter-date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+        <div className="filter-spacer" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--cream)', padding: '2px 6px', borderRadius: 10, border: '1px solid var(--line)' }}>
+          <button className={`shortcut-btn ${!dateFrom && !dateTo ? 'active' : ''}`} onClick={() => setQuickDate('all')}>Tout</button>
+          <button className="shortcut-btn" onClick={() => setQuickDate('today')}>Aujourd'hui</button>
+          <button className="shortcut-btn" onClick={() => setQuickDate('yesterday')}>Hier</button>
+          <button className="shortcut-btn" onClick={() => setQuickDate('week')}>7 jours</button>
+          <button className="shortcut-btn" onClick={() => setQuickDate('month')}>Ce mois</button>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <select className="filter-select" value={dateType} onChange={e => setDateType(e.target.value)} style={{ width: 110, fontSize: 11 }}>
+            <option value="created">Création</option>
+            <option value="delivery">Livraison</option>
+          </select>
+          <input type="date" className="filter-date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+          <input type="date" className="filter-date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+        </div>
         <button className="btn-secondary" onClick={() => router.refresh()} title="Actualiser" style={{ padding: '8px 10px' }}>
           <RefreshCw size={14} />
         </button>

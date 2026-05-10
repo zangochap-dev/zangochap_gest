@@ -752,6 +752,28 @@
     border-color: var(--ink);
   }
 
+  .shortcut-btn {
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: var(--brown-soft);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .shortcut-btn:hover {
+    color: var(--ink);
+    background: white;
+  }
+  .shortcut-btn.active {
+    color: var(--orange);
+    background: white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+
   .filter-select,
   .filter-date {
     padding: 6px 10px;

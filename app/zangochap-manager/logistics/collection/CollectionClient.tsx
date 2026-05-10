@@ -144,12 +144,8 @@ export default function CollectionClient({ toCollect, user, categories = [], war
       // 7. Date Filter
       if (dateFrom || dateTo) {
         const orderDate = new Date(tc.order.createdAt);
-        if (dateFrom && orderDate < new Date(dateFrom)) return false;
-        if (dateTo) {
-          const end = new Date(dateTo);
-          end.setHours(23, 59, 59);
-          if (orderDate > end) return false;
-        }
+        if (dateFrom && orderDate < new Date(dateFrom + 'T00:00:00')) return false;
+        if (dateTo && orderDate > new Date(dateTo + 'T23:59:59.999')) return false;
       }
 
       return true;
@@ -185,129 +181,113 @@ export default function CollectionClient({ toCollect, user, categories = [], war
       {/* COMMAND CENTER (FILTERS) */}
       <div className="command-center" style={{
         background: 'white',
-        borderRadius: 24,
+        borderRadius: 16,
         border: '1px solid var(--line)',
-        boxShadow: '0 10px 30px -10px rgba(0,0,0,0.05)',
         marginBottom: 24,
-        overflow: 'hidden'
+        padding: '12px 16px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 12
       }}>
-        {/* Top Row: Search & Primary Selects */}
-        <div style={{ display: 'flex', gap: 12, padding: 20, borderBottom: '1px solid var(--line)', flexWrap: 'wrap', alignItems: 'center' }}>
-          <div style={{ position: 'relative', flex: 2, minWidth: 250 }}>
-            <input
-              type="text"
-              className="field-input"
-              placeholder="Rechercher par réf, produit ou client..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              style={{ paddingLeft: 40, height: 48, borderRadius: 14, fontSize: 14, border: '2px solid var(--cream-2)', background: 'var(--cream-2)' }}
-            />
-            <div style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}>
-              <Package size={18} />
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', gap: 10, flex: 1, minWidth: 300 }}>
-            <select
-              className="field-input"
-              style={{ height: 48, borderRadius: 14, border: '2px solid var(--cream-2)', background: 'var(--cream-2)', fontWeight: 600 }}
-              value={categoryId}
-              onChange={e => setCategoryId(e.target.value)}
-            >
-              <option value="all">📁 Toutes catégories</option>
-              {categories.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-
-            <select
-              className="field-input"
-              style={{ height: 48, borderRadius: 14, border: '2px solid var(--cream-2)', background: 'var(--cream-2)', fontWeight: 600 }}
-              value={warehouseId}
-              onChange={e => setWarehouseId(e.target.value)}
-            >
-              <option value="all">🏢 Tous entrepôts</option>
-              {warehouses.map((w: any) => <option key={w.id} value={w.id}>{w.name}</option>)}
-            </select>
-          </div>
-        </div>
-
-        {/* Middle Row: Dates & Presets */}
-        <div style={{ display: 'flex', gap: 20, padding: '12px 20px', background: 'var(--cream-soft)', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--brown-soft)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Période :</div>
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center', background: 'white', padding: '4px 8px', borderRadius: 10, border: '1px solid var(--line)' }}>
-              <input type="date" style={{ border: 'none', fontSize: 12, fontWeight: 600, outline: 'none' }} value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-              <span style={{ opacity: 0.3 }}>→</span>
-              <input type="date" style={{ border: 'none', fontSize: 12, fontWeight: 600, outline: 'none' }} value={dateTo} onChange={e => setDateTo(e.target.value)} />
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', gap: 6 }}>
-            {['today', 'yesterday', 'week'].map(p => (
+        {/* ROW 1: STATUS & SEARCH */}
+        <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 4, background: 'var(--cream)', padding: 4, borderRadius: 10, border: '1px solid var(--line)' }}>
+            {[
+              { id: 'all', label: 'À collecter', color: 'var(--orange)' },
+              { id: 'collected', label: 'Collectés', color: 'var(--green)' },
+              { id: 'unavailable', label: 'Indispos', color: 'var(--red)' },
+              { id: 'alternative', label: 'Alts', color: 'var(--blue)' }
+            ].map(t => (
               <button
-                key={p}
-                onClick={() => setDatePreset(p)}
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: 8,
+                key={t.id}
+                onClick={() => setFilter(t.id)}
+                className={`shortcut-btn ${filter === t.id ? 'active' : ''}`}
+                style={{ 
+                  padding: '6px 12px', 
                   fontSize: 11,
-                  fontWeight: 700,
-                  background: 'white',
-                  border: '1px solid var(--line)',
-                  cursor: 'pointer',
-                  transition: '0.2s'
+                  color: filter === t.id ? t.color : 'var(--brown-soft)',
+                  background: filter === t.id ? 'white' : 'transparent'
                 }}
-                onMouseOver={e => e.currentTarget.style.background = 'var(--cream-2)'}
-                onMouseOut={e => e.currentTarget.style.background = 'white'}
               >
-                {p === 'today' ? "Aujourd'hui" : p === 'yesterday' ? "Hier" : "7 jours"}
+                {t.label} <span style={{ opacity: 0.6, marginLeft: 2 }}>({counts[t.id as keyof typeof counts]})</span>
               </button>
             ))}
           </div>
 
-          <div style={{ flex: 1 }}></div>
-
-          {(search || categoryId !== 'all' || warehouseId !== 'all' || dateFrom || dateTo) && (
-            <button
-              onClick={() => { setSearch(''); setCategoryId('all'); setWarehouseId('all'); setDateFrom(''); setDateTo(''); setFilter('all'); }}
-              style={{ background: 'var(--red-soft)', color: 'var(--red)', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 800, cursor: 'pointer' }}
-            >
-              RÉINITIALISER LES FILTRES
-            </button>
-          )}
+          <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+            <input
+              type="text"
+              className="field-input"
+              placeholder="Rechercher réf, produit, client..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{ 
+                paddingLeft: 36, 
+                height: 38, 
+                borderRadius: 10, 
+                fontSize: 13, 
+                border: '1px solid var(--line)',
+                background: 'var(--cream-soft)'
+              }}
+            />
+            <div style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }}>
+              <Package size={14} />
+            </div>
+            {search && (
+              <button 
+                onClick={() => setSearch('')}
+                style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', cursor: 'pointer', opacity: 0.5 }}
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Bottom Row: Status Tabs */}
-        <div style={{ display: 'flex', gap: 4, padding: '12px 20px', background: 'white' }}>
-          {[
-            { id: 'all', label: 'À collecter', count: counts.all, color: 'var(--orange)' },
-            { id: 'collected', label: 'Collectés', count: counts.collected, color: 'var(--green)' },
-            { id: 'unavailable', label: 'Indisponibles', count: counts.unavailable, color: 'var(--red)' },
-            { id: 'alternative', label: 'Alternatives', count: counts.alternative, color: 'var(--blue)' }
-          ].map(t => (
-            <button
-              key={t.id}
-              onClick={() => setFilter(t.id)}
-              style={{
-                flex: 1,
-                padding: '12px',
-                borderRadius: 12,
-                border: 'none',
-                background: filter === t.id ? `${t.color}-soft` : 'transparent',
-                color: filter === t.id ? t.color : 'var(--brown-soft)',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 4,
-                cursor: 'pointer',
-                transition: '0.3s all cubic-bezier(0.4, 0, 0.2, 1)',
-                position: 'relative'
-              }}
+        {/* ROW 2: ADVANCED FILTERS & DATES */}
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', paddingTop: 8, borderTop: '1px solid var(--cream-2)' }}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <select
+              className="filter-select"
+              value={categoryId}
+              onChange={e => setCategoryId(e.target.value)}
+              style={{ minWidth: 140, height: 34, fontSize: 12 }}
             >
-              <div style={{ fontSize: 14, fontWeight: filter === t.id ? 800 : 600 }}>{t.label}</div>
-              <div style={{ fontSize: 11, opacity: 0.7, fontWeight: 700 }}>{t.count} article(s)</div>
-              {filter === t.id && <div style={{ position: 'absolute', bottom: 0, width: 20, height: 3, background: t.color, borderRadius: '3px 3px 0 0' }} />}
-            </button>
-          ))}
+              <option value="all">📁 Catégories</option>
+              {categories.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+
+            <select
+              className="filter-select"
+              value={warehouseId}
+              onChange={e => setWarehouseId(e.target.value)}
+              style={{ minWidth: 140, height: 34, fontSize: 12 }}
+            >
+              <option value="all">🏢 Entrepôts</option>
+              {warehouses.map((w: any) => <option key={w.id} value={w.id}>{w.name}</option>)}
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+            <div style={{ display: 'flex', gap: 4, background: 'var(--cream)', padding: 2, borderRadius: 8, border: '1px solid var(--line)' }}>
+              <button className="shortcut-btn" onClick={() => setDatePreset('all')} style={{ padding: '4px 8px', fontSize: 10 }}>Tout</button>
+              <button className="shortcut-btn" onClick={() => setDatePreset('today')} style={{ padding: '4px 8px', fontSize: 10 }}>Aujourd'hui</button>
+              <button className="shortcut-btn" onClick={() => setDatePreset('week')} style={{ padding: '4px 8px', fontSize: 10 }}>7j</button>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <input type="date" className="filter-date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={{ height: 34, fontSize: 11 }} />
+              <span style={{ opacity: 0.3, fontSize: 10 }}>→</span>
+              <input type="date" className="filter-date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={{ height: 34, fontSize: 11 }} />
+            </div>
+            {(search || categoryId !== 'all' || warehouseId !== 'all' || dateFrom || dateTo || filter !== 'all') && (
+              <button
+                onClick={() => { setSearch(''); setCategoryId('all'); setWarehouseId('all'); setDateFrom(''); setDateTo(''); setFilter('all'); }}
+                style={{ background: 'var(--red-soft)', color: 'var(--red)', border: 'none', padding: '6px 12px', borderRadius: 8, fontSize: 10, fontWeight: 800, cursor: 'pointer', textTransform: 'uppercase' }}
+              >
+                Reset
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

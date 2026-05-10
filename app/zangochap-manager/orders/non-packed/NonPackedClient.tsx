@@ -149,6 +149,7 @@ export default function NonPackedClient({ notPacked, withAlternatives, user }: {
                     <ItemLine
                       key={i}
                       emoji={item.emoji}
+                      image={item.image}
                       name={item.name}
                       meta={`Taille ${item.size} · ${item.color} · Qté ${item.qty}`}
                       price={formatPrice(item.price * item.qty)}

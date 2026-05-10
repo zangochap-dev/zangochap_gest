@@ -41,12 +41,12 @@ export default function StockHistoryClient({ movements, warehouses }: StockHisto
   // --- Helpers ---
   const getTypeBadge = (type: string) => {
     switch (type) {
-      case 'SALE': return { color: '#EF4444', label: 'Vente', icon: <ArrowUpRight size={12} />, bg: '#FEF2F2' };
-      case 'RESTOCK': return { color: '#22C55E', label: 'Réappro.', icon: <ArrowDownLeft size={12} />, bg: '#F0FDF4' };
-      case 'RETURN': return { color: '#F97316', label: 'Retour', icon: <ArrowDownLeft size={12} />, bg: '#FFF7ED' };
-      case 'EXCHANGE': return { color: '#3B82F6', label: 'Échange', icon: <History size={12} />, bg: '#EFF6FF' };
+      case 'SALE': return { color: 'var(--red)', label: 'Vente', icon: <ArrowUpRight size={12} />, bg: 'var(--red-soft)' };
+      case 'RESTOCK': return { color: 'var(--green)', label: 'Réappro.', icon: <ArrowDownLeft size={12} />, bg: 'var(--green-soft)' };
+      case 'RETURN': return { color: 'var(--amber)', label: 'Retour', icon: <ArrowDownLeft size={12} />, bg: 'var(--amber-soft)' };
+      case 'EXCHANGE': return { color: 'var(--blue)', label: 'Échange', icon: <History size={12} />, bg: 'var(--blue-soft)' };
       case 'ADJUSTMENT': return { color: '#6366F1', label: 'Ajustement', icon: <AlertCircle size={12} />, bg: '#EEF2FF' };
-      default: return { color: '#64748B', label: type, icon: <AlertCircle size={12} />, bg: '#F8FAFC' };
+      default: return { color: 'var(--brown-soft)', label: type, icon: <AlertCircle size={12} />, bg: 'var(--cream)' };
     }
   };
 
@@ -100,12 +100,12 @@ export default function StockHistoryClient({ movements, warehouses }: StockHisto
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 32 }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(249,115,22,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F97316' }}>
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--orange-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--orange)' }}>
               <History size={24} />
             </div>
-            <h1 style={{ fontSize: 28, fontWeight: 900, color: 'white', margin: 0, letterSpacing: '-0.02em' }}>Historique des Stocks</h1>
+            <h1 style={{ fontSize: 28, fontWeight: 900, color: 'var(--ink)', margin: 0, letterSpacing: '-0.02em' }}>Historique des Stocks</h1>
           </div>
-          <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, margin: 0 }}>Traçabilité et audit en temps réel de votre inventaire.</p>
+          <p style={{ color: 'var(--brown-soft)', fontSize: 14, margin: 0 }}>Traçabilité et audit en temps réel de votre inventaire.</p>
         </div>
         <div style={{ display: 'flex', gap: 12 }}>
            {/* Add export button here if needed */}
@@ -114,19 +114,19 @@ export default function StockHistoryClient({ movements, warehouses }: StockHisto
 
       {/* FILTERS CARD */}
       <div style={{ 
-        background: 'rgba(255,255,255,0.03)', 
-        border: '1px solid rgba(255,255,255,0.08)', 
+        background: 'white', 
+        border: '1px solid var(--line)', 
         borderRadius: 20, 
         padding: '20px 24px',
         marginBottom: 24,
-        backdropFilter: 'blur(10px)'
+        boxShadow: 'var(--shadow-sm)'
       }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
           {/* SEARCH */}
           <div style={{ position: 'relative' }}>
-            <label style={{ fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 8 }}>Recherche</label>
+            <label style={{ fontSize: 10, fontWeight: 800, color: 'var(--brown-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 8 }}>Recherche</label>
             <div style={{ position: 'relative' }}>
-              <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.3)' }} />
+              <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--brown-soft)', opacity: 0.5 }} />
               <input 
                 type="text" 
                 placeholder="Produit, auteur, CMD..." 
@@ -134,8 +134,8 @@ export default function StockHistoryClient({ movements, warehouses }: StockHisto
                 onChange={e => { setSearch(e.target.value); setCurrentPage(1); }}
                 style={{ 
                   width: '100%', padding: '10px 12px 10px 36px', borderRadius: 10, 
-                  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-                  color: 'white', fontSize: 13, outline: 'none'
+                  background: 'var(--cream)', border: '1px solid var(--line)',
+                  color: 'var(--ink)', fontSize: 13, outline: 'none'
                 }}
               />
             </div>
@@ -143,14 +143,14 @@ export default function StockHistoryClient({ movements, warehouses }: StockHisto
 
           {/* TYPE */}
           <div>
-            <label style={{ fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 8 }}>Type de mouvement</label>
+            <label style={{ fontSize: 10, fontWeight: 800, color: 'var(--brown-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 8 }}>Type de mouvement</label>
             <select 
               value={typeFilter}
               onChange={e => { setTypeFilter(e.target.value); setCurrentPage(1); }}
               style={{ 
                 width: '100%', padding: '10px 12px', borderRadius: 10, 
-                background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-                color: 'white', fontSize: 13, outline: 'none'
+                background: 'var(--cream)', border: '1px solid var(--line)',
+                color: 'var(--ink)', fontSize: 13, outline: 'none'
               }}
             >
               <option value="ALL">Tous les types</option>
@@ -164,14 +164,14 @@ export default function StockHistoryClient({ movements, warehouses }: StockHisto
 
           {/* WAREHOUSE */}
           <div>
-            <label style={{ fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 8 }}>Entrepôt</label>
+            <label style={{ fontSize: 10, fontWeight: 800, color: 'var(--brown-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 8 }}>Entrepôt</label>
             <select 
               value={warehouseFilter}
               onChange={e => { setWarehouseFilter(e.target.value); setCurrentPage(1); }}
               style={{ 
                 width: '100%', padding: '10px 12px', borderRadius: 10, 
-                background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-                color: 'white', fontSize: 13, outline: 'none'
+                background: 'var(--cream)', border: '1px solid var(--line)',
+                color: 'var(--ink)', fontSize: 13, outline: 'none'
               }}
             >
               <option value="ALL">Tous les sites</option>
@@ -183,7 +183,7 @@ export default function StockHistoryClient({ movements, warehouses }: StockHisto
 
           {/* DATES */}
           <div>
-            <label style={{ fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 8 }}>Période (Du/Au)</label>
+            <label style={{ fontSize: 10, fontWeight: 800, color: 'var(--brown-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 8 }}>Période (Du/Au)</label>
             <div style={{ display: 'flex', gap: 8 }}>
               <input 
                 type="date" 
@@ -191,8 +191,8 @@ export default function StockHistoryClient({ movements, warehouses }: StockHisto
                 onChange={e => { setStartDate(e.target.value); setCurrentPage(1); }}
                 style={{ 
                   flex: 1, padding: '10px 8px', borderRadius: 10, 
-                  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-                  color: 'white', fontSize: 12, outline: 'none'
+                  background: 'var(--cream)', border: '1px solid var(--line)',
+                  color: 'var(--ink)', fontSize: 12, outline: 'none'
                 }}
               />
               <input 
@@ -201,8 +201,8 @@ export default function StockHistoryClient({ movements, warehouses }: StockHisto
                 onChange={e => { setEndDate(e.target.value); setCurrentPage(1); }}
                 style={{ 
                   flex: 1, padding: '10px 8px', borderRadius: 10, 
-                  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-                  color: 'white', fontSize: 12, outline: 'none'
+                  background: 'var(--cream)', border: '1px solid var(--line)',
+                  color: 'var(--ink)', fontSize: 12, outline: 'none'
                 }}
               />
             </div>
@@ -280,7 +280,7 @@ export default function StockHistoryClient({ movements, warehouses }: StockHisto
                         </td>
                         <td style={{ padding: '16px 20px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-                            <WarehouseIcon size={14} style={{ color: '#F97316' }} />
+                            <WarehouseIcon size={14} style={{ color: 'var(--orange)' }} />
                             <span className="cell-strong">{m.warehouse?.name || 'Inconnu'}</span>
                           </div>
                         </td>
@@ -299,13 +299,13 @@ export default function StockHistoryClient({ movements, warehouses }: StockHisto
                           <div style={{ 
                             fontSize: 16, 
                             fontWeight: 900, 
-                            color: m.quantity > 0 ? '#22C55E' : '#EF4444',
+                            color: m.quantity > 0 ? 'var(--green)' : 'var(--red)',
                             display: 'inline-flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             width: 40, height: 32,
                             borderRadius: 8,
-                            background: m.quantity > 0 ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)'
+                            background: m.quantity > 0 ? 'var(--green-soft)' : 'var(--red-soft)'
                           }}>
                             {m.quantity > 0 ? `+${m.quantity}` : m.quantity}
                           </div>
@@ -321,13 +321,13 @@ export default function StockHistoryClient({ movements, warehouses }: StockHisto
                         <td style={{ padding: '16px 20px' }}>
                           {m.orderId ? (
                             <div style={{ 
-                              color: '#3B82F6', 
+                              color: 'var(--blue)', 
                               fontWeight: 700, 
                               fontSize: 12, 
                               display: 'flex', 
                               alignItems: 'center', 
                               gap: 4,
-                              background: 'rgba(59,130,246,0.1)',
+                              background: 'var(--blue-soft)',
                               padding: '4px 8px',
                               borderRadius: 6,
                               width: 'fit-content'

@@ -15,6 +15,7 @@ interface PageProps {
     q?: string;
     from?: string;
     to?: string;
+    dateType?: string;
     scope?: string;
   }>;
 }

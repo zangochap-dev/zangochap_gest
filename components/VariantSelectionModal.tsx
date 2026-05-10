@@ -4,6 +4,7 @@ import React, { useMemo } from "react";
 import Modal from "@/components/Modal";
 import { formatPrice } from "@/lib/constants";
 import { Minus, Plus, Filter, RotateCcw, Info, Check, Maximize } from "lucide-react";
+import { getImageUrl } from "@/lib/utils";
 
 interface VariantSelectionModalProps {
   product: any;
@@ -55,10 +56,10 @@ export default function VariantSelectionModal({
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div className="pos-modal-icon" style={{ background: 'var(--cream-2)', width: 44, height: 44, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, overflow: 'hidden', border: '1px solid var(--line)', cursor: 'zoom-in' }} onClick={() => {
             const img = product.images?.[0]?.dataUrl || product.images?.[0]?.url;
-            if (img) setPreviewImage(img);
+            if (img) setPreviewImage(getImageUrl(img));
           }}>
             {product.images?.[0]?.dataUrl || product.images?.[0]?.url ? (
-              <img src={product.images?.[0]?.dataUrl || product.images?.[0]?.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <img src={getImageUrl(product.images?.[0]?.dataUrl || product.images?.[0]?.url)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             ) : (
               product.emoji || '📦'
             )}

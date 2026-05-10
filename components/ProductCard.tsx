@@ -35,7 +35,6 @@ export default function ProductCard({ product: p, onAdd, onPreview }: ProductCar
         boxShadow: 'var(--shadow-sm)',
         display: 'flex',
         flexDirection: 'column',
-        opacity: isOos ? 0.6 : 1
       }}
     >
       <div 

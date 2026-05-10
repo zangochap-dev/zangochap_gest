@@ -9,6 +9,7 @@ import { COMMUNES, formatPrice, DELIVERY_FEES } from "@/lib/constants";
 import { getCustomers } from "@/modules/crm/actions";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Search, X, ShoppingCart, User, Plus, Minus, Trash2, CreditCard, Filter, RotateCcw, Info, Check, Maximize, Sparkles, RotateCw, Package, ArrowLeft, Tag } from "lucide-react";
+import { getImageUrl } from "@/lib/utils";
 import VariantSelectionModal from "@/components/VariantSelectionModal";
 import ProductCard from "@/components/ProductCard";
 import Link from "next/link";
@@ -237,7 +238,7 @@ export default function NewOrderClient({ products, user, categories }: NewOrderC
         size: selectedVariant.size,
         color: selectedVariant.color,
         emoji: selectingProduct.emoji || '📦',
-        image: selectingProduct.images?.[0]?.dataUrl || selectingProduct.images?.[0]?.url
+        image: getImageUrl(selectingProduct.images?.[0]?.dataUrl || selectingProduct.images?.[0]?.url)
       }]);
     }
     showToast(`${selectingProduct.name} ajouté`, 'success');
@@ -266,7 +267,7 @@ export default function NewOrderClient({ products, user, categories }: NewOrderC
         size: variant.size,
         color: variant.color,
         emoji: product.emoji || '📦',
-        image: product.images?.[0]?.dataUrl || product.images?.[0]?.url
+        image: getImageUrl(product.images?.[0]?.dataUrl || product.images?.[0]?.url)
       }]);
     }
     showToast(`${product.name} (${variant.size}/${variant.color}) ajouté ✓`, 'success');
@@ -287,7 +288,7 @@ export default function NewOrderClient({ products, user, categories }: NewOrderC
         size: '',
         color: '',
         emoji: product.emoji || '📦',
-        image: product.images?.[0]?.dataUrl || product.images?.[0]?.url
+        image: getImageUrl(product.images?.[0]?.dataUrl || product.images?.[0]?.url)
       }]);
     }
     showToast(`${product.name} ajouté`, 'success');

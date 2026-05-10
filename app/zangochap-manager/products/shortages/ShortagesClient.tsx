@@ -6,6 +6,7 @@ import { useToast } from "@/components/Toast";
 import { markProductSent } from "@/modules/products/actions";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Image as ImageIcon } from "lucide-react";
+import { getImageUrl } from "@/lib/utils";
 
 export default function ShortagesClient({ oosData }: { oosData: Array<{ product: any; waitingOrders: any[] }> }) {
   const [isPending, startTransition] = useTransition();
@@ -40,7 +41,7 @@ export default function ShortagesClient({ oosData }: { oosData: Array<{ product:
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       {product.images?.[0] ? (
-                        <img src={product.images[0].dataUrl} alt="" style={{ width: 48, height: 48, borderRadius: 10, objectFit: 'cover', border: '1px solid var(--line)' }} />
+                        <img src={getImageUrl(product.images[0].url)} alt="" style={{ width: 48, height: 48, borderRadius: 10, objectFit: 'cover', border: '1px solid var(--line)' }} />
                       ) : (
                         <div style={{ width: 48, height: 48, borderRadius: 10, background: 'var(--cream-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>📦</div>
                       )}

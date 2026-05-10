@@ -4,6 +4,7 @@ import React from "react";
 import Image from "next/image";
 import { Plus } from "lucide-react";
 import { formatPrice } from "@/lib/constants";
+import { getImageUrl } from "@/lib/utils";
 
 interface ProductCardProps {
   product: any;
@@ -19,7 +20,7 @@ export default function ProductCard({ product: p, onAdd, onPreview }: ProductCar
   const isOos = realStock === 0;
   const isLow = realStock > 0 && realStock <= (p.lowStockThreshold || 5);
   const hasVariants = p.variants?.length > 0;
-  const image = p.images?.[0]?.dataUrl || p.images?.[0]?.url;
+  const image = getImageUrl(p.images?.[0]?.dataUrl || p.images?.[0]?.url);
 
   return (
     <div

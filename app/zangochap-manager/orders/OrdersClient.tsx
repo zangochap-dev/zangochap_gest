@@ -6,7 +6,8 @@ import { TableCard, StatusBadge, EmptyState, DetailCard, ItemLine, InfoBanner, S
 import Modal from "@/components/Modal";
 import { useToast } from "@/components/Toast";
 import { updateOrderStatus, duplicateOrder, deleteOrder, createOrder, addOrderHistoryEntry, updateOrderDetails, assignOrderToDeliveryman, reprogramOrder } from "@/modules/orders/actions";
-import { COMMUNES, STATUS_LABELS, formatPrice, formatDate, formatDay } from "@/lib/constants";
+import { formatPrice, formatDay, formatDate, CATEGORIES, COMMUNES, STATUS_LABELS } from "@/lib/constants";
+import { getImageUrl } from "@/lib/utils";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, Eye, Package, Trash2, Minus, Search, X, ChevronLeft, ChevronRight, RefreshCw, Copy, Edit3, Maximize, AlertTriangle, Phone, Save, Edit2, Download, MessageCircle, Printer, Truck, Check, ArrowLeftRight, Ban, Users, Calendar, CreditCard } from "lucide-react";
 import Link from "next/link";
@@ -14,7 +15,6 @@ import Script from "next/script";
 import VariantSelectionModal from "@/components/VariantSelectionModal";
 import ProductCard from "@/components/ProductCard";
 import ReceiptModal from "@/components/ReceiptModal";
-import { getImageUrl } from "@/lib/utils";
 
 const ZANGOCHAP_LOGO_SVG = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%">
   <path d="M 70 60 Q 70 35 100 35 Q 130 35 130 60" stroke="#D4541C" stroke-width="9" fill="none" stroke-linecap="round"/>
@@ -1506,7 +1506,7 @@ function DuplicateOrderModal({ order, products, onClose, onConfirm, isPending, o
       qty: selectedQty,
       price: selectedProductForVariant.basePrice || Number(selectedProductForVariant.price),
       emoji: selectedProductForVariant.emoji || '📦',
-      image: selectedProductForVariant.images?.[0]?.dataUrl || selectedProductForVariant.images?.[0]?.url || null
+      image: getImageUrl(selectedProductForVariant.images?.[0]?.dataUrl || selectedProductForVariant.images?.[0]?.url)
     };
 
     setFormData(prev => ({ ...prev, items: [...prev.items, newItem] }));

@@ -122,13 +122,13 @@ interface ProductFormProps {
   title: string;
 }
 
-export default function ProductForm({ 
-  initialData, 
-  categories, 
-  suppliers, 
-  warehouses, 
-  onSubmit, 
-  onCancel, 
+export default function ProductForm({
+  initialData,
+  categories,
+  suppliers,
+  warehouses,
+  onSubmit,
+  onCancel,
   isPending,
   title
 }: ProductFormProps) {
@@ -281,15 +281,15 @@ export default function ProductForm({
           <h1 className="text-xl font-bold text-[#1A1410] tracking-tight">{title}</h1>
         </div>
         <div className="flex items-center gap-3">
-          <button 
-            type="button" 
+          <button
+            type="button"
             className="px-4 py-2 text-[13px] font-semibold text-[#6B4838] hover:bg-[#FAF6F1] rounded-lg transition-colors"
             onClick={onCancel}
           >
             Annuler
           </button>
-          <button 
-            type="button" 
+          <button
+            type="button"
             className="btn-orange shadow-lg shadow-orange-500/20 px-6 py-2.5 rounded-lg flex items-center gap-2"
             onClick={handleFormSubmit}
             disabled={isPending}
@@ -302,10 +302,10 @@ export default function ProductForm({
 
       <div className="flex-1 max-w-[1200px] mx-auto w-full px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
+
           {/* COLONNE PRINCIPALE (2/3) */}
           <div className="lg:col-span-2 space-y-6">
-            
+
             {/* CARD: GÉNÉRAL */}
             <div className="bg-white border border-[#E8DDD0] rounded-xl overflow-hidden shadow-sm">
               <div className="px-6 py-4 border-b border-[#F8F5F2] bg-[#FDFCFB]">
@@ -314,8 +314,8 @@ export default function ProductForm({
               <div className="p-6 space-y-5">
                 <div className="space-y-2">
                   <label className="text-[11px] font-bold uppercase tracking-wider text-[#6B4838]">Titre du produit</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={name}
                     onChange={e => setName(e.target.value)}
                     placeholder="Ex: Sneakers cuir Blanc"
@@ -324,7 +324,7 @@ export default function ProductForm({
                 </div>
                 <div className="space-y-2">
                   <label className="text-[11px] font-bold uppercase tracking-wider text-[#6B4838]">Description</label>
-                  <textarea 
+                  <textarea
                     value={description}
                     onChange={e => setDescription(e.target.value)}
                     placeholder="Décrivez les caractéristiques du produit..."
@@ -338,7 +338,7 @@ export default function ProductForm({
             <div className="bg-white border border-[#E8DDD0] rounded-xl overflow-hidden shadow-sm">
               <div className="px-6 py-4 border-b border-[#F8F5F2] bg-[#FDFCFB] flex items-center justify-between">
                 <h2 className="font-bold text-[#1A1410]">Médias</h2>
-                <button 
+                <button
                   type="button"
                   onClick={() => imgInputRef.current?.click()}
                   className="text-[12px] font-bold text-[#D4541C] hover:underline flex items-center gap-1"
@@ -347,7 +347,7 @@ export default function ProductForm({
                 </button>
               </div>
               <div className="p-6">
-                <div 
+                <div
                   onClick={() => imgInputRef.current?.click()}
                   className="group border-2 border-dashed border-[#E8DDD0] hover:border-[#D4541C] bg-[#FAF6F1]/50 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition-all"
                 >
@@ -399,8 +399,8 @@ export default function ProductForm({
                   <div className="space-y-2">
                     <label className="text-[11px] font-bold uppercase tracking-wider text-[#6B4838]">Prix de vente</label>
                     <div className="relative">
-                      <input 
-                        type="number" 
+                      <input
+                        type="number"
                         value={price || ''}
                         onChange={e => setPrice(parseInt(e.target.value) || 0)}
                         placeholder="0"
@@ -412,8 +412,8 @@ export default function ProductForm({
                   <div className="space-y-2">
                     <label className="text-[11px] font-bold uppercase tracking-wider text-[#6B4838]">Prix comparatif</label>
                     <div className="relative">
-                      <input 
-                        type="number" 
+                      <input
+                        type="number"
                         value={oldPrice || ''}
                         onChange={e => setOldPrice(parseInt(e.target.value) || null)}
                         placeholder="0"
@@ -432,8 +432,8 @@ export default function ProductForm({
               <div className="px-6 py-4 border-b border-[#F8F5F2] bg-[#FDFCFB] flex items-center justify-between">
                 <h2 className="font-bold text-[#1A1410]">Variantes & Stock</h2>
                 {!initialData && (
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     className="px-3 py-1.5 bg-[#D4541C]/10 text-[#D4541C] text-[11px] font-bold rounded-lg hover:bg-[#D4541C]/20 transition-colors flex items-center gap-1.5"
                     onClick={generateAllVariants}
                   >
@@ -448,8 +448,8 @@ export default function ProductForm({
                     <div className="space-y-3">
                       <label className="text-[11px] font-bold uppercase tracking-wider text-[#6B4838]">Tailles</label>
                       <div className="flex gap-2">
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           value={sizeInput}
                           onChange={e => setSizeInput(e.target.value)}
                           placeholder="Ex: 39, 40, 41"
@@ -469,8 +469,8 @@ export default function ProductForm({
                     <div className="space-y-3">
                       <label className="text-[11px] font-bold uppercase tracking-wider text-[#6B4838]">Couleurs</label>
                       <div className="flex gap-2">
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           value={colorInput}
                           onChange={e => setColorInput(e.target.value)}
                           placeholder="Ex: Noir, Blanc"
@@ -512,16 +512,16 @@ export default function ProductForm({
                               </div>
                             </td>
                             <td className="px-4 py-3">
-                              <input 
-                                type="number" 
+                              <input
+                                type="number"
                                 value={v.stock}
                                 onChange={e => updateVariant(idx, 'stock', e.target.value)}
                                 className="w-full bg-white border border-[#E8DDD0] rounded-md p-1.5 text-center font-bold outline-none focus:border-[#D4541C]"
                               />
                             </td>
                             <td className="px-4 py-3">
-                              <input 
-                                type="text" 
+                              <input
+                                type="text"
                                 value={v.location}
                                 onChange={e => updateVariant(idx, 'location', e.target.value)}
                                 placeholder="A1-24"
@@ -551,7 +551,7 @@ export default function ProductForm({
 
           {/* COLONNE LATÉRALE (1/3) */}
           <div className="space-y-6">
-            
+
             {/* CARD: STATUT & VISIBILITÉ */}
             <div className="bg-white border border-[#E8DDD0] rounded-xl overflow-hidden shadow-sm">
               <div className="px-6 py-4 border-b border-[#F8F5F2] bg-[#FDFCFB]">
@@ -586,19 +586,19 @@ export default function ProductForm({
                 </label>
 
                 <div className="pt-4 border-t border-[#F8F5F2]">
-                   <label className="flex items-center justify-between cursor-pointer group">
-                      <div className="flex items-center gap-2">
-                        <Sparkles size={16} className={isFeatured ? "text-amber-500" : "text-[#6B4838]"} />
-                        <span className="text-[13px] font-bold text-[#1A1410]">Mettre en avant</span>
-                      </div>
-                      <input 
-                        type="checkbox" 
-                        checked={isFeatured} 
-                        onChange={e => setIsFeatured(e.target.checked)}
-                        className="w-5 h-5 accent-[#D4541C] rounded border-[#E8DDD0]"
-                      />
-                   </label>
-                   <p className="text-[10px] text-[#6B4838] mt-2">S'affichera dans la section "Nouveautés" ou "Populaire".</p>
+                  <label className="flex items-center justify-between cursor-pointer group">
+                    <div className="flex items-center gap-2">
+                      <Sparkles size={16} className={isFeatured ? "text-amber-500" : "text-[#6B4838]"} />
+                      <span className="text-[13px] font-bold text-[#1A1410]">Mettre en avant</span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={isFeatured}
+                      onChange={e => setIsFeatured(e.target.checked)}
+                      className="w-5 h-5 accent-[#D4541C] rounded border-[#E8DDD0]"
+                    />
+                  </label>
+                  <p className="text-[10px] text-[#6B4838] mt-2">S'affichera dans la section "Nouveautés" ou "Populaire".</p>
                 </div>
               </div>
             </div>
@@ -642,14 +642,14 @@ export default function ProductForm({
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                   <div className="space-y-2">
-                      <label className="text-[11px] font-bold uppercase tracking-wider text-[#6B4838]">Matière</label>
-                      <input type="text" value={material} onChange={e => setMaterial(e.target.value)} placeholder="Ex: Coton" className="w-full border border-[#E8DDD0] rounded-lg p-2.5 text-sm font-semibold outline-none" />
-                   </div>
-                   <div className="space-y-2">
-                      <label className="text-[11px] font-bold uppercase tracking-wider text-[#6B4838]">Provenance</label>
-                      <input type="text" value={origin} onChange={e => setOrigin(e.target.value)} placeholder="Ex: Adjamé" className="w-full border border-[#E8DDD0] rounded-lg p-2.5 text-sm font-semibold outline-none" />
-                   </div>
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-[#6B4838]">Matière</label>
+                    <input type="text" value={material} onChange={e => setMaterial(e.target.value)} placeholder="Ex: Coton" className="w-full border border-[#E8DDD0] rounded-lg p-2.5 text-sm font-semibold outline-none" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-[#6B4838]">Provenance</label>
+                    <input type="text" value={origin} onChange={e => setOrigin(e.target.value)} placeholder="Ex: Adjamé" className="w-full border border-[#E8DDD0] rounded-lg p-2.5 text-sm font-semibold outline-none" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -660,25 +660,25 @@ export default function ProductForm({
                 <h2 className="font-bold text-[#1A1410]">Logistique</h2>
               </div>
               <div className="p-6">
-                 <div className="bg-[#FAF6F1] rounded-xl p-4 border border-[#E8DDD0]">
-                    <div className="flex items-center gap-3 mb-4">
-                       <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-[#D4541C] shadow-sm"><Warehouse size={16} /></div>
-                       <span className="text-[13px] font-bold text-[#1A1410]">Lieu de stockage</span>
-                    </div>
-                    <Select value={selectedWarehouse || undefined} onValueChange={(val) => { if (val) setSelectedWarehouse(val); }}>
-                      <SelectTrigger className="w-full bg-white border border-[#E8DDD0] rounded-lg h-11 font-bold text-sm shadow-none">
-                        <SelectValue placeholder="Choisir..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {warehouses.map(w => (
-                          <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-[10px] text-[#6B4838] mt-3 leading-relaxed">
-                      Les quantités saisies seront initialisées dans cet entrepôt par défaut.
-                    </p>
-                 </div>
+                <div className="bg-[#FAF6F1] rounded-xl p-4 border border-[#E8DDD0]">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-[#D4541C] shadow-sm"><Warehouse size={16} /></div>
+                    <span className="text-[13px] font-bold text-[#1A1410]">Lieu de stockage</span>
+                  </div>
+                  <Select value={selectedWarehouse || undefined} onValueChange={(val) => { if (val) setSelectedWarehouse(val); }}>
+                    <SelectTrigger className="w-full bg-white border border-[#E8DDD0] rounded-lg h-11 font-bold text-sm shadow-none">
+                      <SelectValue placeholder="Choisir..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {warehouses.map(w => (
+                        <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[10px] text-[#6B4838] mt-3 leading-relaxed">
+                    Les quantités saisies seront initialisées dans cet entrepôt par défaut.
+                  </p>
+                </div>
               </div>
             </div>
 

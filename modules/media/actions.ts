@@ -51,7 +51,7 @@ export async function getMediaFiles() {
  * Supprime un fichier média depuis Cloudflare R2.
  */
 export async function deleteMediaFile(fileName: string) {
-  await ensureAuth(["admin"]);
+  await ensureAuth(["admin", "stock"]);
   
   try {
     const command = new DeleteObjectCommand({

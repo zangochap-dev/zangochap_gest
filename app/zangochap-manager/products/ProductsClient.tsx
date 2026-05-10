@@ -377,24 +377,25 @@ export default function ProductsClient({ initialProducts, user, totalCount, oosC
       try {
         await createProduct({
           name: `${product.name} (Copie)`,
-          category: product.category,
-          price: product.price,
-          oldPrice: product.oldPrice,
+          category: product.category?.name || product.category || "",
+          subCategory: product.subCategory?.name || product.subCategory || "",
+          price: Number(product.price),
+          oldPrice: product.oldPrice ? Number(product.oldPrice) : null,
           description: product.description,
           material: product.material,
           origin: product.origin,
-          supplier: product.supplier,
+          supplier: product.supplier?.name || product.supplier || "",
           location: product.location,
           lowStockThreshold: product.lowStockThreshold,
-          variants: product.variants.map((v: any) => ({
+          variants: (product.variants || []).map((v: any) => ({
             size: v.size,
             color: v.color,
             stock: 0, // Don't duplicate stock
             location: v.location,
           })),
-          images: product.images.map((img: any) => ({
+          images: (product.images || []).map((img: any) => ({
             name: img.name,
-            url: img.url,
+            dataUrl: img.url,
           })),
         });
         showToast('Produit dupliqué ✓', 'success');

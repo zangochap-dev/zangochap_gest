@@ -18,7 +18,7 @@ export default function ShopClient({ initialProducts, categories }: {
   const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState("newest");
   const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 12;
+  const ITEMS_PER_PAGE = 24;
 
   // Filter Logic
   const filteredProducts = useMemo(() => {

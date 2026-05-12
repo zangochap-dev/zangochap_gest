@@ -15,7 +15,7 @@ export default function HomeClient({ products, categories, latestPromo }: {
   latestPromo: any
 }) {
   const flashSales = products.filter((p: Product) => p.oldPrice && Number(p.oldPrice) > Number(p.price)).slice(0, 4);
-  const newArrivals = products.slice(0, 8);
+  const newArrivals = products.slice(0, 24);
 
   const containerVars = {
     hidden: { opacity: 0 },

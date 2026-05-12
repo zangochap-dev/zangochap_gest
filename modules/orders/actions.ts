@@ -1,6 +1,7 @@
 "use server";
 
 import prisma from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { getSession } from "../auth/actions";
 import { ensureAuth } from "@/lib/auth";
@@ -15,19 +16,19 @@ import { COMMUNES } from "@/lib/constants";
 function checkOrderAccess(order: any, session: any) {
   if (!session) return false;
   const role = session.role?.toUpperCase();
-  
+
   if (role === 'ADMIN') return true;
-  
+
   if (role === 'COMMERCIAL') {
     return order.commercialId === session.id;
   }
-  
+
   if (role === 'LIVREUR') {
     return order.deliverymanId === session.id;
   }
 
   if (['PACKING', 'STOCK', 'COLLECTION'].includes(role)) return true; // Logistics roles can access all orders for processing
-  
+
   return false;
 }
 
@@ -53,15 +54,15 @@ export async function generateUniqueRef(commune?: string, typePrefix?: string) {
 
   // Get prefix from COMMUNES or default to 'CD'
   const communePrefix = (commune && COMMUNES[commune]) || 'BJ';
-  
-  const basePrefix = typePrefix && typePrefix !== 'Standard' 
-    ? `${typePrefix.toUpperCase().replace(/É/g, 'E')}${communePrefix}` 
+
+  const basePrefix = typePrefix && typePrefix !== 'Standard'
+    ? `${typePrefix.toUpperCase().replace(/É/g, 'E')}${communePrefix}`
     : communePrefix;
 
   let finalRef = '';
   let isUnique = false;
   let attempts = 0;
-  
+
   while (!isUnique && attempts < 50) {
     finalRef = `${basePrefix}${nextSequence.toString().padStart(4, '0')}`;
     const existing = await prisma.order.findUnique({ where: { ref: finalRef } });
@@ -147,18 +148,67 @@ export async function createOrder(data: {
 }) {
   const session = await getSession();
 
-  // Process Images for custom items
+  // Process Images for custom items & Create private products for them
+  const processedItems = [];
+  let productCreatorId = session?.id;
+  if (!productCreatorId) {
+    const admin = await prisma.user.findFirst({ where: { role: 'ADMIN' } });
+    productCreatorId = admin?.id || 'system';
+  }
+
   for (const item of data.items) {
     if (item.image && item.image.startsWith('data:image')) {
       item.image = await uploadImage(item.image, `order-item-${Date.now()}`);
     }
+
+    let productId = item.productId;
+
+    if (item.isCustom) {
+      const warehouse = await getOrCreateDefaultWarehouse();
+      const newProduct = await prisma.product.create({
+        data: {
+          name: item.name,
+          price: new Prisma.Decimal(item.price),
+          emoji: item.emoji || '📦',
+          stock: 0,
+          status: 'DRAFT', // Private, not visible on site
+          creatorId: productCreatorId,
+          variants: {
+            create: {
+              size: item.size || 'Standard',
+              color: item.color || 'Standard',
+              stock: 0,
+              stockLevels: {
+                create: {
+                  warehouseId: warehouse.id,
+                  quantity: 0
+                }
+              }
+            }
+          },
+          images: item.image ? {
+            create: {
+              name: item.name,
+              url: item.image
+            }
+          } : undefined
+        },
+        include: { variants: true }
+      });
+      productId = newProduct.id;
+    }
+
+    processedItems.push({
+      ...item,
+      productId
+    });
   }
 
   // ── ── Validation du stock désactivée pour permettre la vente en rupture (flux tendu) ── ──
   // L'ordre sera créé et passera en collecte normalement.
 
   const ref = await generateUniqueRef(data.commune || undefined, data.type);
-  const calculatedTotal = data.items.reduce((sum, item) => sum + Number(item.price) * Number(item.qty), 0);
+  const calculatedTotal = processedItems.reduce((sum, item) => sum + Number(item.price) * Number(item.qty), 0);
   const finalTotal = data.total !== undefined ? Number(data.total) : calculatedTotal;
 
   const customer = await upsertCustomerFromOrder({
@@ -194,7 +244,7 @@ export async function createOrder(data: {
       confirmedAt: new Date(),
       confirmedByName: session ? session.name : "Client Web",
       items: {
-        create: data.items.map(item => ({
+        create: processedItems.map(item => ({
           name: item.name,
           size: item.size,
           color: item.color,
@@ -202,7 +252,7 @@ export async function createOrder(data: {
           price: Number(item.price),
           emoji: item.emoji || '📦',
           image: item.image || null,
-          productId: item.isCustom ? null : item.productId,
+          productId: item.productId,
           isCustom: item.isCustom || false,
           isGift: item.isGift || false,
           notes: item.notes || item.desc || null,
@@ -420,7 +470,7 @@ export async function markPartialDelivery(orderId: string, deliveredQuantities: 
           where: { id: variant.id },
           data: { stock: { increment: returnedQty } }
         });
-        
+
         await prisma.stockLevel.upsert({
           where: { variantId_warehouseId: { variantId: variant.id, warehouseId: targetWarehouseId } },
           update: { quantity: { increment: returnedQty } },
@@ -698,7 +748,7 @@ export async function getPerformanceStats(dateFrom?: string, dateTo?: string) {
   const summary = {
     totalRevenue: commercialsStats.reduce((sum, c) => sum + c.revenue, 0),
     totalOrders: commercialsStats.reduce((sum, c) => sum + c.sales, 0),
-    avgOrderValue: commercialsStats.reduce((sum, c) => sum + c.sales, 0) > 0 
+    avgOrderValue: commercialsStats.reduce((sum, c) => sum + c.sales, 0) > 0
       ? Math.round(commercialsStats.reduce((sum, c) => sum + c.revenue, 0) / commercialsStats.reduce((sum, c) => sum + (c.delivered || 1), 0))
       : 0,
     globalSuccessRate: deliveryStats.length > 0
@@ -723,7 +773,7 @@ export async function getUserPerformanceDetails(userId: string, role: string, da
     });
     return { orders };
   }
-  
+
   if (role === 'LIVREUR') {
     const orders = await prisma.order.findMany({
       where: { deliverymanId: userId, createdAt: whereDate },
@@ -781,7 +831,7 @@ export async function getDashboardStats() {
   });
 
   const totalRevenue = deliveredOrders.reduce((sum, o) => sum + o.total, 0);
-  
+
   // 3. Top Communes
   const communeMap: Record<string, number> = {};
   deliveredOrders.forEach(o => {
@@ -815,16 +865,16 @@ export async function getDashboardStats() {
   // 6. Conversions & Trends
   const allOrdersCount = await prisma.order.count();
   const conversionRate = allOrdersCount > 0 ? Math.round((deliveredOrders.length / allOrdersCount) * 100) : 0;
-  
+
   // OOS: Consider a product OOS only if it has no stock at all (across all variants)
-  const outOfStockCount = await prisma.product.count({ 
-    where: { 
+  const outOfStockCount = await prisma.product.count({
+    where: {
       variants: {
         none: {
           stock: { gt: 0 }
         }
       }
-    } 
+    }
   });
 
   return {
@@ -884,14 +934,14 @@ async function upsertCustomerFromOrder(data: {
 // ============ WAREHOUSE HELPERS ============
 export async function getOrCreateDefaultWarehouse() {
   let warehouse = await prisma.warehouse.findFirst({
-    where: { name: "EntrepÃƒÂ´t Principal" }
+    where: { name: "Entrepôt Principal" }
   });
 
   if (!warehouse) {
     warehouse = await prisma.warehouse.create({
       data: {
-        name: "EntrepÃƒÂ´t Principal",
-        location: "SiÃƒÂ¨ge Zangochap"
+        name: "Entrepôt Principal",
+        location: "Siège Zangochap"
       }
     });
   }
@@ -910,7 +960,7 @@ async function decrementStockForOrder(order: any, session: any) {
 
     if (variant) {
       const warehouse = await getOrCreateDefaultWarehouse();
-      
+
       // Update or create stock level for this warehouse
       await prisma.stockLevel.upsert({
         where: {
@@ -934,11 +984,11 @@ async function decrementStockForOrder(order: any, session: any) {
       });
 
       await recordStockMovement({
-        variantId: variant.id, 
+        variantId: variant.id,
         warehouseId: warehouse.id,
-        type: 'SALE', 
-        quantity: -item.qty, 
-        orderId: order.id, 
+        type: 'SALE',
+        quantity: -item.qty,
+        orderId: order.id,
         session,
       });
     }
@@ -960,11 +1010,11 @@ async function restoreStockForOrder(order: any, session: any, type: 'RETURN' | '
     });
     if (variant) {
       const warehouse = await getOrCreateDefaultWarehouse();
-      
+
       // Update global variant stock
-      await prisma.productVariant.update({ 
-        where: { id: variant.id }, 
-        data: { stock: { increment: item.qty } } 
+      await prisma.productVariant.update({
+        where: { id: variant.id },
+        data: { stock: { increment: item.qty } }
       });
 
       // Update warehouse stock level
@@ -974,13 +1024,13 @@ async function restoreStockForOrder(order: any, session: any, type: 'RETURN' | '
         create: { variantId: variant.id, warehouseId: warehouse.id, quantity: item.qty }
       });
 
-      await recordStockMovement({ 
-        variantId: variant.id, 
+      await recordStockMovement({
+        variantId: variant.id,
         warehouseId: warehouse.id,
-        type: type as any, 
-        quantity: item.qty, 
-        orderId: order.id, 
-        session 
+        type: type as any,
+        quantity: item.qty,
+        orderId: order.id,
+        session
       });
     }
   }
@@ -993,7 +1043,7 @@ async function restoreStockForOrder(order: any, session: any, type: 'RETURN' | '
 // Additional missing exports
 export async function deleteOrder(orderId: string) {
   const session = await getSession();
-  if (!session || session.role !== 'admin') throw new Error("AccÃƒÂ¨s refusÃƒÂ©");
+  if (!session || session.role !== 'admin') throw new Error("Accès refusé");
   const order = await prisma.order.findUnique({ where: { id: orderId }, include: { items: true } });
   if (order?.stockDecremented) await restoreStockForOrder(order, session, 'ADJUSTMENT');
   await prisma.order.delete({ where: { id: orderId } });
@@ -1013,18 +1063,18 @@ export async function addOrderHistoryEntry(orderId: string, action: string) {
 
 export async function updateOrderDetails(orderId: string, data: any) {
   const session = await getSession();
-  if (!session) throw new Error("Non authentifiÃƒÂ©");
+  if (!session) throw new Error("Non authentifié");
   const order = await prisma.order.findUnique({ where: { id: orderId } });
-  if (!order || !checkOrderAccess(order, session)) throw new Error("AccÃƒÂ¨s refusÃƒÂ©");
+  if (!order || !checkOrderAccess(order, session)) throw new Error("Accès refusé");
   const history = Array.isArray(order.history) ? [...(order.history as any[])] : [];
-  history.push({ at: new Date().toISOString(), action: "DÃƒÂ©tails modifiÃƒÂ©s", by: session.email, byName: session.name });
+  history.push({ at: new Date().toISOString(), action: "Détails modifiés", by: session.email, byName: session.name });
   await prisma.order.update({ where: { id: orderId }, data: { ...data, history } });
   revalidatePath("/zangochap-manager/orders");
 }
 
 export async function duplicateOrder(orderId: string, data: any) {
   const session = await getSession();
-  if (!session) throw new Error("Non authentifiÃƒÂ©");
+  if (!session) throw new Error("Non authentifié");
 
   const original = await prisma.order.findUnique({ where: { id: orderId } });
   if (!original) throw new Error("Commande originale introuvable");
@@ -1032,13 +1082,13 @@ export async function duplicateOrder(orderId: string, data: any) {
   // On construit les notes en incluant le motif de l'ÃƒÂ©change si prÃƒÂ©sent
   let finalNotes = data.notes || "";
   if (data.type === 'Echange' && data.exchangeReason) {
-    finalNotes = `MOTIF Ãƒâ€°CHANGE: ${data.exchangeReason}${finalNotes ? `\n---\n${finalNotes}` : ''}`;
+    finalNotes = `MOTIF ÉCHANGE: ${data.exchangeReason}${finalNotes ? `\n---\n${finalNotes}` : ''}`;
   }
 
   // On utilise createOrder pour bÃƒÂ©nÃƒÂ©ficier de toute la logique de stock/client/ref
   const newOrder = await createOrder({
     ...data,
-    notes: finalNotes || `DupliquÃƒÂ©e depuis ${original.ref}`,
+    notes: finalNotes || `Dupliquée depuis ${original.ref}`,
   });
 
   return newOrder;
@@ -1046,17 +1096,17 @@ export async function duplicateOrder(orderId: string, data: any) {
 
 export async function reprogramOrder(orderId: string, deliveryDate: string) {
   const session = await getSession();
-  if (!session) throw new Error("Non authentifiÃƒÂ©");
-  
+  if (!session) throw new Error("Non authentifié");
+
   const order = await prisma.order.findUnique({ where: { id: orderId } });
-  if (!order || !checkOrderAccess(order, session)) throw new Error("AccÃƒÂ¨s refusÃƒÂ©");
+  if (!order || !checkOrderAccess(order, session)) throw new Error("Accès refusé");
 
   const history = Array.isArray(order.history) ? [...(order.history as any[])] : [];
-  history.push({ 
-    at: new Date().toISOString(), 
-    action: `ReprogrammÃƒÂ©e pour le ${deliveryDate}`, 
-    by: session.email, 
-    byName: session.name 
+  history.push({
+    at: new Date().toISOString(),
+    action: `Reprogrammée pour le ${deliveryDate}`,
+    by: session.email,
+    byName: session.name
   });
 
   await prisma.order.update({
@@ -1170,32 +1220,32 @@ export async function getRiderSettlementStats(from?: string, to?: string, riderI
     orderBy: { updatedAt: 'desc' }
   });
 
-  const riderMap: Record<string, { 
-    id: string, 
-    name: string, 
-    orders: any[], 
-    totalDeliveryFees: number, 
+  const riderMap: Record<string, {
+    id: string,
+    name: string,
+    orders: any[],
+    totalDeliveryFees: number,
     totalProducts: number,
     totalGrandTotal: number,
     totalCashToCollect: number,
-    returnedCount: number 
+    returnedCount: number
   }> = {};
 
   orders.forEach((o: any) => {
     const rId = String(o.deliverymanId || 'unknown');
     if (!riderMap[rId]) {
-      riderMap[rId] = { 
-        id: rId, 
-        name: String(o.deliverymanName || 'Inconnu'), 
-        orders: [], 
-        totalDeliveryFees: 0, 
+      riderMap[rId] = {
+        id: rId,
+        name: String(o.deliverymanName || 'Inconnu'),
+        orders: [],
+        totalDeliveryFees: 0,
         totalProducts: 0,
         totalGrandTotal: 0,
         totalCashToCollect: 0,
         returnedCount: 0
       };
     }
-    
+
     const rider = riderMap[rId];
     rider.orders.push(o);
 

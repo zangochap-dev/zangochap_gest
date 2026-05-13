@@ -165,9 +165,9 @@ export default function PackingClient({ initialOrders, products, user }: { initi
       <div className="logistics-mobile-root">
         <LogisticsMobileStyles />
         <div className="logistics-mobile-header">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
             <h1 style={{ fontSize: 20, fontWeight: 800 }}>Emballage</h1>
-            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--orange)', background: 'var(--orange-soft)', padding: '4px 10px', borderRadius: 20 }}>
+            <div style={{ position: 'absolute', right: 0, fontSize: 12, fontWeight: 700, color: 'var(--orange)', background: 'var(--orange-soft)', padding: '4px 10px', borderRadius: 20 }}>
               {filtered.length} commandes
             </div>
           </div>

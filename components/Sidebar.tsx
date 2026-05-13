@@ -1,17 +1,18 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { logoutAction } from "@/modules/auth/actions";
 import { ROLE_LABELS } from "@/lib/constants";
+import { useToast } from "@/components/Toast";
 import {
   LayoutDashboard, ShoppingBag, Package, Truck, Box, Users, BarChart3,
   Tag, Upload, FileText, LogOut, ClipboardList,
   AlertTriangle, Settings, MapPin, Store, ChevronRight, ChevronLeft, History, Wallet, Warehouse,
-  User, ExternalLink, Image as ImageIcon, Menu, X
+  User, ExternalLink, Image as ImageIcon, Menu, X, Bell, WifiOff, RefreshCw
 } from "lucide-react";
 
 interface SidebarProps {
@@ -64,35 +65,98 @@ export default function Sidebar({ user, counts }: SidebarProps) {
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [hasNewNotifications, setHasNewNotifications] = useState(false);
+  const prevCounts = useRef(counts);
+  const { showToast } = useToast();
 
   const sections = (NAV_FOR_ROLE[user.role] || NAV_FOR_ROLE.admin)(counts);
   const roleLabel = ROLE_LABELS[user.role] || user.role;
 
+  // Track Online/Offline Status
+  useEffect(() => {
+    const handleOnline = () => { setIsOffline(false); showToast("Connexion rétablie ! Synchronisation...", "success"); };
+    const handleOffline = () => { setIsOffline(true); showToast("Mode hors-ligne activé. 📡", "error"); };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    setIsOffline(!navigator.onLine);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [showToast]);
+
+  // Register Service Worker
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').then(() => {
+        console.log('Service Worker Registered');
+      });
+    }
+  }, []);
+
+  // Track New Orders / Packing Tasks
+  useEffect(() => {
+    if (!prevCounts.current || isOffline) {
+      prevCounts.current = counts;
+      return;
+    }
+
+    const newPacking = (counts?.packing || 0) > (prevCounts.current?.packing || 0);
+    const newOrders = (counts?.orders || 0) > (prevCounts.current?.orders || 0);
+
+    if (newPacking || newOrders) {
+      setHasNewNotifications(true);
+      showToast(newPacking ? "Nouvelle commande à emballer ! 📦" : "Nouvelle commande reçue ! 🛍️", "success");
+      
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification("ZangoChap Manager", {
+          body: newPacking ? "Vous avez une nouvelle commande à préparer." : "Une nouvelle commande vient d'arriver.",
+          icon: "/logo.png"
+        });
+      }
+
+      const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
+      audio.volume = 0.5;
+      audio.play().catch(() => {});
+    }
+
+    prevCounts.current = counts;
+  }, [counts, showToast, isOffline]);
+
   useEffect(() => {
     setIsMobileOpen(false);
+    setShowNotifications(false);
   }, [pathname]);
+
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, []);
 
   return (
     <>
-      {/* MOBILE TRIGGER */}
-      <button 
-        className="mobile-nav-trigger" 
-        onClick={() => setIsMobileOpen(true)}
-      >
-        <Menu size={24} />
-      </button>
+      {/* MOBILE TOP BAR */}
+      <div className="mobile-top-bar">
+        <button className="mobile-nav-trigger" onClick={() => setIsMobileOpen(true)}><Menu size={24} /></button>
+        <div className="mobile-logo-center">
+          <Image src="/logo.png" alt="Logo" width={100} height={30} style={{ objectFit: 'contain' }} />
+          {isOffline && <WifiOff size={14} color="#FF3B30" style={{ marginLeft: 8 }} />}
+        </div>
+        <button className="mobile-notif-btn" onClick={() => setShowNotifications(!showNotifications)}>
+          <Bell size={22} color={hasNewNotifications ? 'var(--orange)' : '#8E8E93'} />
+          {hasNewNotifications && <span className="notif-dot" />}
+        </button>
+      </div>
 
       {/* OVERLAY */}
       <AnimatePresence>
         {isMobileOpen && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setIsMobileOpen(false)}
-            className="sidebar-overlay"
-          />
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsMobileOpen(false)} className="sidebar-overlay" />
         )}
       </AnimatePresence>
 
@@ -104,10 +168,31 @@ export default function Sidebar({ user, counts }: SidebarProps) {
               <div className="logo-icon-mini">Z</div>
             </Link>
           </div>
-          <button className="mobile-close" onClick={() => setIsMobileOpen(false)}>
-            <X size={20} />
-          </button>
+          
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {isOffline && (
+              <div className="offline-badge" title="Mode hors-ligne">
+                <WifiOff size={16} />
+              </div>
+            )}
+            <button 
+              className={`notif-btn-desktop ${hasNewNotifications ? 'has-new' : ''}`}
+              onClick={() => { setShowNotifications(!showNotifications); setHasNewNotifications(false); }}
+            >
+              <Bell size={20} />
+              {hasNewNotifications && <span className="notif-dot" />}
+            </button>
+            <button className="mobile-close" onClick={() => setIsMobileOpen(false)}><X size={20} /></button>
+          </div>
         </div>
+
+        {/* OFFLINE STATUS BANNER */}
+        {isOffline && (
+          <div className="offline-banner">
+            <WifiOff size={12} />
+            <span>Mode hors-ligne</span>
+          </div>
+        )}
 
         <nav className="sidebar-nav">
           <div className="nav-container">
@@ -156,70 +241,46 @@ export default function Sidebar({ user, counts }: SidebarProps) {
       </aside>
 
       <style jsx>{`
-        .sidebar {
-          width: 260px;
-          background: #0F1115;
-          color: white;
-          display: flex;
-          flex-direction: column;
-          height: 100vh;
-          position: sticky;
-          top: 0;
-          z-index: 1000;
-          border-right: 1px solid rgba(255,255,255,0.05);
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
+        .sidebar { width: 260px; background: #0F1115; color: white; display: flex; flex-direction: column; height: 100vh; position: sticky; top: 0; z-index: 1000; border-right: 1px solid rgba(255,255,255,0.05); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .sidebar.collapsed { width: 76px; }
 
-        /* MOBILE STYLES */
         @media (max-width: 1024px) {
-          .sidebar {
-            position: fixed;
-            left: -280px;
-            width: 280px;
-          }
+          .sidebar { position: fixed; left: -280px; width: 280px; border-right: none; }
           .sidebar.mobile-open { left: 0; }
-          .sidebar.collapsed { width: 280px; } /* No collapse on mobile */
+          .sidebar.collapsed { width: 280px; }
         }
 
-        .sidebar-overlay {
-          position: fixed;
-          inset: 0;
-          background: rgba(0,0,0,0.6);
-          backdrop-filter: blur(4px);
-          z-index: 999;
-        }
+        .sidebar-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 999; }
 
-        .mobile-nav-trigger {
+        .mobile-top-bar {
           display: none;
           position: fixed;
-          top: 16px;
-          left: 16px;
-          width: 44px;
-          height: 44px;
+          top: 0; left: 0; right: 0;
+          height: 60px;
           background: white;
-          border: 1px solid #E5E5EA;
-          border-radius: 12px;
+          border-bottom: 1px solid #E5E5EA;
           align-items: center;
-          justify-content: center;
-          z-index: 1001;
+          justify-content: space-between;
+          padding: 0 16px;
+          z-index: 900;
         }
-        @media (max-width: 1024px) { .mobile-nav-trigger { display: flex; } }
+        @media (max-width: 1024px) { .mobile-top-bar { display: flex; } }
 
-        .mobile-close {
-          display: none;
-          background: rgba(255,255,255,0.05);
-          border: none;
-          color: white;
-          width: 32px;
-          height: 32px;
-          border-radius: 8px;
-          align-items: center;
-          justify-content: center;
-        }
+        .mobile-nav-trigger, .mobile-notif-btn { background: transparent; border: none; padding: 8px; position: relative; }
+        .notif-dot { position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; background: #FF3B30; border-radius: 50%; border: 2px solid white; }
+        .sidebar .notif-dot { border-color: #0F1115; top: 2px; right: 2px; }
+
+        .offline-badge { background: rgba(255, 59, 48, 0.1); color: #FF3B30; width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+        .offline-banner { background: #FF3B30; color: white; font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 6px; display: flex; align-items: center; justify-content: center; gap: 6px; letter-spacing: 0.05em; }
+
+        .notif-btn-desktop { background: rgba(255,255,255,0.05); border: none; color: rgba(255,255,255,0.4); width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; transition: all 0.2s; }
+        .notif-btn-desktop:hover, .notif-btn-desktop.has-new { color: white; background: rgba(255,255,255,0.1); }
+        .notif-btn-desktop.has-new { color: #FF6B2C; }
+
+        .mobile-close { display: none; background: rgba(255,255,255,0.05); border: none; color: white; width: 32px; height: 32px; border-radius: 8px; align-items: center; justify-content: center; }
         @media (max-width: 1024px) { .mobile-close { display: flex; } }
 
-        .sidebar-header { padding: 32px 18px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .sidebar-header { padding: 20px 18px; display: flex; justify-content: space-between; align-items: center; }
         .sidebar-logo { display: flex; align-items: center; }
         .logo-icon-mini { display: none; width: 40px; height: 40px; background: #FF6B2C; border-radius: 12px; align-items: center; justify-content: center; font-weight: 900; font-size: 22px; color: white; }
         .sidebar.collapsed .logo-img { display: none; }
@@ -229,19 +290,7 @@ export default function Sidebar({ user, counts }: SidebarProps) {
         .sidebar-section { margin-bottom: 24px; }
         .sidebar-section-title { font-size: 10px; font-weight: 800; text-transform: uppercase; color: rgba(255,255,255,0.25); padding: 0 12px 12px; }
 
-        :global(.sidebar-link) {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 11px 12px;
-          border-radius: 12px;
-          font-size: 13px;
-          font-weight: 600;
-          color: rgba(255,255,255,0.4);
-          text-decoration: none;
-          margin-bottom: 2px;
-          transition: all 0.2s;
-        }
+        :global(.sidebar-link) { display: flex; align-items: center; justify-content: space-between; padding: 11px 12px; border-radius: 12px; font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.4); text-decoration: none; margin-bottom: 2px; transition: all 0.2s; }
         :global(.sidebar-link:hover) { background: rgba(255,255,255,0.03); color: white; }
         :global(.sidebar-link.active) { background: rgba(255,107,44,0.1); color: #FF6B2C; font-weight: 700; }
         .sidebar-link-inner { display: flex; align-items: center; gap: 12px; }

@@ -95,6 +95,11 @@ export default async function ManagerLayout({
           flex-direction: column;
           position: relative;
         }
+        @media (max-width: 1024px) {
+          .main-content {
+            padding-top: 60px;
+          }
+        }
         .main-scroll-area {
           flex: 1;
           overflow-y: auto;

@@ -25,7 +25,6 @@ export default async function RiderLayout({
   const user = await getSession();
   const role = user?.role?.toUpperCase();
 
-  // Ensure only delivery personnel (or admins) can access this space
   if (!user || (role !== "LIVREUR" && role !== "ADMIN")) {
     redirect("/zangochap-manager");
   }

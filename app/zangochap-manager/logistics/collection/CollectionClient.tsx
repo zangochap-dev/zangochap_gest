@@ -7,7 +7,7 @@ import { useToast } from "@/components/Toast";
 import { markCollection } from "@/modules/logistics/actions";
 import { updateProductVariants } from "@/modules/products/actions";
 import { useRouter } from "next/navigation";
-import { Check, X, ArrowLeftRight, Package, Warehouse, Search, ChevronRight, Filter } from "lucide-react";
+import { Check, X, ArrowLeftRight, Package, Warehouse, Search, ChevronRight, Filter, Edit2 } from "lucide-react";
 import Modal from "@/components/Modal";
 import { useIsMobile } from "@/lib/hooks";
 import LogisticsMobileStyles from "../_components/LogisticsMobileStyles";
@@ -204,107 +204,150 @@ export default function CollectionClient({ toCollect, user, categories = [], war
                 <p style={{ color: '#8E8E93', fontSize: 14 }}>Rien à collecter</p>
               </motion.div>
             ) : (
-              filteredToCollect.map((tc, idx) => (
-                <motion.div
-                  key={idx}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.05 }}
-                  className="mobile-card"
-                  style={{ padding: 0, overflow: 'hidden', background: 'white', display: 'flex', flexDirection: 'column' }}
-                >
-                  <div style={{ display: 'flex', padding: '12px', gap: 14 }}>
-                    {/* IMAGE LEFT */}
-                    <div style={{ position: 'relative', flexShrink: 0 }}>
-                      <div
-                        onClick={() => setPreviewImage(tc.item.image || tc.product.images?.[0]?.url)}
-                        style={{
-                          width: 100,
-                          height: 100,
-                          background: '#F2F2F7',
-                          borderRadius: 14,
-                          overflow: 'hidden',
-                          border: '1.5px solid #E5E5EA',
-                          boxShadow: '0 4px 10px rgba(0,0,0,0.05)'
-                        }}
-                      >
-                        {tc.item.image || tc.product.images?.[0]?.url ? (
-                          <img src={tc.item.image || tc.product.images[0].url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-                        ) : (
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 32 }}>{tc.item.emoji || '📦'}</div>
+              filteredToCollect.map((tc, idx) => {
+                const h = Array.isArray(tc.order.history) ? tc.order.history : [];
+                const lastLog = h.filter((l: any) => {
+                  const act = l.action.toLowerCase();
+                  return (act.includes('collecté') || act.includes('indisponible') || act.includes('alternative')) &&
+                    act.includes(tc.item.name.toLowerCase());
+                }).sort((a: any, b: any) => new Date(b.at).getTime() - new Date(a.at).getTime())[0];
+                
+                const currentStatus = lastLog?.action.toLowerCase() || '';
+                const isCollected = currentStatus.includes('collecté') && !currentStatus.includes('alternative');
+                const isUnavailable = currentStatus.includes('indisponible');
+                const isAlt = currentStatus.includes('alternative');
+                
+                let altNote = '';
+                if (isAlt) {
+                  const match = lastLog.action.match(/\(([^)]+)\)/);
+                  altNote = match ? match[1] : '';
+                }
+
+                return (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    className="mobile-card"
+                    style={{ padding: 0, overflow: 'hidden', background: 'white', display: 'flex', flexDirection: 'column' }}
+                  >
+                    <div style={{ display: 'flex', padding: '14px', gap: 14 }}>
+                      {/* IMAGE LEFT */}
+                      <div style={{ position: 'relative', flexShrink: 0 }}>
+                        <div
+                          onClick={() => setPreviewImage(tc.item.image || tc.product.images?.[0]?.url)}
+                          style={{
+                            width: 100,
+                            height: 100,
+                            background: '#F2F2F7',
+                            borderRadius: 14,
+                            overflow: 'hidden',
+                            border: '1.5px solid #E5E5EA',
+                          }}
+                        >
+                          {tc.item.image || tc.product.images?.[0]?.url ? (
+                            <img src={tc.item.image || tc.product.images[0].url} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: (isCollected || isUnavailable) ? 0.5 : 1 }} alt="" />
+                          ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 32 }}>{tc.item.emoji || '📦'}</div>
+                          )}
+                          <div style={{ position: 'absolute', bottom: 6, right: 6, background: 'rgba(0,0,0,0.4)', borderRadius: 6, padding: 4, backdropFilter: 'blur(2px)' }}>
+                            <Search size={12} color="white" strokeWidth={3} />
+                          </div>
+                          {isCollected && <div style={{ position: 'absolute', inset: 0, background: 'rgba(52, 199, 89, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Check size={40} color="white" strokeWidth={4} /></div>}
+                          {isUnavailable && <div style={{ position: 'absolute', inset: 0, background: 'rgba(255, 59, 48, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={40} color="white" strokeWidth={4} /></div>}
+                        </div>
+                      </div>
+
+                      {/* INFO RIGHT */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 13, color: '#8E8E93' }}>{tc.order.ref}</div>
+                          <div style={{ fontWeight: 900, fontSize: 18, color: 'var(--orange)' }}>x{tc.item.qty}</div>
+                        </div>
+                        
+                        <div style={{ fontWeight: 800, fontSize: 15, color: '#1C1C1E', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tc.item.name}</div>
+                        
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                          <span className="size-dot" style={{ background: '#1C1C1E', color: 'white', border: 'none' }}>{tc.item.size}</span>
+                          <span style={{ fontSize: 12, color: '#8E8E93', fontWeight: 700 }}>{tc.item.color}</span>
+                        </div>
+
+                        {isAlt && altNote && (
+                          <div style={{ background: 'var(--orange-soft)', padding: '4px 8px', borderRadius: 8, fontSize: 11, fontWeight: 700, color: 'var(--orange)', marginBottom: 8, display: 'inline-block' }}>
+                            Alt: {altNote}
+                          </div>
                         )}
-                        <div style={{ position: 'absolute', bottom: 6, right: 6, background: 'rgba(0,0,0,0.4)', borderRadius: 6, padding: 4, backdropFilter: 'blur(2px)' }}>
-                          <Search size={12} color="white" strokeWidth={3} />
+
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+                          {tc.product.variants.find((v: any) => v.size === tc.item.size && v.color === tc.item.color)?.stockLevels?.map((sl: any) => (
+                            <div key={sl.id} style={{ fontSize: 10, background: '#F2F2F7', padding: '3px 8px', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <Warehouse size={10} color="#FF6B2C" />
+                              <span style={{ fontWeight: 700 }}>{sl.position || sl.warehouse.name}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ fontSize: 10, color: '#8E8E93', fontWeight: 600 }}>{tc.order.customerName}</div>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); setEditingVariants({ product: tc.product, variants: tc.product.variants }); }}
+                            style={{ background: 'var(--cream)', border: '1px solid var(--line)', borderRadius: 8, padding: '4px 8px', fontSize: 10, fontWeight: 800, color: 'var(--brown-soft)', display: 'flex', alignItems: 'center', gap: 4 }}
+                          >
+                            <Edit2 size={10} /> Stock
+                          </button>
                         </div>
                       </div>
                     </div>
 
-                    {/* INFO RIGHT */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-                        <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 13, color: '#8E8E93' }}>{tc.order.ref}</div>
-                        <div style={{ fontWeight: 900, fontSize: 18, color: 'var(--orange)' }}>x{tc.item.qty}</div>
-                      </div>
-
-                      <div style={{ fontWeight: 800, fontSize: 15, color: '#1C1C1E', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tc.item.name}</div>
-
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-                        <span className="size-dot" style={{ background: '#1C1C1E', color: 'white', border: 'none' }}>{tc.item.size}</span>
-                        <span style={{ fontSize: 12, color: '#8E8E93', fontWeight: 700 }}>{tc.item.color}</span>
-                      </div>
-
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                        {tc.product.variants.find((v: any) => v.size === tc.item.size && v.color === tc.item.color)?.stockLevels?.map((sl: any) => (
-                          <div key={sl.id} style={{ fontSize: 10, background: '#F2F2F7', padding: '3px 8px', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <Warehouse size={10} color="#FF6B2C" />
-                            <span style={{ fontWeight: 700 }}>{sl.position || sl.warehouse.name}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* ACTIONS BOTTOM */}
-                  {filter === 'all' ? (
+                    {/* ACTIONS BOTTOM */}
                     <div style={{ display: 'flex', borderTop: '1px solid #E5E5EA' }}>
                       <button
                         onClick={() => handleMark(tc.order.id, tc.product.id, 'collected', tc.item.id)}
-                        style={{ flex: 1.5, height: 48, background: '#34C759', color: 'white', border: 'none', fontWeight: 800, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                        style={{ 
+                          flex: 1.5, height: 50, 
+                          background: isCollected ? '#28a745' : '#34C759', 
+                          color: 'white', border: 'none', fontWeight: 800, fontSize: 12, 
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                          opacity: isCollected ? 1 : 0.8,
+                          borderTop: isCollected ? '3px solid #1e7e34' : 'none'
+                        }}
                       >
-                        <Check size={18} strokeWidth={3} /> COLLECTÉ
+                        <Check size={18} strokeWidth={3} /> {isCollected ? 'COLLECTÉ ✓' : 'COLLECTÉ'}
                       </button>
                       <button
                         onClick={() => {
-                          const note = window.prompt(`Alternative pour "${tc.item.name}" :`, "");
+                          const note = window.prompt(`Alternative pour "${tc.item.name}" :`, altNote);
                           if (note) handleMark(tc.order.id, tc.product.id, 'alternative', tc.item.id, note);
                         }}
-                        style={{ flex: 1, height: 48, background: '#FF9500', color: 'white', border: 'none', fontWeight: 800, fontSize: 12, borderLeft: '1px solid rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        style={{ 
+                          flex: 1, height: 50, 
+                          background: isAlt ? '#e68a00' : '#FF9500', 
+                          color: 'white', border: 'none', fontWeight: 800, fontSize: 11, 
+                          borderLeft: '1px solid rgba(255,255,255,0.2)', 
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          borderTop: isAlt ? '3px solid #b36b00' : 'none'
+                        }}
                       >
-                        ALTER.
+                        {isAlt ? 'ALT ⌥' : 'ALTER.'}
                       </button>
                       <button
                         onClick={() => handleMark(tc.order.id, tc.product.id, 'unavailable', tc.item.id)}
-                        style={{ flex: 1, height: 48, background: '#FF3B30', color: 'white', border: 'none', fontWeight: 800, fontSize: 12, borderLeft: '1px solid rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        style={{ 
+                          flex: 1, height: 50, 
+                          background: isUnavailable ? '#dc3545' : '#FF3B30', 
+                          color: 'white', border: 'none', fontWeight: 800, fontSize: 11, 
+                          borderLeft: '1px solid rgba(255,255,255,0.2)', 
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          borderTop: isUnavailable ? '3px solid #bd2130' : 'none'
+                        }}
                       >
-                        INDISP.
+                        {isUnavailable ? 'INDISP ✕' : 'INDISP.'}
                       </button>
                     </div>
-                  ) : (
-                    <div style={{ padding: '10px 14px', background: '#F2F2F7', borderTop: '1px solid #E5E5EA', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ fontSize: 11, fontWeight: 800, color: '#8E8E93' }}>STATUT</div>
-                      {(() => {
-                        const h = Array.isArray(tc.order.history) ? tc.order.history : [];
-                        const log = h.filter((l: any) => l.action.toLowerCase().includes(tc.item.name.toLowerCase())).sort((a: any, b: any) => new Date(b.at).getTime() - new Date(a.at).getTime())[0];
-                        const act = log?.action.toLowerCase() || '';
-                        if (act.includes('collecté')) return <span style={{ color: '#34C759', fontWeight: 900, fontSize: 11 }}>COLLECTÉ ✓</span>;
-                        if (act.includes('indisponible')) return <span style={{ color: '#FF3B30', fontWeight: 900, fontSize: 11 }}>INDISPONIBLE ✕</span>;
-                        if (act.includes('alternative')) return <span style={{ color: '#FF9500', fontWeight: 900, fontSize: 11 }}>ALTERNATIVE ⌥</span>;
-                        return null;
-                      })()}
-                    </div>
-                  )}
-                </motion.div>
-              ))
+                  </motion.div>
+                );
+              })
             )}
           </AnimatePresence>
         </div>
@@ -424,12 +467,14 @@ function VariantsEditorModal({ product, variants: initialVariants, onClose, onSa
   return (
     <Modal isOpen={true} onClose={onClose} title={`Stock · ${product.name}`} large footer={<><button className="btn-secondary" onClick={onClose}>Annuler</button><button className="btn-orange" onClick={() => onSave(variants)}>Enregistrer</button></>}>
       <div style={{ marginBottom: 14 }}><div style={{ fontWeight: 600 }}>{product.name}</div></div>
-      <table>
-        <thead><tr><th>Taille</th><th>Couleur</th><th>Stock</th><th>Empl.</th></tr></thead>
-        <tbody>{variants.map((v: any, i: number) => (
-          <tr key={i}><td><span className="size-dot">{v.size}</span></td><td>{v.color}</td><td><input type="number" value={v.stock} onChange={e => updateVariant(i, 'stock', e.target.value)} style={{ width: 60 }} /></td><td><input type="text" value={v.location || ''} onChange={e => updateVariant(i, 'location', e.target.value)} style={{ width: 80 }} /></td></tr>
-        ))}</tbody>
-      </table>
+      <div className="table-wrap">
+        <table>
+          <thead><tr><th>Taille</th><th>Couleur</th><th>Stock</th><th>Empl.</th></tr></thead>
+          <tbody>{variants.map((v: any, i: number) => (
+            <tr key={i}><td><span className="size-dot">{v.size}</span></td><td>{v.color}</td><td><input type="number" value={v.stock} onChange={e => updateVariant(i, 'stock', e.target.value)} style={{ width: 60 }} /></td><td><input type="text" value={v.location || ''} onChange={e => updateVariant(i, 'location', e.target.value)} style={{ width: 80 }} /></td></tr>
+          ))}</tbody>
+        </table>
+      </div>
     </Modal>
   );
 }

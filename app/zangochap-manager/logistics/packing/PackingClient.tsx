@@ -1,14 +1,18 @@
 "use client";
 
 import React, { useState, useMemo, useTransition, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { TableCard, StatusBadge, EmptyState, DetailCard, SectionLabel, LocationBadge } from "@/components/UI";
 import Modal from "@/components/Modal";
 import { useToast } from "@/components/Toast";
 import { updateOrderStatus } from "@/modules/orders/actions";
 import { formatPrice, formatDay, STATUS_LABELS } from "@/lib/constants";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Eye, Package, Check, ArrowLeftRight, Warehouse, X } from "lucide-react";
+import { Eye, Package, Check, ArrowLeftRight, Warehouse, X, Search, ChevronRight, ClipboardList } from "lucide-react";
 import { addOrderHistoryEntry } from "@/modules/orders/actions";
+import { useIsMobile } from "@/lib/hooks";
+import LogisticsMobileStyles from "../_components/LogisticsMobileStyles";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function PackingClient({ initialOrders, products, user }: { initialOrders: any[]; products: any[]; user: any }) {
   const searchParams = useSearchParams();
@@ -25,6 +29,7 @@ export default function PackingClient({ initialOrders, products, user }: { initi
   const [isPending, startTransition] = useTransition();
   const { showToast } = useToast();
   const router = useRouter();
+  const isMobile = useIsMobile();
 
   // Auto-refresh every 15s for packing queue (real-time critical)
   useEffect(() => {
@@ -154,6 +159,373 @@ export default function PackingClient({ initialOrders, products, user }: { initi
     { key: 'PARTIAL', label: 'Partielles' },
     { key: 'all', label: 'Toutes' },
   ];
+
+  if (isMobile) {
+    return (
+      <div className="logistics-mobile-root">
+        <LogisticsMobileStyles />
+        <div className="logistics-mobile-header">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h1 style={{ fontSize: 20, fontWeight: 800 }}>Emballage</h1>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--orange)', background: 'var(--orange-soft)', padding: '4px 10px', borderRadius: 20 }}>
+              {filtered.length} commandes
+            </div>
+          </div>
+
+          <div className="mobile-search-bar">
+            <Search size={16} style={{ position: 'absolute', left: 12, top: 12, color: '#AEAEB2' }} />
+            <input
+              type="text"
+              placeholder="Réf ou client..."
+              className="mobile-search-input"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+          </div>
+
+          <div className="mobile-status-tabs">
+            {filters.map(f => (
+              <button
+                key={f.key}
+                className={`status-tab ${filter === f.key ? 'active' : ''}`}
+                onClick={() => setFilter(f.key)}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ display: 'flex', gap: 8 }}>
+            <select
+              className="filter-select"
+              style={{ flex: 1, height: 36, borderRadius: 10, background: '#F2F2F7', border: 'none', fontWeight: 600, color: warehouseFilter !== 'all' ? 'var(--orange)' : 'inherit' }}
+              value={warehouseFilter}
+              onChange={e => setWarehouseFilter(e.target.value)}
+            >
+              <option value="all">🏢 Tous Entrepôts</option>
+              {warehouses.map(w => <option key={w} value={w}>{w}</option>)}
+            </select>
+            <div style={{ display: 'flex', gap: 4 }}>
+              <input
+                type="date"
+                className="filter-date"
+                value={dateFrom}
+                onChange={e => setDateFrom(e.target.value)}
+                style={{ height: 36, borderRadius: 10, border: 'none', background: '#F2F2F7', width: 110, fontSize: 10 }}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="logistics-mobile-content">
+          <AnimatePresence mode="popLayout">
+            {filtered.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                style={{ padding: '40px 0', textAlign: 'center' }}
+              >
+                <Package size={48} style={{ margin: '0 auto 12px', opacity: 0.2 }} />
+                <p style={{ color: '#8E8E93', fontSize: 14 }}>Aucune commande trouvée</p>
+              </motion.div>
+            ) : (
+              filtered.map((o: any, idx: number) => {
+                const totalItems = o.items.length;
+                const checkedCount = checkedItems[o.id]?.size || 0;
+                const progress = (checkedCount / totalItems) * 100;
+
+                return (
+                  <motion.div
+                    key={o.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    className="mobile-card"
+                    onClick={() => { setSelectedOrder(o); setPackingNote(''); }}
+                    style={{
+                      padding: 0,
+                      overflow: 'hidden',
+                      borderLeft: o.status === 'PREPARING' ? '4px solid #FB7185' : '1px solid #E5E5EA',
+                      background: 'white',
+                      display: 'flex',
+                      flexDirection: 'column'
+                    }}
+                  >
+                    <div style={{ display: 'flex', padding: '12px', gap: 14 }}>
+                      {/* IMAGE LEFT */}
+                      <div style={{ position: 'relative', flexShrink: 0 }}>
+                        <div
+                          onClick={(e) => {
+                            if (o.items[0]?.image) {
+                              e.stopPropagation();
+                              setPreviewImage(o.items[0].image);
+                            }
+                          }}
+                          style={{
+                            width: 100,
+                            height: 100,
+                            background: '#F2F2F7',
+                            borderRadius: 14,
+                            overflow: 'hidden',
+                            border: '1.5px solid #E5E5EA',
+                            boxShadow: '0 4px 10px rgba(0,0,0,0.05)'
+                          }}
+                        >
+                          {o.items[0]?.image ? (
+                            <img src={o.items[0].image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                          ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 32 }}>{o.items[0]?.emoji || '📦'}</div>
+                          )}
+                        </div>
+                        {totalItems > 1 && (
+                          <div style={{ position: 'absolute', bottom: -6, right: -6, background: '#1C1C1E', color: 'white', fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 10, border: '2px solid white' }}>
+                            +{totalItems - 1}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* INFO RIGHT */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 14, color: '#1C1C1E' }}>{o.ref}</div>
+                          <StatusBadge status={o.status} size="sm" />
+                        </div>
+
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#1C1C1E', marginBottom: 2 }}>{o.customerName}</div>
+                        <div style={{ fontSize: 10, color: '#8E8E93', fontWeight: 600, marginBottom: 8 }}>{o.commune || 'Abidjan'} • {formatDay(o.createdAt)}</div>
+
+                        <div style={{ background: '#F2F2F7', padding: '8px', borderRadius: 8 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, fontWeight: 800, color: '#8E8E93', marginBottom: 4 }}>
+                            <span>PROGRESSION</span>
+                            <span style={{ color: progress === 100 ? '#34C759' : '#1C1C1E' }}>{checkedCount}/{totalItems}</span>
+                          </div>
+                          <div className="progress-bar-bg" style={{ height: 4 }}>
+                            <div className="progress-bar-fill" style={{ width: `${progress}%`, background: progress === 100 ? '#34C759' : '#FF6B2C' }} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* ACTIONS BOTTOM */}
+                    <div style={{ display: 'flex', borderTop: '1px solid #E5E5EA' }}>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); if (progress < 100) { if (!confirm('Tout n\'est pas coché. Marquer comme emballé quand même ?')) return; } handleMarkPacking(o.id, 'PACKED'); }}
+                        style={{ flex: 1.5, height: 44, background: '#34C759', color: 'white', border: 'none', fontWeight: 800, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                      >
+                        <Check size={16} strokeWidth={3} /> PACKER
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleMarkPacking(o.id, 'PARTIAL'); }}
+                        style={{ flex: 1, height: 44, background: '#FF9500', color: 'white', border: 'none', fontWeight: 800, fontSize: 12, borderLeft: '1px solid rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        PARTIEL
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleMarkPacking(o.id, 'STOCK_ISSUE'); }}
+                        style={{ flex: 1, height: 44, background: '#FF3B30', color: 'white', border: 'none', fontWeight: 800, fontSize: 12, borderLeft: '1px solid rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        STOCK
+                      </button>
+                    </div>
+                  </motion.div>
+                );
+              })
+            )}
+          </AnimatePresence>
+        </div>
+
+        {selectedIds.size > 0 && (
+          <div className="animate-slide-up" style={{ position: 'fixed', bottom: 20, left: 16, right: 16, background: '#1C1C1E', color: 'white', padding: '12px 16px', borderRadius: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', zIndex: 300 }}>
+            <div style={{ fontSize: 13, fontWeight: 700 }}>{selectedIds.size} sél.</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => handleBulkMark('PREPARING')} style={{ background: '#3A3A3C', color: 'white', border: 'none', padding: '8px 12px', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>Suivie</button>
+              <button onClick={() => handleBulkMark('PACKED')} style={{ background: '#FF6B2C', color: 'white', border: 'none', padding: '8px 12px', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>Emballé</button>
+            </div>
+          </div>
+        )}
+
+        {/* MOBILE PACKING DETAIL MODAL */}
+        {selectedOrder && (
+          <Modal isOpen={true} onClose={() => setSelectedOrder(null)} title={`Détails · ${selectedOrder.ref}`} large
+            footer={
+              <div style={{ display: 'flex', width: '100%', gap: 10 }}>
+                <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setSelectedOrder(null)}>Fermer</button>
+                <button className="btn-orange" style={{ flex: 2 }} onClick={() => handleMarkPacking(selectedOrder.id, 'PACKED')} disabled={isPending}>
+                  <Check size={16} /> Valider Emballage
+                </button>
+              </div>
+            }
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--orange)', fontSize: 18 }}>{selectedOrder.ref}</div>
+                <div style={{ fontWeight: 700, fontSize: 14, marginTop: 2 }}>{selectedOrder.customerName}</div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 9, fontWeight: 800, color: '#8E8E93', marginBottom: 2 }}>PROGRESSION</div>
+                <div style={{ fontWeight: 900, fontSize: 16 }}>{(checkedItems[selectedOrder.id]?.size || 0)} / {selectedOrder.items.length}</div>
+              </div>
+            </div>
+
+            <SectionLabel spaced>Checklist Articles</SectionLabel>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {selectedOrder.items.map((item: any, idx: number) => {
+                const p = productMap.get(item.productId);
+                const isChecked = checkedItems[selectedOrder.id]?.has(idx);
+                return (
+                  <DetailCard
+                    key={idx}
+                    className={isChecked ? 'checked' : ''}
+                    style={{
+                      padding: 0,
+                      overflow: 'hidden',
+                      borderRadius: 14,
+                      border: isChecked ? '1.5px solid #34C759' : '1px solid #E5E5EA',
+                      background: isChecked ? '#F2FBF4' : 'white',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onClick={() => toggleCheckItem(selectedOrder.id, idx)}
+                  >
+                    <div style={{ display: 'flex', minHeight: 90 }}>
+                      {/* IMAGE LEFT */}
+                      <div style={{ position: 'relative', width: 90, flexShrink: 0, background: '#F2F2F7', borderRight: '1px solid #E5E5EA' }}>
+                        {item.image ? (
+                          <img
+                            src={item.image}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: isChecked ? 0.3 : 1 }}
+                            onClick={(e) => { e.stopPropagation(); setPreviewImage(item.image); }}
+                            alt=""
+                          />
+                        ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 28 }}>{item.emoji || '📦'}</div>
+                        )}
+                        {isChecked && (
+                          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(52, 199, 89, 0.1)' }}>
+                            <Check size={36} color="#34C759" strokeWidth={5} />
+                          </div>
+                        )}
+                        <div style={{ position: 'absolute', top: 6, left: 6, width: 20, height: 20, borderRadius: 5, border: '2px solid', borderColor: isChecked ? '#34C759' : '#C7C7CC', background: isChecked ? '#34C759' : 'rgba(255,255,255,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {isChecked && <Check size={14} color="white" strokeWidth={4} />}
+                        </div>
+                      </div>
+
+                      {/* INFO RIGHT */}
+                      <div style={{ flex: 1, padding: '10px 14px', display: 'flex', flexDirection: 'column', justifyContent: 'center', minWidth: 0 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 2 }}>
+                          <div style={{ fontWeight: 800, fontSize: 14, color: isChecked ? '#8E8E93' : '#1C1C1E', textDecoration: isChecked ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {item.name}
+                          </div>
+                          <div style={{ fontWeight: 900, fontSize: 16, color: isChecked ? '#8E8E93' : 'var(--orange)', marginLeft: 6 }}>
+                            x{item.qty}
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6 }}>
+                          <span className="size-dot" style={{ background: '#1C1C1E', color: 'white', border: 'none', scale: '0.8' }}>{item.size}</span>
+                          <span style={{ fontSize: 11, color: '#8E8E93', fontWeight: 700 }}>{item.color}</span>
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 'auto' }}>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                            {p?.variants?.find((v: any) => v.size === item.size && v.color === item.color)?.stockLevels?.map((sl: any) => (
+                              <div key={sl.id} style={{ fontSize: 9, background: '#F2F2F7', padding: '2px 6px', borderRadius: 5, display: 'flex', alignItems: 'center', gap: 3 }}>
+                                <Warehouse size={9} color="#FF6B2C" />
+                                <span style={{ fontWeight: 700 }}>{sl.position || sl.warehouse.name}</span>
+                              </div>
+                            ))}
+                          </div>
+                          <button
+                            className="action-btn"
+                            onClick={(e) => { e.stopPropagation(); handleProposeAlternative(selectedOrder.id, item.name); }}
+                            style={{ background: 'var(--orange-soft)', color: 'var(--orange)', width: 28, height: 28, borderRadius: 8, border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          >
+                            <ArrowLeftRight size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Alternative Message Display */}
+                    {selectedOrder.history?.filter((h: any) => h.action.includes(`Alternative proposée pour "${item.name}"`)).map((h: any, hi: number) => (
+                      <div key={hi} style={{ margin: '0 12px 10px', padding: '8px 12px', background: 'var(--orange-soft)', borderLeft: '3px solid var(--orange)', borderRadius: 6, fontSize: 12, fontWeight: 700, color: 'var(--ink)' }}>
+                        <div style={{ fontSize: 9, textTransform: 'uppercase', opacity: 0.6, marginBottom: 2 }}>Alternative :</div>
+                        {h.action.split(' : ')[1]}
+                      </div>
+                    ))}
+                  </DetailCard>
+                );
+              })}
+            </div>
+
+            {/* Note Section */}
+            <div style={{ marginTop: 20 }}>
+              <SectionLabel spaced>Note d'emballage</SectionLabel>
+              <textarea
+                className="mobile-search-input"
+                value={packingNote}
+                onChange={e => setPackingNote(e.target.value)}
+                placeholder="Note optionnelle..."
+                style={{ height: 80, padding: 12, fontSize: 13, background: '#F2F2F7', border: 'none', borderRadius: 12, width: '100%' }}
+              />
+            </div>
+          </Modal>
+        )}
+
+        {/* LIGHTBOX PORTAL */}
+        {previewImage && typeof document !== 'undefined' && createPortal(
+          <div
+            className="lightbox-overlay"
+            onClick={() => setPreviewImage(null)}
+            style={{ 
+              position: 'fixed', 
+              inset: 0, 
+              zIndex: 99999, 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              background: 'rgba(0,0,0,0.92)', 
+              backdropFilter: 'blur(8px)' 
+            }}
+          >
+            <div className="lightbox-content animate-zoom-in" onClick={e => e.stopPropagation()} style={{ position: 'relative', maxWidth: '95%', maxHeight: '95%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <img 
+                src={previewImage} 
+                alt="Preview" 
+                style={{ 
+                  maxWidth: '100%', 
+                  maxHeight: '100%', 
+                  objectFit: 'contain', 
+                  borderRadius: 16,
+                  boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
+                }} 
+              />
+              <button 
+                onClick={() => setPreviewImage(null)} 
+                style={{ 
+                  position: 'absolute', 
+                  top: 20, 
+                  right: 20, 
+                  background: 'rgba(255,255,255,0.2)', 
+                  border: 'none', 
+                  color: 'white', 
+                  borderRadius: '50%', 
+                  width: 44, 
+                  height: 44,
+                  backdropFilter: 'blur(4px)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <X size={28} />
+              </button>
+            </div>
+          </div>,
+          document.body
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="content animate-fade-in">
@@ -306,7 +678,7 @@ export default function PackingClient({ initialOrders, products, user }: { initi
         )}
       </TableCard>
 
-      {/* PACKING DETAIL MODAL */}
+      {/* PACKING DETAIL MODAL (DESKTOP) */}
       {selectedOrder && (
         <Modal isOpen={true} onClose={() => setSelectedOrder(null)} title={`Emballage · ${selectedOrder.ref}`} large
           footer={
@@ -348,78 +720,27 @@ export default function PackingClient({ initialOrders, products, user }: { initi
             const p = productMap.get(item.productId);
             const isChecked = checkedItems[selectedOrder.id]?.has(idx);
             return (
-              <DetailCard key={idx} className={isChecked ? 'checked' : ''} style={{ marginBottom: 12, border: isChecked ? '1px solid var(--green)' : '1px solid var(--line)', transition: 'all 0.3s ease' }}>
+              <DetailCard
+                key={idx}
+                className={isChecked ? 'checked' : ''}
+                style={{ marginBottom: 12 }}
+                onClick={() => toggleCheckItem(selectedOrder.id, idx)}
+              >
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
-                  <div
-                    onClick={() => toggleCheckItem(selectedOrder.id, idx)}
-                    style={{ width: 28, height: 28, borderRadius: 8, border: '2px solid', borderColor: isChecked ? 'var(--green)' : 'var(--line)', background: isChecked ? 'var(--green-soft)' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, marginTop: 4 }}
-                  >
+                  <div style={{ width: 28, height: 28, borderRadius: 8, border: '2px solid', borderColor: isChecked ? 'var(--green)' : 'var(--line)', background: isChecked ? 'var(--green-soft)' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 4 }}>
                     {isChecked && <Check size={18} color="var(--green)" />}
                   </div>
-
                   <div style={{ width: 60, height: 60, background: 'var(--cream-2)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, flexShrink: 0, overflow: 'hidden', border: '1px solid var(--line)' }}>
-                    {item.image ? (
-                      <img
-                        src={item.image}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'zoom-in' }}
-                        onClick={() => setPreviewImage(item.image)}
-                        alt=""
-                      />
-                    ) : (
-                      item.emoji || '📦'
-                    )}
+                    {item.image ? <img src={item.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (item.emoji || '📦')}
                   </div>
-
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <div>
-                        <div style={{ fontWeight: 700, fontSize: 15, textDecoration: isChecked ? 'line-through' : 'none', color: isChecked ? 'var(--brown-soft)' : 'var(--ink)' }}>{item.name}</div>
-                        <div style={{ fontSize: 13, color: 'var(--brown-soft)', marginTop: 4 }}>
-                          Taille : <span className="size-dot">{item.size}</span> | Couleur : <strong>{item.color}</strong> | Qté : <strong style={{ color: 'var(--orange)' }}>× {item.qty}</strong>
-                        </div>
+                        <div style={{ fontWeight: 700, fontSize: 15, textDecoration: isChecked ? 'line-through' : 'none' }}>{item.name}</div>
+                        <div style={{ fontSize: 13, color: 'var(--brown-soft)', marginTop: 4 }}>Taille : {item.size} | Couleur : {item.color} | Qté : x{item.qty}</div>
                       </div>
-                      <button
-                        className="action-btn"
-                        onClick={() => handleProposeAlternative(selectedOrder.id, item.name)}
-                        title="Signaler un problème / Alternative"
-                      >
-                        <ArrowLeftRight size={14} />
-                      </button>
+                      <button className="action-btn" onClick={(e) => { e.stopPropagation(); handleProposeAlternative(selectedOrder.id, item.name); }}><ArrowLeftRight size={14} /></button>
                     </div>
-
-                    {/* Alternative Message Display in Modal */}
-                    {selectedOrder.history?.filter((h: any) => h.action.includes(`Alternative proposée pour "${item.name}"`)).map((h: any, hi: number) => (
-                      <div key={hi} style={{ marginTop: 8, padding: '8px 12px', background: 'var(--orange-soft)', borderLeft: '3px solid var(--orange)', borderRadius: 4, fontSize: 12, fontWeight: 700, color: 'var(--ink)' }}>
-                        <div style={{ fontSize: 9, textTransform: 'uppercase', opacity: 0.6, marginBottom: 2 }}>Alternative proposée :</div>
-                        {h.action.split(' : ')[1]}
-                      </div>
-                    ))}
-
-                    {/* LOCALISATION DE LA VARIANTE DEMANDÉE */}
-                    <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                      {p?.variants?.find((v: any) => v.size === item.size && v.color === item.color)?.stockLevels?.map((sl: any) => (
-                        <div key={sl.id} style={{ fontSize: 11, background: 'var(--orange-soft)', color: 'var(--orange)', padding: '4px 10px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <Warehouse size={12} />
-                          <span>{sl.warehouse.name}</span>
-                          {sl.position && <span style={{ fontWeight: 800, color: 'var(--ink)' }}>• {sl.position}</span>}
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* AUTRES VARIANTES DISPONIBLES (SI BESOIN) */}
-                    {p && !isChecked && (
-                      <div style={{ marginTop: 12, background: 'var(--cream)', padding: '10px 14px', borderRadius: 8, border: '1px dashed var(--line)' }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--brown-soft)', marginBottom: 8, textTransform: 'uppercase' }}>Autres variantes dispo.</div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                          {p.variants?.filter((v: any) => v.size !== item.size || v.color !== item.color).map((v: any, vi: number) => (
-                            <div key={vi} style={{ background: 'white', padding: '4px 8px', borderRadius: 6, fontSize: 11, border: '1px solid var(--line)', display: 'flex', gap: 6, opacity: v.stock > 0 ? 1 : 0.5 }}>
-                              <span style={{ opacity: 0.6 }}>{v.size}/{v.color}</span>
-                              <strong style={{ color: v.stock === 0 ? 'var(--red)' : 'var(--green)' }}>{v.stock}</strong>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               </DetailCard>
@@ -427,39 +748,42 @@ export default function PackingClient({ initialOrders, products, user }: { initi
           })}
 
           <div style={{ marginTop: 20 }}>
-            <SectionLabel>Note d'emballage (optionnel)</SectionLabel>
-            <textarea
-              className="field-input"
-              value={packingNote}
-              onChange={e => setPackingNote(e.target.value)}
-              placeholder="Ex: Emballé dans un sac cadeau, manque la boîte..."
-              style={{ minHeight: 80, fontSize: 13 }}
-            />
+            <SectionLabel>Note d'emballage</SectionLabel>
+            <textarea className="field-input" value={packingNote} onChange={e => setPackingNote(e.target.value)} style={{ minHeight: 80 }} />
           </div>
         </Modal>
       )}
-      {/* IMMERSIVE LIGHTBOX */}
-      {previewImage && (
-        <div
-          className="lightbox-overlay"
-          onClick={() => setPreviewImage(null)}
-          style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(5px)', cursor: 'zoom-out' }}
+
+      {/* LIGHTBOX PORTAL (DESKTOP) */}
+      {previewImage && typeof document !== 'undefined' && createPortal(
+        <div 
+          className="lightbox-overlay" 
+          onClick={() => setPreviewImage(null)} 
+          style={{ 
+            position: 'fixed', 
+            inset: 0, 
+            zIndex: 99999, 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            background: 'rgba(0,0,0,0.9)', 
+            backdropFilter: 'blur(5px)',
+            cursor: 'zoom-out'
+          }}
         >
-          <div className="lightbox-content animate-zoom-in" onClick={e => e.stopPropagation()} style={{ position: 'relative', maxWidth: '90%', maxHeight: '90%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <img
-              src={previewImage}
-              alt="Preview"
-              style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 12, boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}
-            />
-            <button
-              className="lightbox-close"
-              onClick={() => setPreviewImage(null)}
-              style={{ position: 'absolute', top: -40, right: 0, background: 'transparent', border: 'none', color: 'white', cursor: 'pointer' }}
-            >
-              <X size={24} />
-            </button>
-          </div>
-        </div>
+          <img 
+            src={previewImage} 
+            style={{ 
+              maxWidth: '90%', 
+              maxHeight: '90%', 
+              objectFit: 'contain', 
+              borderRadius: 12,
+              boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
+            }} 
+            alt="Zoomed"
+          />
+        </div>,
+        document.body
       )}
     </div>
   );

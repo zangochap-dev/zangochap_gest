@@ -74,8 +74,8 @@ export const SectionLabel = ({ children, spaced }: { children: React.ReactNode; 
   <div className={`section-label ${spaced ? 'section-label-spaced' : ''}`}>{children}</div>
 );
 
-export const DetailCard = ({ label, children, className, style }: { label?: string; children: React.ReactNode; className?: string; style?: React.CSSProperties }) => (
-  <div className={`detail-card ${className || ''}`} style={style}>
+export const DetailCard = ({ label, children, className, style, onClick }: { label?: string; children: React.ReactNode; className?: string; style?: React.CSSProperties; onClick?: () => void }) => (
+  <div className={`detail-card ${className || ''}`} style={style} onClick={onClick}>
     {label && <div className="detail-label">{label}</div>}
     {children}
   </div>

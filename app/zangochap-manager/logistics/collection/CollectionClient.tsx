@@ -139,12 +139,10 @@ export default function CollectionClient({ toCollect, user, categories = [], war
       <div className="logistics-mobile-root">
         <LogisticsMobileStyles />
         <div className="logistics-mobile-header">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
             <h1 style={{ fontSize: 20, fontWeight: 800 }}>Collecte</h1>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--green)', background: 'var(--green-soft)', padding: '4px 10px', borderRadius: 20 }}>
-                {counts.all} à faire
-              </div>
+            <div style={{ position: 'absolute', right: 0, fontSize: 12, fontWeight: 700, color: 'var(--green)', background: 'var(--green-soft)', padding: '4px 10px', borderRadius: 20 }}>
+              {counts.all} à faire
             </div>
           </div>
 

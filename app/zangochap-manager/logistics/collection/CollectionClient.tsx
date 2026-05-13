@@ -247,9 +247,9 @@ export default function CollectionClient({ toCollect, user, categories = [], war
                         <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 13, color: '#8E8E93' }}>{tc.order.ref}</div>
                         <div style={{ fontWeight: 900, fontSize: 18, color: 'var(--orange)' }}>x{tc.item.qty}</div>
                       </div>
-                      
+
                       <div style={{ fontWeight: 800, fontSize: 15, color: '#1C1C1E', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tc.item.name}</div>
-                      
+
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
                         <span className="size-dot" style={{ background: '#1C1C1E', color: 'white', border: 'none' }}>{tc.item.size}</span>
                         <span style={{ fontSize: 12, color: '#8E8E93', fontWeight: 700 }}>{tc.item.color}</span>
@@ -383,7 +383,7 @@ export default function CollectionClient({ toCollect, user, categories = [], war
         document.body
       )}
 
-      {editingVariants && <VariantsEditorModal product={editingVariants.product} variants={editingVariants.variants} onClose={() => setEditingVariants(null)} onSave={(vars) => { startTransition(async () => { try { await updateProductVariants(editingVariants.product.id, vars); showToast('Variantes mises à jour ✓', 'success'); router.refresh(); setEditingVariants(null); } catch (e: any) { showToast('Erreur', 'error'); } }); }} />}
+      {editingVariants && <VariantsEditorModal product={editingVariants.product} variants={editingVariants.variants} onClose={() => setEditingVariants(null)} onSave={(vars: any[]) => { startTransition(async () => { try { await updateProductVariants(editingVariants.product.id, vars); showToast('Variantes mises à jour ✓', 'success'); router.refresh(); setEditingVariants(null); } catch (e: any) { showToast('Erreur', 'error'); } }); }} />}
     </div>
   );
 }

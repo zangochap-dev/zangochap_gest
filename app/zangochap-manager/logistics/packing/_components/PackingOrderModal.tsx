@@ -3,7 +3,7 @@
 import React from "react";
 import Modal from "@/components/Modal";
 import { SectionLabel, DetailCard } from "@/components/UI";
-import { Check, ArrowLeftRight, Warehouse, Edit2 } from "lucide-react";
+import { Check, ArrowLeftRight, Warehouse, Edit2, Loader2 } from "lucide-react";
 
 interface PackingOrderModalProps {
   order: any;
@@ -18,6 +18,8 @@ interface PackingOrderModalProps {
   onEditStock: (product: any) => void;
   onToggleCheckItem: (orderId: string, item: any) => void;
   onPreviewImage: (url: string) => void;
+  optimisticChecks?: Record<string, boolean>;
+  savingChecks?: Set<string>;
 }
 
 export default function PackingOrderModal({
@@ -32,12 +34,16 @@ export default function PackingOrderModal({
   onProposeAlternative,
   onEditStock,
   onToggleCheckItem,
-  onPreviewImage
+  onPreviewImage,
+  optimisticChecks = {},
+  savingChecks = new Set()
 }: PackingOrderModalProps) {
   
   if (!order) return null;
 
-  const progress = order.items.filter((i: any) => i.isVerified).length;
+  const progress = order.items.filter((i: any) => 
+    optimisticChecks[i.id] !== undefined ? optimisticChecks[i.id] : i.isVerified
+  ).length;
   const total = order.items.length;
 
   if (isMobile) {
@@ -71,7 +77,8 @@ export default function PackingOrderModal({
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {order.items.map((item: any, idx: number) => {
             const p = productMap.get(item.productId);
-            const isChecked = item.isVerified;
+            const isChecked = optimisticChecks[item.id] !== undefined ? optimisticChecks[item.id] : item.isVerified;
+            const isSaving = savingChecks.has(item.id);
             return (
               <DetailCard
                 key={idx}
@@ -80,12 +87,37 @@ export default function PackingOrderModal({
                   padding: 0,
                   overflow: 'hidden',
                   borderRadius: 14,
-                  border: isChecked ? '1.5px solid #34C759' : '1px solid #E5E5EA',
+                  border: isSaving 
+                    ? '1.5px solid var(--orange)' 
+                    : isChecked ? '1.5px solid #34C759' : '1px solid #E5E5EA',
                   background: isChecked ? '#F2FBF4' : 'white',
-                  transition: 'all 0.2s ease'
+                  transition: 'all 0.2s ease',
+                  opacity: isSaving ? 0.75 : 1,
+                  animation: isSaving ? 'pulse-border 1s ease infinite' : 'none',
+                  position: 'relative' as const,
+                  pointerEvents: isSaving ? 'none' as const : 'auto' as const,
                 }}
                 onClick={() => onToggleCheckItem(order.id, item)}
               >
+                {isSaving && (
+                  <div style={{
+                    position: 'absolute', top: 0, right: 0,
+                    padding: '4px 10px',
+                    background: 'var(--orange)',
+                    color: 'white',
+                    fontSize: 9,
+                    fontWeight: 800,
+                    borderBottomLeftRadius: 8,
+                    zIndex: 2,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    letterSpacing: '0.05em',
+                  }}>
+                    <Loader2 size={10} style={{ animation: 'spin 0.8s linear infinite' }} />
+                    ENREGISTREMENT
+                  </div>
+                )}
                 <div style={{ display: 'flex', minHeight: 90 }}>
                   <div style={{ position: 'relative', width: 90, flexShrink: 0, background: '#F2F2F7', borderRight: '1px solid #E5E5EA' }}>
                     {item.image ? (
@@ -98,13 +130,19 @@ export default function PackingOrderModal({
                     ) : (
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 28 }}>{item.emoji || '📦'}</div>
                     )}
-                    {isChecked && (
+                    {isChecked && !savingChecks.has(item.id) && (
                       <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(52, 199, 89, 0.1)' }}>
                         <Check size={36} color="#34C759" strokeWidth={5} />
                       </div>
                     )}
+                    {savingChecks.has(item.id) && (
+                      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.05)' }}>
+                        <Loader2 size={20} color="#8E8E93" style={{ animation: 'spin 0.8s linear infinite' }} />
+                      </div>
+                    )}
                     <div style={{ position: 'absolute', top: 6, left: 6, width: 20, height: 20, borderRadius: 5, border: '2px solid', borderColor: isChecked ? '#34C759' : '#C7C7CC', background: isChecked ? '#34C759' : 'rgba(255,255,255,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {isChecked && <Check size={14} color="white" strokeWidth={4} />}
+                      {isChecked && !savingChecks.has(item.id) && <Check size={14} color="white" strokeWidth={4} />}
+                      {savingChecks.has(item.id) && <Loader2 size={12} color={isChecked ? 'white' : '#8E8E93'} style={{ animation: 'spin 0.8s linear infinite' }} />}
                     </div>
                   </div>
 
@@ -220,17 +258,48 @@ export default function PackingOrderModal({
       <SectionLabel>Checklist de l'emballeur</SectionLabel>
       {order.items.map((item: any, idx: number) => {
         const p = productMap.get(item.productId);
-        const isChecked = item.isVerified;
+        const isChecked = optimisticChecks[item.id] !== undefined ? optimisticChecks[item.id] : item.isVerified;
+        const isSaving = savingChecks.has(item.id);
         return (
           <DetailCard
             key={idx}
             className={isChecked ? 'checked' : ''}
-            style={{ marginBottom: 12 }}
+            style={{ 
+              marginBottom: 12,
+              border: isSaving ? '1.5px solid var(--orange)' : undefined,
+              opacity: isSaving ? 0.75 : 1,
+              animation: isSaving ? 'pulse-border 1s ease infinite' : 'none',
+              transition: 'all 0.2s ease',
+              position: 'relative' as const,
+              pointerEvents: isSaving ? 'none' as const : 'auto' as const,
+            }}
             onClick={() => onToggleCheckItem(order.id, item)}
           >
+            {isSaving && (
+              <div style={{
+                position: 'absolute', top: 8, right: 10,
+                padding: '3px 8px',
+                background: 'var(--orange)',
+                color: 'white',
+                fontSize: 9,
+                fontWeight: 800,
+                borderRadius: 6,
+                zIndex: 2,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                letterSpacing: '0.05em',
+              }}>
+                <Loader2 size={10} style={{ animation: 'spin 0.8s linear infinite' }} />
+                ENREGISTREMENT
+              </div>
+            )}
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
               <div style={{ width: 28, height: 28, borderRadius: 8, border: '2px solid', borderColor: isChecked ? 'var(--green)' : 'var(--line)', background: isChecked ? 'var(--green-soft)' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 4 }}>
-                {isChecked && <Check size={18} color="var(--green)" />}
+                {savingChecks.has(item.id) 
+                  ? <Loader2 size={16} color="var(--brown-soft)" style={{ animation: 'spin 0.8s linear infinite' }} />
+                  : isChecked && <Check size={18} color="var(--green)" />
+                }
               </div>
               <div style={{ width: 60, height: 60, background: 'var(--cream-2)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, flexShrink: 0, overflow: 'hidden', border: '1px solid var(--line)' }}>
                 {item.image ? <img src={item.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onClick={(e) => { e.stopPropagation(); onPreviewImage(item.image); }} /> : (item.emoji || '📦')}

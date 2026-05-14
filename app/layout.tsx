@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+// @ts-expect-error CSS side-effect import
 import "./globals.css";
 import Providers from "@/components/Providers";
 import {

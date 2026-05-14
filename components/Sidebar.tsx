@@ -70,7 +70,7 @@ const NAV_FOR_ROLE: Record<string, (counts?: any) => any[]> = {
       { label: 'CRM Clients', href: '/zangochap-manager/admin/crm', icon: <Users size={18} /> }
     ]},
     { title: 'Pilotage', items: [
-      { label: 'Gestion Livraisons', href: '/zangochap-admin/delivery', icon: <Truck size={18} /> },
+      { label: 'Gestion Livraisons', href: '/zangochap-manager/admin/delivery', icon: <Truck size={18} /> },
       { label: 'Settings', href: '/zangochap-manager/admin/settings', icon: <Settings size={18} /> }
     ]},
   ],

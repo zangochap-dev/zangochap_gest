@@ -454,6 +454,9 @@ export default function PackingClient({ initialOrders, products, user }: { initi
                         <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6 }}>
                           <span className="size-dot" style={{ background: '#1C1C1E', color: 'white', border: 'none', scale: '0.8' }}>{item.size}</span>
                           <span style={{ fontSize: 11, color: '#8E8E93', fontWeight: 700 }}>{item.color}</span>
+                          {selectedOrder.history?.find((h: any) => h.action.includes('Collecté') && h.action.includes(item.name))?.byName && (
+                            <span style={{ fontSize: 9, color: '#34C759', fontWeight: 800 }}>⚒️ {selectedOrder.history.find((h: any) => h.action.includes('Collecté') && h.action.includes(item.name)).byName}</span>
+                          )}
                         </div>
 
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 'auto' }}>
@@ -811,7 +814,12 @@ export default function PackingClient({ initialOrders, products, user }: { initi
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <div>
                         <div style={{ fontWeight: 700, fontSize: 15, textDecoration: isChecked ? 'line-through' : 'none' }}>{item.name}</div>
-                        <div style={{ fontSize: 13, color: 'var(--brown-soft)', marginTop: 4 }}>Taille : {item.size} | Couleur : {item.color} | Qté : x{item.qty}</div>
+                        <div style={{ fontSize: 13, color: 'var(--brown-soft)', marginTop: 4 }}>
+                          Taille : {item.size} | Couleur : {item.color} | Qté : x{item.qty}
+                          {selectedOrder.history?.find((h: any) => h.action.includes('Collecté') && h.action.includes(item.name))?.byName && (
+                            <span style={{ color: 'var(--green)', fontWeight: 800, marginLeft: 10 }}>⚒️ Collecté par {selectedOrder.history.find((h: any) => h.action.includes('Collecté') && h.action.includes(item.name)).byName}</span>
+                          )}
+                        </div>
                       </div>
                       <div style={{ display: 'flex', gap: 6 }}>
                         <button

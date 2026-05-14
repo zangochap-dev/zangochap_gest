@@ -298,22 +298,22 @@ export default function PackingClient({ initialOrders, products, user }: { initi
                             <div style={{ fontSize: 12, fontWeight: 700, color: '#1C1C1E', marginBottom: 2 }}>{o.customerName}</div>
                             <div style={{ fontSize: 10, color: '#8E8E93', fontWeight: 600 }}>{o.commune || 'Abidjan'} • {formatDay(o.createdAt)}</div>
                           </div>
-                          <button 
-                            onClick={(e) => { 
-                              e.stopPropagation(); 
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
                               const p = productMap.get(o.items[0]?.productId);
-                              if (p) setEditingVariants({ product: p, variants: p.variants }); 
+                              if (p) setEditingVariants({ product: p, variants: p.variants });
                             }}
-                            style={{ 
-                              background: 'var(--cream)', 
-                              border: '1px solid var(--line)', 
-                              borderRadius: 10, 
-                              padding: '6px 12px', 
-                              fontSize: 12, 
-                              fontWeight: 800, 
-                              color: 'var(--brown-soft)', 
-                              display: 'flex', 
-                              alignItems: 'center', 
+                            style={{
+                              background: 'var(--cream)',
+                              border: '1px solid var(--line)',
+                              borderRadius: 10,
+                              padding: '6px 12px',
+                              fontSize: 12,
+                              fontWeight: 800,
+                              color: 'var(--brown-soft)',
+                              display: 'flex',
+                              alignItems: 'center',
                               gap: 6
                             }}
                           >
@@ -348,7 +348,7 @@ export default function PackingClient({ initialOrders, products, user }: { initi
                         PARTIEL
                       </button>
                       <button
-                        onClick={(e) => { e.stopPropagation(); handleMarkPacking(o.id, 'STOCK_ISSUE'); }}
+                        onClick={(e) => { e.stopPropagation(); handleMarkPacking(o.id, 'UNAVAILABLE'); }}
                         style={{ flex: 1, height: 44, background: '#FF3B30', color: 'white', border: 'none', fontWeight: 800, fontSize: 12, borderLeft: '1px solid rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       >
                         STOCK
@@ -464,9 +464,9 @@ export default function PackingClient({ initialOrders, products, user }: { initi
                           <div style={{ display: 'flex', gap: 6 }}>
                             <button
                               className="action-btn"
-                              onClick={(e) => { 
-                                e.stopPropagation(); 
-                                if (p) setEditingVariants({ product: p, variants: p.variants }); 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (p) setEditingVariants({ product: p, variants: p.variants });
                               }}
                               style={{ background: 'var(--cream)', color: 'var(--brown-soft)', width: 28, height: 28, borderRadius: 8, border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                               title="Modifier Stock"
@@ -516,40 +516,40 @@ export default function PackingClient({ initialOrders, products, user }: { initi
           <div
             className="lightbox-overlay"
             onClick={() => setPreviewImage(null)}
-            style={{ 
-              position: 'fixed', 
-              inset: 0, 
-              zIndex: 99999, 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              background: 'rgba(0,0,0,0.92)', 
-              backdropFilter: 'blur(8px)' 
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 99999,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'rgba(0,0,0,0.92)',
+              backdropFilter: 'blur(8px)'
             }}
           >
             <div className="lightbox-content animate-zoom-in" onClick={e => e.stopPropagation()} style={{ position: 'relative', maxWidth: '95%', maxHeight: '95%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <img 
-                src={previewImage} 
-                alt="Preview" 
-                style={{ 
-                  maxWidth: '100%', 
-                  maxHeight: '100%', 
-                  objectFit: 'contain', 
+              <img
+                src={previewImage}
+                alt="Preview"
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: '100%',
+                  objectFit: 'contain',
                   borderRadius: 16,
                   boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
-                }} 
+                }}
               />
-              <button 
-                onClick={() => setPreviewImage(null)} 
-                style={{ 
-                  position: 'absolute', 
-                  top: 20, 
-                  right: 20, 
-                  background: 'rgba(255,255,255,0.2)', 
-                  border: 'none', 
-                  color: 'white', 
-                  borderRadius: '50%', 
-                  width: 44, 
+              <button
+                onClick={() => setPreviewImage(null)}
+                style={{
+                  position: 'absolute',
+                  top: 20,
+                  right: 20,
+                  background: 'rgba(255,255,255,0.2)',
+                  border: 'none',
+                  color: 'white',
+                  borderRadius: '50%',
+                  width: 44,
                   height: 44,
                   backdropFilter: 'blur(4px)',
                   display: 'flex',
@@ -562,6 +562,26 @@ export default function PackingClient({ initialOrders, products, user }: { initi
             </div>
           </div>,
           document.body
+        )}
+
+        {editingVariants && (
+          <VariantsEditorModal 
+            product={editingVariants.product} 
+            variants={editingVariants.variants} 
+            onClose={() => setEditingVariants(null)} 
+            onSave={(vars: any[]) => {
+              startTransition(async () => {
+                try {
+                  await updateProductVariants(editingVariants.product.id, vars);
+                  showToast('Variantes mises à jour ✓', 'success');
+                  router.refresh();
+                  setEditingVariants(null);
+                } catch (e: any) {
+                  showToast('Erreur', 'error');
+                }
+              });
+            }}
+          />
         )}
       </div>
     );
@@ -780,11 +800,11 @@ export default function PackingClient({ initialOrders, products, user }: { initi
                         <div style={{ fontSize: 13, color: 'var(--brown-soft)', marginTop: 4 }}>Taille : {item.size} | Couleur : {item.color} | Qté : x{item.qty}</div>
                       </div>
                       <div style={{ display: 'flex', gap: 6 }}>
-                        <button 
-                          className="action-btn" 
-                          onClick={(e) => { 
-                            e.stopPropagation(); 
-                            if (p) setEditingVariants({ product: p, variants: p.variants }); 
+                        <button
+                          className="action-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (p) setEditingVariants({ product: p, variants: p.variants });
                           }}
                           title="Modifier Stock"
                         >
@@ -808,40 +828,40 @@ export default function PackingClient({ initialOrders, products, user }: { initi
 
       {/* LIGHTBOX PORTAL (DESKTOP) */}
       {previewImage && typeof document !== 'undefined' && createPortal(
-        <div 
-          className="lightbox-overlay" 
-          onClick={() => setPreviewImage(null)} 
-          style={{ 
-            position: 'fixed', 
-            inset: 0, 
-            zIndex: 99999, 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center', 
-            background: 'rgba(0,0,0,0.9)', 
+        <div
+          className="lightbox-overlay"
+          onClick={() => setPreviewImage(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 99999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(0,0,0,0.9)',
             backdropFilter: 'blur(5px)',
             cursor: 'zoom-out'
           }}
         >
-          <img 
-            src={previewImage} 
-            style={{ 
-              maxWidth: '90%', 
-              maxHeight: '90%', 
-              objectFit: 'contain', 
+          <img
+            src={previewImage}
+            style={{
+              maxWidth: '90%',
+              maxHeight: '90%',
+              objectFit: 'contain',
               borderRadius: 12,
               boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
-            }} 
+            }}
             alt="Zoomed"
           />
         </div>,
         document.body
       )}
       {editingVariants && (
-        <VariantsEditorModal 
-          product={editingVariants.product} 
-          variants={editingVariants.variants} 
-          onClose={() => setEditingVariants(null)} 
+        <VariantsEditorModal
+          product={editingVariants.product}
+          variants={editingVariants.variants}
+          onClose={() => setEditingVariants(null)}
           onSave={(vars: any[]) => {
             startTransition(async () => {
               try {
@@ -864,19 +884,19 @@ function VariantsEditorModal({ product, variants: initialVariants, onClose, onSa
   const [variants, setVariants] = React.useState(initialVariants);
   const updateVariant = (idx: number, field: string, value: any) => {
     const next = [...variants];
-    next[idx] = { 
-      ...next[idx], 
-      [field]: field === 'stock' ? Math.max(0, parseInt(value) || 0) : value 
+    next[idx] = {
+      ...next[idx],
+      [field]: field === 'stock' ? Math.max(0, parseInt(value) || 0) : value
     };
     setVariants(next);
   };
 
   return (
-    <Modal 
-      isOpen={true} 
-      onClose={onClose} 
-      title={`Stock · ${product.name}`} 
-      large 
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      title={`Stock · ${product.name}`}
+      large
       footer={
         <>
           <button className="btn-secondary" onClick={onClose}>Annuler</button>
@@ -904,19 +924,19 @@ function VariantsEditorModal({ product, variants: initialVariants, onClose, onSa
                 <td style={{ padding: '8px 4px' }}><span className="size-dot">{v.size}</span></td>
                 <td style={{ padding: '8px 4px', fontSize: 12, fontWeight: 600 }}>{v.color}</td>
                 <td style={{ padding: '8px 4px' }}>
-                  <input 
-                    type="number" 
-                    value={v.stock} 
-                    onChange={e => updateVariant(i, 'stock', e.target.value)} 
-                    style={{ width: 60, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--line)' }} 
+                  <input
+                    type="number"
+                    value={v.stock}
+                    onChange={e => updateVariant(i, 'stock', e.target.value)}
+                    style={{ width: 60, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--line)' }}
                   />
                 </td>
                 <td style={{ padding: '8px 4px' }}>
-                  <input 
-                    type="text" 
-                    value={v.location || ''} 
-                    onChange={e => updateVariant(i, 'location', e.target.value)} 
-                    style={{ width: '100%', minWidth: 80, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--line)' }} 
+                  <input
+                    type="text"
+                    value={v.location || ''}
+                    onChange={e => updateVariant(i, 'location', e.target.value)}
+                    style={{ width: '100%', minWidth: 80, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--line)' }}
                   />
                 </td>
               </tr>

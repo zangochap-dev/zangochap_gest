@@ -7,8 +7,8 @@ import { useToast } from "@/components/Toast";
 import { createAccount, updateAccount, deleteAccount } from "@/modules/auth/actions";
 import { ROLE_LABELS, getInitials } from "@/lib/constants";
 import { useRouter } from "next/navigation";
-import {
 import "./team-client.css";
+import {
   Plus, Edit3, Trash2, Mail, Phone, Shield,
   ShoppingBag, Package, Truck, Box, User,
   MoreVertical, Search, Filter,

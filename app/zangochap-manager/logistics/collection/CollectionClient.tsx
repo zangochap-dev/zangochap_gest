@@ -72,13 +72,13 @@ export default function CollectionClient({ toCollect, user, categories = [], war
     const filtered = toCollect.filter(tc => {
       const h = Array.isArray(tc.order.history) ? tc.order.history : [];
       const relevantLogs = h.filter((log: any) => {
-        const action = log.action.toLowerCase();
+        const action = (log.action || '').toLowerCase();
         return (action.includes('collecté') || action.includes('indisponible') || action.includes('alternative')) &&
-          action.includes(tc.item.name.toLowerCase());
+          action.includes((tc.item.name || '').toLowerCase());
       }).sort((a: any, b: any) => new Date(b.at).getTime() - new Date(a.at).getTime());
 
       const latestLog = relevantLogs[0];
-      const latestAction = latestLog?.action.toLowerCase() || '';
+      const latestAction = (latestLog?.action || '').toLowerCase();
       const hasCollected = latestAction.includes('collecté') && !latestAction.includes('alternative');
       const hasUnavailable = latestAction.includes('indisponible');
       const hasAlternative = latestAction.includes('alternative');
@@ -205,19 +205,19 @@ export default function CollectionClient({ toCollect, user, categories = [], war
                 filteredToCollect.map((tc, idx) => {
                   const h = Array.isArray(tc.order.history) ? tc.order.history : [];
                   const lastLog = h.filter((l: any) => {
-                    const act = l.action.toLowerCase();
+                    const act = (l.action || '').toLowerCase();
                     return (act.includes('collecté') || act.includes('indisponible') || act.includes('alternative')) &&
-                      act.includes(tc.item.name.toLowerCase());
+                      act.includes((tc.item.name || '').toLowerCase());
                   }).sort((a: any, b: any) => new Date(b.at).getTime() - new Date(a.at).getTime())[0];
                   
-                  const currentStatus = lastLog?.action.toLowerCase() || '';
+                  const currentStatus = (lastLog?.action || '').toLowerCase();
                   const isCollected = currentStatus.includes('collecté') && !currentStatus.includes('alternative');
                   const isUnavailable = currentStatus.includes('indisponible');
                   const isAlt = currentStatus.includes('alternative');
                   
                   let altNote = '';
                   if (isAlt) {
-                    const match = lastLog.action.match(/\(([^)]+)\)/);
+                    const match = (lastLog?.action || '').match(/\(([^)]+)\)/);
                     altNote = match ? match[1] : '';
                   }
 
@@ -260,11 +260,11 @@ export default function CollectionClient({ toCollect, user, categories = [], war
                           <div style={{ fontWeight: 800, fontSize: 15, color: '#1C1C1E', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tc.item.name}</div>
                           <div style={{ fontSize: 11, color: '#8E8E93', fontWeight: 600, marginBottom: 4 }}>{tc.order.customerName}</div>
 
-                          <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
-                            {tc.order.commercialName && <span style={{ fontSize: 9, fontWeight: 700, background: '#E8F4FD', color: '#0A84FF', padding: '2px 6px', borderRadius: 6 }}>🛒 {tc.order.commercialName}</span>}
-                            {lastLog?.byName && <span style={{ fontSize: 9, fontWeight: 700, background: '#F2FBF4', color: '#34C759', padding: '2px 6px', borderRadius: 6 }}>⚒️ {lastLog.byName}</span>}
-                            {tc.order.packedByName && <span style={{ fontSize: 9, fontWeight: 700, background: '#FFF1F2', color: '#FF3B30', padding: '2px 6px', borderRadius: 6 }}>📦 {tc.order.packedByName}</span>}
-                          </div>
+                           <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+                             {tc.order.commercialName && <span style={{ fontSize: 9, fontWeight: 700, background: '#E8F4FD', color: '#0A84FF', padding: '2px 6px', borderRadius: 6 }}>Comm: {tc.order.commercialName}</span>}
+                             {lastLog?.byName && <span style={{ fontSize: 9, fontWeight: 700, background: '#F2FBF4', color: '#34C759', padding: '2px 6px', borderRadius: 6 }}>Coll: {lastLog.byName}</span>}
+                             {tc.order.packedByName && <span style={{ fontSize: 9, fontWeight: 700, background: '#FFF1F2', color: '#FF3B30', padding: '2px 6px', borderRadius: 6 }}>Emb: {tc.order.packedByName}</span>}
+                           </div>
                           
                           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
                             <span className="size-dot" style={{ background: '#1C1C1E', color: 'white', border: 'none' }}>{tc.item.size}</span>
@@ -310,7 +310,6 @@ export default function CollectionClient({ toCollect, user, categories = [], war
                         </div>
                       </div>
 
-                      {/* ACTIONS BOTTOM */}
                       <div style={{ display: 'flex', borderTop: '1px solid #E5E5EA' }}>
                         <button
                           onClick={() => handleMark(tc.order.id, tc.product.id, 'collected', tc.item.id)}
@@ -323,7 +322,7 @@ export default function CollectionClient({ toCollect, user, categories = [], war
                             borderTop: isCollected ? '3px solid #1e7e34' : 'none'
                           }}
                         >
-                          <Check size={18} strokeWidth={3} /> {isCollected ? 'COLLECTÉ ✓' : 'COLLECTÉ'}
+                          <Check size={18} strokeWidth={3} /> {isCollected ? 'COLLECTÉ' : 'COLLECTÉ'}
                         </button>
                         <button
                           onClick={() => {
@@ -463,9 +462,9 @@ export default function CollectionClient({ toCollect, user, categories = [], war
 function CollectionRow({ order, item, product, isPending, onMark, onPreview, onEditStock }: any) {
   const h = Array.isArray(order.history) ? order.history : [];
   const collector = h.filter((l: any) => {
-    const act = l.action.toLowerCase();
+    const act = (l.action || '').toLowerCase();
     return (act.includes('collecté') || act.includes('indisponible') || act.includes('alternative')) &&
-      act.includes(item.name.toLowerCase());
+      act.includes((item.name || '').toLowerCase());
   }).sort((a: any, b: any) => new Date(b.at).getTime() - new Date(a.at).getTime())[0];
 
   return (
@@ -474,9 +473,9 @@ function CollectionRow({ order, item, product, isPending, onMark, onPreview, onE
         <div className="cell-mono" style={{ fontWeight: 800 }}>{order.ref}</div>
         <div className="cell-muted" style={{ fontSize: 11 }}>{order.customerName}</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 4 }}>
-          {order.commercialName && <span style={{ fontSize: 9, fontWeight: 700, color: '#0A84FF' }}>🛒 {order.commercialName}</span>}
-          {collector?.byName && <span style={{ fontSize: 9, fontWeight: 700, color: '#34C759' }}>⚒️ {collector.byName}</span>}
-          {order.packedByName && <span style={{ fontSize: 9, fontWeight: 700, color: '#FF3B30' }}>📦 {order.packedByName}</span>}
+          {order.commercialName && <span style={{ fontSize: 9, fontWeight: 700, color: '#0A84FF' }}>Comm: {order.commercialName}</span>}
+          {collector?.byName && <span style={{ fontSize: 9, fontWeight: 700, color: '#34C759' }}>Coll: {collector.byName}</span>}
+          {order.packedByName && <span style={{ fontSize: 9, fontWeight: 700, color: '#FF3B30' }}>Emb: {order.packedByName}</span>}
         </div>
       </td>
       <td>

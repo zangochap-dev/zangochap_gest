@@ -71,6 +71,7 @@ const NAV_FOR_ROLE: Record<string, (counts?: any) => any[]> = {
     ]},
     { title: 'Pilotage', items: [
       { label: 'Gestion Livraisons', href: '/zangochap-manager/admin/delivery', icon: <Truck size={18} /> },
+      { label: 'Règlements', href: '/zangochap-manager/admin/settlements', icon: <Wallet size={18} /> },
       { label: 'Settings', href: '/zangochap-manager/admin/settings', icon: <Settings size={18} /> }
     ]},
   ],

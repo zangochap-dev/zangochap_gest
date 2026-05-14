@@ -8,6 +8,7 @@ import { createAccount, updateAccount, deleteAccount } from "@/modules/auth/acti
 import { ROLE_LABELS, getInitials } from "@/lib/constants";
 import { useRouter } from "next/navigation";
 import {
+import "./team-client.css";
   Plus, Edit3, Trash2, Mail, Phone, Shield,
   ShoppingBag, Package, Truck, Box, User,
   MoreVertical, Search, Filter,
@@ -196,140 +197,7 @@ export default function TeamClient({ accounts, currentUser }: { accounts: any[];
       {showNew && <AccountModal onClose={() => setShowNew(false)} />}
       {editing && <AccountModal account={editing} onClose={() => setEditing(null)} />}
 
-      <style jsx>{`
-        .role-section {
-          margin-bottom: 32px;
-        }
-        .role-header-premium {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 16px;
-          padding: 0 4px;
-        }
-        .role-info-pill {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding: 6px 14px;
-          border-radius: 20px;
-          color: white;
-          font-weight: 700;
-          font-size: 13px;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-        .role-meta-badge {
-          font-size: 11px;
-          font-weight: 700;
-          color: var(--brown-soft);
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          background: var(--cream-2);
-          padding: 4px 10px;
-          border-radius: 6px;
-        }
-
-        .team-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-          gap: 16px;
-        }
-
-        .member-card {
-          background: white;
-          border-radius: 16px;
-          border: 1px solid var(--line);
-          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .member-card:hover {
-          transform: translateY(-2px);
-          box-shadow: var(--shadow-md);
-          border-color: var(--orange-soft);
-        }
-        .member-card-inner {
-          padding: 16px;
-          display: flex;
-          align-items: center;
-          gap: 16px;
-        }
-
-        .member-avatar {
-          width: 50px;
-          height: 50px;
-          border-radius: 12px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: white;
-          font-family: var(--font-display);
-          font-weight: 700;
-          font-size: 16px;
-          flex-shrink: 0;
-          box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-        }
-
-        .member-info {
-          flex: 1;
-          min-width: 0;
-        }
-        .member-name {
-          font-weight: 700;
-          font-size: 15px;
-          color: var(--ink);
-          margin-bottom: 2px;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .member-email, .member-phone {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 11px;
-          color: var(--brown-soft);
-          margin-top: 1px;
-          opacity: 0.8;
-        }
-        .member-email span, .member-phone span {
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
-        .member-actions {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-        }
-        .action-btn-circle {
-          width: 28px;
-          height: 28px;
-          border-radius: 50%;
-          border: 1px solid var(--line);
-          background: var(--cream);
-          color: var(--brown-soft);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          transition: all 0.15s;
-        }
-        .action-btn-circle:hover {
-          background: white;
-          color: var(--orange);
-          border-color: var(--orange);
-          transform: scale(1.05);
-        }
-        .action-btn-circle.delete:hover {
-          background: #FEF2F2;
-          color: #EF4444;
-          border-color: #FCA5A5;
-        }
-
-        @media (max-width: 640px) {
-          .team-grid { grid-template-columns: 1fr; }
-        }
-      `}</style>
+      
     </div>
   );
 

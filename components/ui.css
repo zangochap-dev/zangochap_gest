@@ -1,0 +1,6 @@
+/* UI Component Utility Classes */
+.stat-head-row { display: flex; justify-content: space-between; align-items: flex-start; }
+.stat-icon-fade { opacity: 0.5; }
+.item-emoji-img { cursor: zoom-in; padding: 0; overflow: hidden; background: #f8f9fa; }
+.item-img-full { width: 100%; height: 100%; object-fit: cover; }
+.location-icon { margin-right: 4px; opacity: 0.7; }

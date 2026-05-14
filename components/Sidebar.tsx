@@ -119,7 +119,6 @@ export default function Sidebar({ user, counts }: SidebarProps) {
     };
   }, [showToast]);
 
-
   // Track New Orders / Packing Tasks
   useEffect(() => {
     if (!prevCounts.current || isOffline) {
@@ -163,176 +162,151 @@ export default function Sidebar({ user, counts }: SidebarProps) {
   return (
     <>
       {/* MOBILE TOP BAR */}
-      <div className="mobile-top-bar">
-        <button className="mobile-nav-trigger" onClick={() => setIsMobileOpen(true)}><Menu size={24} /></button>
-        <div className="mobile-logo-center">
-          <img src="/logo.png" alt="Logo" width="100" height="30" className="h-auto block" style={{ objectFit: 'contain' }} />
-          {mounted && isOffline && <WifiOff size={14} color="#FF3B30" style={{ marginLeft: 8 }} />}
+      <div className="lg:hidden fixed top-0 left-0 right-0 h-[60px] bg-white border-b border-[#E5E5EA] flex items-center justify-between px-4 z-[9999] text-[#1C1C1E]">
+        <button className="bg-transparent border-none p-2 relative" onClick={() => setIsMobileOpen(true)}><Menu size={24} /></button>
+        <div className="flex items-center">
+          <img src="/logo.png" alt="Logo" width="100" height="30" className="h-auto block object-contain" />
+          {mounted && isOffline && <WifiOff size={14} color="#FF3B30" className="ml-2" />}
         </div>
-        <button className="mobile-notif-btn" onClick={() => setShowNotifications(!showNotifications)}>
+        <button className="bg-transparent border-none p-2 relative" onClick={() => setShowNotifications(!showNotifications)}>
           <Bell size={22} color={mounted && hasNewNotifications ? 'var(--orange)' : '#8E8E93'} />
-          {mounted && hasNewNotifications && <span className="notif-dot" />}
+          {mounted && hasNewNotifications && <span className="absolute top-2 right-2 w-2 h-2 bg-[#FF3B30] rounded-full border-2 border-white" />}
         </button>
       </div>
 
       {/* OVERLAY */}
       <AnimatePresence>
         {isMobileOpen && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsMobileOpen(false)} className="sidebar-overlay" />
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsMobileOpen(false)} className="fixed inset-0 bg-black/60 backdrop-blur-[4px] z-[999]" />
         )}
       </AnimatePresence>
 
-      <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileOpen ? 'mobile-open' : ''}`}>
-        <div className="sidebar-header">
-          <div className="sidebar-logo">
-            <Link href="/zangochap-manager/dashboard" className="logo-link">
-              <img src="/logo.png" alt="ZANGOCHAP" width="140" height="40" className="logo-img h-auto block" />
-              <div className="logo-icon-mini">Z</div>
+      <aside className={`
+        fixed inset-y-0 left-[-280px] w-[280px] lg:sticky lg:left-0 lg:top-0 lg:h-screen lg:z-[1000]
+        bg-[#0F1115] text-white flex flex-col border-r border-white/5 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]
+        ${isCollapsed ? 'lg:w-[76px]' : 'lg:w-[260px]'} 
+        ${isMobileOpen ? 'left-0!' : ''}
+      `}>
+        <div className="p-5 flex justify-between items-center">
+          <div className="flex items-center">
+            <Link href="/zangochap-manager/dashboard" className="flex items-center">
+              {!isCollapsed ? (
+                <img src="/logo.png" alt="ZANGOCHAP" width="140" height="40" className="h-auto block" />
+              ) : (
+                <div className="w-10 h-10 bg-[#FF6B2C] rounded-xl flex items-center justify-center font-black text-[22px] text-white">Z</div>
+              )}
             </Link>
           </div>
 
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div className="flex gap-2 items-center">
             {mounted && isOffline && (
-              <div className="offline-badge" title="Mode hors-ligne">
+              <div className="bg-red-500/10 text-red-500 w-8 h-8 rounded-[10px] flex items-center justify-center" title="Mode hors-ligne">
                 <WifiOff size={16} />
               </div>
             )}
             <button
-              className={`notif-btn-desktop ${hasNewNotifications ? 'has-new' : ''}`}
+              className={`
+                bg-white/5 border-none text-white/40 w-9 h-9 rounded-[10px] flex items-center justify-center relative cursor-pointer transition-all duration-200
+                hover:bg-white/10 hover:text-white
+                ${hasNewNotifications ? 'text-[#FF6B2C] bg-white/10' : ''}
+              `}
               onClick={() => { setShowNotifications(!showNotifications); setHasNewNotifications(false); }}
             >
               <Bell size={20} />
-              {mounted && hasNewNotifications && <span className="notif-dot" />}
+              {mounted && hasNewNotifications && (
+                <span className="absolute top-0.5 right-0.5 w-2 h-2 bg-[#FF3B30] rounded-full border-2 border-[#0F1115]" />
+              )}
             </button>
-            <button className="mobile-close" onClick={() => setIsMobileOpen(false)}><X size={20} /></button>
+            <button className="lg:hidden flex bg-white/5 border-none text-white w-8 h-8 rounded-lg items-center justify-center" onClick={() => setIsMobileOpen(false)}><X size={20} /></button>
           </div>
         </div>
 
         {/* OFFLINE STATUS BANNER */}
         {mounted && isOffline && (
-          <div className="offline-banner">
+          <div className="bg-[#FF3B30] text-white text-[10px] font-extrabold uppercase p-1.5 flex items-center justify-center gap-1.5 tracking-wider">
             <WifiOff size={12} />
             <span>Mode hors-ligne</span>
           </div>
         )}
 
-        <nav className="sidebar-nav">
-          <div className="nav-container">
+        <nav className="flex-1 overflow-y-auto px-3.5 py-2 scrollbar-hide">
+          <div className="flex flex-col gap-6">
             {sections.map((section: any, sIdx: number) => (
-              <div key={sIdx} className="sidebar-section">
-                {section.title && !isCollapsed && <div className="sidebar-section-title">{section.title}</div>}
-                {section.items.map((item: any) => {
-                  const isActive = pathname === item.href || (item.href !== '/zangochap-manager/dashboard' && pathname.startsWith(item.href));
-                  return (
-                    <Link key={item.href} href={item.href} className={`sidebar-link ${isActive ? 'active' : ''}`}>
-                      <div className="sidebar-link-inner">
-                        <span className="icon-wrapper">{item.icon}</span>
-                        {!isCollapsed && <span className="label-text">{item.label}</span>}
-                      </div>
-                      {mounted && item.badge > 0 && <span className="sidebar-badge">{item.badge}</span>}
-                    </Link>
-                  );
-                })}
+              <div key={sIdx}>
+                {section.title && !isCollapsed && (
+                  <div className="text-[10px] font-extrabold uppercase text-white/25 px-3 mb-3 tracking-wider">
+                    {section.title}
+                  </div>
+                )}
+                <div className="flex flex-col gap-0.5">
+                  {section.items.map((item: any) => {
+                    const isActive = pathname === item.href || (item.href !== '/zangochap-manager/dashboard' && pathname.startsWith(item.href));
+                    return (
+                      <Link 
+                        key={item.href} 
+                        href={item.href} 
+                        className={`
+                          flex items-center justify-between p-[11px_12px] rounded-xl text-[13px] font-semibold transition-all duration-200 no-underline mb-0.5
+                          ${isActive ? 'bg-[#FF6B2C]/10 text-[#FF6B2C] font-bold' : 'text-white/40 hover:bg-white/[0.03] hover:text-white'}
+                        `}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className={`flex items-center ${isActive ? 'opacity-100 text-[#FF6B2C]' : 'opacity-60'}`}>{item.icon}</span>
+                          {!isCollapsed && <span>{item.label}</span>}
+                        </div>
+                        {mounted && item.badge > 0 && (
+                          <span className="bg-[#FF6B2C] text-white text-[10px] font-black px-1.5 py-0.5 rounded-md">
+                            {item.badge}
+                          </span>
+                        )}
+                      </Link>
+                    );
+                  })}
+                </div>
               </div>
             ))}
           </div>
         </nav>
 
-        <div className="sidebar-footer">
-          <div className="user-card">
-            <div className="sidebar-user">
-              <div className="sidebar-avatar">{user.initials}</div>
+        <div className="p-4 flex flex-col gap-3">
+          <div className="flex items-center gap-3 bg-white/[0.03] border border-white/[0.06] p-2.5 rounded-2xl">
+            <div className="flex items-center gap-2.5 flex-1 min-w-0">
+              <div className="w-[38px] h-[38px] bg-[#FF6B2C] rounded-[10px] flex items-center justify-center font-extrabold text-[13px] text-white">
+                {user.initials}
+              </div>
               {!isCollapsed && (
-                <div className="sidebar-user-info">
-                  <div className="sidebar-user-name">{user.name}</div>
-                  <div className="sidebar-role-badge">{roleLabel}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13px] font-bold text-white whitespace-nowrap overflow-hidden text-ellipsis">
+                    {user.name}
+                  </div>
+                  <div className="text-[#FF6B2C] text-[9px] font-extrabold uppercase">
+                    {roleLabel}
+                  </div>
                 </div>
               )}
             </div>
             {!isCollapsed && (
               <form action={logoutAction}>
-                <button type="submit" className="sidebar-logout"><LogOut size={14} /></button>
+                <button 
+                  type="submit" 
+                  className="w-8 h-8 flex items-center justify-center rounded-[10px] bg-white/5 text-white/30 border-none cursor-pointer transition-colors hover:bg-red-500 hover:text-white"
+                >
+                  <LogOut size={14} />
+                </button>
               </form>
             )}
           </div>
-          <button className="sidebar-collapse-toggle" onClick={() => setIsCollapsed(!isCollapsed)}>
+          <button 
+            className="hidden lg:flex bg-transparent border-none text-white/20 text-[11px] font-bold p-[8px_12px] cursor-pointer items-center gap-2" 
+            onClick={() => setIsCollapsed(!isCollapsed)}
+          >
             {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
             {!isCollapsed && <span>Réduire</span>}
           </button>
         </div>
       </aside>
 
-      <style jsx>{`
-        .sidebar { width: 260px; background: #0F1115; color: white; display: flex; flex-direction: column; height: 100vh; position: sticky; top: 0; z-index: 1000; border-right: 1px solid rgba(255,255,255,0.05); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        .sidebar.collapsed { width: 76px; }
-
-        @media (max-width: 1024px) {
-          .sidebar { position: fixed; left: -280px; width: 280px; border-right: none; }
-          .sidebar.mobile-open { left: 0; }
-          .sidebar.collapsed { width: 280px; }
-        }
-
-        .sidebar-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 999; }
-
-        .mobile-top-bar {
-          display: none;
-          position: fixed;
-          top: 0; left: 0; right: 0;
-          height: 60px;
-          background: white;
-          border-bottom: 1px solid #E5E5EA;
-          align-items: center;
-          justify-content: space-between;
-          padding: 0 16px;
-          z-index: 9999;
-          color: #1C1C1E;
-        }
-        @media (max-width: 1024px) { .mobile-top-bar { display: flex; } }
-
-        .mobile-nav-trigger, .mobile-notif-btn { background: transparent; border: none; padding: 8px; position: relative; }
-        .notif-dot { position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; background: #FF3B30; border-radius: 50%; border: 2px solid white; }
-        .sidebar .notif-dot { border-color: #0F1115; top: 2px; right: 2px; }
-
-        .offline-badge { background: rgba(255, 59, 48, 0.1); color: #FF3B30; width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
-        .offline-banner { background: #FF3B30; color: white; font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 6px; display: flex; align-items: center; justify-content: center; gap: 6px; letter-spacing: 0.05em; }
-
-        .notif-btn-desktop { background: rgba(255,255,255,0.05); border: none; color: rgba(255,255,255,0.4); width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; transition: all 0.2s; }
-        .notif-btn-desktop:hover, .notif-btn-desktop.has-new { color: white; background: rgba(255,255,255,0.1); }
-        .notif-btn-desktop.has-new { color: #FF6B2C; }
-
-        .mobile-close { display: none; background: rgba(255,255,255,0.05); border: none; color: white; width: 32px; height: 32px; border-radius: 8px; align-items: center; justify-content: center; }
-        @media (max-width: 1024px) { .mobile-close { display: flex; } }
-
-        .sidebar-header { padding: 20px 18px; display: flex; justify-content: space-between; align-items: center; }
-        .sidebar-logo { display: flex; align-items: center; }
-        .logo-icon-mini { display: none; width: 40px; height: 40px; background: #FF6B2C; border-radius: 12px; align-items: center; justify-content: center; font-weight: 900; font-size: 22px; color: white; }
-        .sidebar.collapsed .logo-img { display: none; }
-        .sidebar.collapsed .logo-icon-mini { display: flex; }
-
-        .sidebar-nav { flex: 1; overflow-y: auto; padding: 8px 14px; }
-        .sidebar-section { margin-bottom: 24px; }
-        .sidebar-section-title { font-size: 10px; font-weight: 800; text-transform: uppercase; color: rgba(255,255,255,0.25); padding: 0 12px 12px; }
-
-        :global(.sidebar-link) { display: flex; align-items: center; justify-content: space-between; padding: 11px 12px; border-radius: 12px; font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.4); text-decoration: none; margin-bottom: 2px; transition: all 0.2s; }
-        :global(.sidebar-link:hover) { background: rgba(255,255,255,0.03); color: white; }
-        :global(.sidebar-link.active) { background: rgba(255,107,44,0.1); color: #FF6B2C; font-weight: 700; }
-        .sidebar-link-inner { display: flex; align-items: center; gap: 12px; }
-        .icon-wrapper { display: flex; align-items: center; opacity: 0.6; }
-        :global(.sidebar-link.active .icon-wrapper) { opacity: 1; color: #FF6B2C; }
-
-        .sidebar-badge { background: #FF6B2C; color: white; font-size: 10px; font-weight: 900; padding: 2px 6px; border-radius: 6px; }
-
-        .sidebar-footer { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-        .user-card { display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); padding: 10px; border-radius: 16px; }
-        .sidebar-user { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
-        .sidebar-avatar { width: 38px; height: 38px; background: #FF6B2C; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; color: white; }
-        .sidebar-user-name { font-size: 13px; font-weight: 700; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .sidebar-role-badge { color: #FF6B2C; font-size: 9px; font-weight: 800; text-transform: uppercase; }
-        .sidebar-logout { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.3); border: none; cursor: pointer; }
-        .sidebar-logout:hover { background: #FF3B30; color: white; }
-        .sidebar-collapse-toggle { background: transparent; border: none; color: rgba(255,255,255,0.2); font-size: 11px; font-weight: 700; padding: 8px 12px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
-        @media (max-width: 1024px) { .sidebar-collapse-toggle { display: none; } }
-      `}</style>
+      
     </>
   );
 }

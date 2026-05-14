@@ -1,6 +1,7 @@
 import React from "react";
 import { STATUS_LABELS, STATUS_CSS } from "@/lib/constants";
 import { getImageUrl } from "@/lib/utils";
+import "./ui.css";
 
 export const TableCard = ({ title, meta, children, actions, className }: { 
   title: string, 
@@ -49,9 +50,9 @@ export const StatCard = ({
   icon?: React.ReactNode;
 }) => (
   <div className={`stat-card ${accent ? 'accent' : ''} ${dark ? 'dark' : ''} ${compact ? 'compact' : ''}`}>
-    <div className="stat-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+    <div className="stat-head stat-head-row">
       <div className="stat-label">{label}</div>
-      {icon && <div className="stat-icon" style={{ opacity: 0.5 }}>{icon}</div>}
+      {icon && <div className="stat-icon stat-icon-fade">{icon}</div>}
     </div>
     <div className="stat-value" style={color ? { color } : undefined}>{value}</div>
     {trend && (
@@ -90,8 +91,8 @@ export const ItemLine = ({ emoji, name, meta, price, image, onImageClick }: {
   onImageClick?: (url: string) => void;
 }) => (
   <div className="item-line">
-    <div className="item-emoji" onClick={() => image && onImageClick?.(getImageUrl(image))} style={image ? { cursor: 'zoom-in', padding: 0, overflow: 'hidden', background: '#f8f9fa' } : undefined}>
-      {image ? <img src={getImageUrl(image)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (emoji || '📦')}
+    <div className={`item-emoji ${image ? 'item-emoji-img' : ''}`} onClick={() => image && onImageClick?.(getImageUrl(image))}>
+      {image ? <img src={getImageUrl(image)} className="item-img-full" /> : (emoji || '📦')}
     </div>
     <div className="item-info">
       <div className="item-name">{name}</div>
@@ -120,7 +121,7 @@ export const LocationBadge = ({ location }: { location?: string | null }) => {
 
   return (
     <span className={`location-badge ${isZoneA ? 'zone-a' : isZoneB ? 'zone-b' : isZoneC ? 'zone-c' : ''}`}>
-      <MapPin size={10} style={{ marginRight: 4, opacity: 0.7 }} />
+      <MapPin size={10} className="location-icon" />
       {location}
     </span>
   );

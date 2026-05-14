@@ -7,6 +7,7 @@ import { Truck, User, UserPlus, Clock, Search, X, Package, Check, Filter, MapPin
 import { assignOrderToDeliveryman, bulkAssignOrders } from "@/modules/orders/actions";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/Toast";
+import "./admin-delivery-client.css";
 
 interface AdminDeliveryClientProps {
   orders: any[];
@@ -171,15 +172,14 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
 
       {/* SEARCH & FILTERS */}
       <div className="filter-container">
-        <div style={{ position: 'relative', flex: 2 }}>
+        <div className="search-container">
           <Search size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--brown-soft)' }} />
           <input
             type="text"
-            className="field-input"
+            className="field-input search-input"
             placeholder="Rechercher par réf, client, commune ou livreur..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            style={{ paddingLeft: 40, borderRadius: 12, height: 44, fontSize: 14, fontWeight: 500 }}
           />
         </div>
 
@@ -187,18 +187,16 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
           <Calendar size={16} className="filter-icon" />
           <input 
             type="date"
-            className="field-input"
+            className="field-input filter-date-input"
             value={filterDate}
             onChange={e => setFilterDate(e.target.value)}
-            style={{ height: 44, paddingLeft: 36, borderRadius: 12 }}
           />
         </div>
 
         <div className="filter-item">
           <Filter size={16} className="filter-icon" />
           <select 
-            className="field-input" 
-            style={{ height: 44, paddingLeft: 36, borderRadius: 12, fontSize: 13, fontWeight: 700 }}
+            className="field-input filter-select" 
             value={filterDeliveryman}
             onChange={e => setFilterDeliveryman(e.target.value)}
           >
@@ -214,8 +212,7 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
         <div className="filter-item">
           <MapPin size={16} className="filter-icon" />
           <select 
-            className="field-input" 
-            style={{ height: 44, paddingLeft: 36, borderRadius: 12, fontSize: 13, fontWeight: 700 }}
+            className="field-input filter-select" 
             value={filterCommune}
             onChange={e => setFilterCommune(e.target.value)}
           >
@@ -321,9 +318,9 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
                         {order.deliverymanId ? (
                           <div className="assigned-driver">
                             <div className="driver-avatar">{order.deliverymanName?.charAt(0)}</div>
-                            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                              <span style={{ fontWeight: 700, fontSize: 13 }}>{order.deliverymanName}</span>
-                              {order.updatedAt && <span style={{ fontSize: 9, opacity: 0.6 }}>Assigné le {formatDate(order.updatedAt)}</span>}
+                            <div className="driver-info">
+                              <span className="driver-name-text">{order.deliverymanName}</span>
+                              {order.updatedAt && <span className="driver-time-text">Assigné le {formatDate(order.updatedAt)}</span>}
                             </div>
                           </div>
                         ) : (
@@ -381,9 +378,9 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
               <div className="rider-column-header">
                 <div className="header-info">
                   <div className="driver-avatar-small">{driver.name.charAt(0)}</div>
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <h3 style={{ fontSize: 13, fontWeight: 700 }}>{driver.name}</h3>
-                    <span style={{ fontSize: 10, opacity: 0.6 }}>{driver.phone}</span>
+                  <div className="driver-info">
+                    <h3 className="driver-name-text">{driver.name}</h3>
+                    <span className="driver-phone-text">{driver.phone}</span>
                   </div>
                 </div>
                 <span className="count-badge active">{groupedByDriver[driver.id]?.length || 0}</span>
@@ -485,121 +482,7 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
         </div>
       )}
 
-      <style jsx>{`
-        .filter-container { display: flex; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
-        .filter-item { position: relative; flex: 1; min-width: 180px; }
-        .filter-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--brown-soft); pointer-events: none; z-index: 2; }
-        
-        .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 12px; }
-        .view-toggle { display: flex; background: var(--cream-2); padding: 4px; border-radius: 10px; border: 1px solid var(--line); }
-        .toggle-btn { 
-          width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; 
-          border: none; background: transparent; color: var(--brown-soft); border-radius: 8px; cursor: pointer; transition: 0.2s;
-        }
-        .toggle-btn.active { background: white; color: var(--orange); box-shadow: var(--shadow-sm); }
-
-        .bulk-bar { 
-          background: #221F1D; color: white; padding: 12px 24px; border-radius: 16px; 
-          margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;
-          box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        }
-        .bulk-info { display: flex; align-items: center; gap: 10px; font-weight: 700; }
-        .bulk-actions { display: flex; gap: 12px; align-items: center; }
-        .bulk-select { 
-          background: white; color: black; border: none; padding: 8px 16px; 
-          border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer;
-        }
-        .bulk-cancel { 
-          background: transparent; border: 1px solid rgba(255,255,255,0.3); color: white;
-          padding: 8px 16px; border-radius: 8px; font-size: 13px; cursor: pointer;
-        }
-
-        .table-responsive { overflow-x: auto; }
-        .assigned-driver { display: flex; align-items: center; gap: 8px; }
-        .driver-avatar {
-          width: 32px; height: 32px; background: var(--blue-soft); color: var(--blue);
-          border-radius: 10px; display: flex; align-items: center; justify-content: center;
-          font-size: 14px; font-weight: 800;
-        }
-        .row-selected { background: var(--cream-2); }
-        .unassigned-badge { font-size: 11px; color: var(--red); background: var(--red-soft); padding: 4px 10px; border-radius: 6px; font-weight: 700; }
-        .assign-select {
-          padding: 8px 12px; border-radius: 10px; border: 1.5px solid var(--line);
-          font-size: 12px; font-weight: 700; outline: none; background: white; cursor: pointer; transition: 0.2s;
-        }
-        .assign-select:hover { border-color: var(--orange); background: var(--cream); }
-        .cell-date { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--brown); }
-
-        /* RIDER GRID */
-        .rider-grid { 
-          display: flex; gap: 16px; overflow-x: auto; padding-bottom: 20px;
-          min-height: 600px; scroll-snap-type: x mandatory;
-        }
-        .rider-column { 
-          flex: 0 0 300px; background: var(--cream-2); border-radius: 16px; 
-          border: 1px solid var(--line); display: flex; flex-direction: column;
-          max-height: 80vh; scroll-snap-align: start;
-        }
-        .unassigned-col { background: #FFF5F2; border-color: #FFDED6; }
-        .rider-column-header { 
-          padding: 16px; border-bottom: 1px solid var(--line); 
-          display: flex; justify-content: space-between; align-items: center;
-          position: sticky; top: 0; background: inherit; border-radius: 16px 16px 0 0; z-index: 5;
-        }
-        .header-info { display: flex; align-items: center; gap: 10px; }
-        .header-info h3 { margin: 0; font-size: 14px; font-weight: 800; color: #333; }
-        .count-badge { 
-          background: var(--line); color: var(--brown-soft); padding: 2px 8px; 
-          border-radius: 20px; font-size: 11px; font-weight: 800; 
-        }
-        .count-badge.active { background: var(--orange); color: white; }
-        .order-cards-list { padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; flex: 1; }
-        .driver-avatar-small {
-          width: 28px; height: 28px; background: var(--blue-soft); color: var(--blue);
-          border-radius: 8px; display: flex; align-items: center; justify-content: center;
-          font-size: 12px; font-weight: 800;
-        }
-        .empty-col { 
-          text-align: center; padding: 40px 20px; color: var(--brown-soft); 
-          font-size: 12px; font-weight: 600; border: 2px dashed var(--line); border-radius: 12px;
-        }
-
-        /* HISTORY ARCHIVE */
-        .history-archive-container { display: flex; flex-direction: column; gap: 12px; }
-        .history-date-block { 
-          background: white; border-radius: 16px; border: 1px solid var(--line); overflow: hidden;
-          transition: 0.3s;
-        }
-        .history-date-block.expanded { box-shadow: var(--shadow-md); border-color: var(--orange-soft); }
-        .history-date-header { 
-          padding: 16px 20px; display: flex; justify-content: space-between; align-items: center;
-          cursor: pointer; active: background: var(--cream);
-        }
-        .date-info { display: flex; align-items: center; gap: 16px; }
-        .calendar-box { 
-          width: 44px; height: 44px; background: var(--cream-2); border-radius: 12px;
-          display: flex; flex-direction: column; align-items: center; justify-content: center;
-          color: var(--brown); font-weight: 800; border: 1px solid var(--line);
-        }
-        .calendar-box span { font-size: 12px; margin-top: -2px; }
-        .date-info h4 { margin: 0; font-size: 15px; font-weight: 800; color: #1C1C1E; capitalize; }
-        .date-info p { margin: 0; font-size: 11px; color: var(--brown-soft); font-weight: 600; }
-        
-        .header-stats { display: flex; align-items: center; gap: 32px; }
-        .mini-stat { display: flex; flex-direction: column; align-items: flex-end; }
-        .mini-stat .label { font-size: 9px; font-weight: 700; color: var(--brown-soft); uppercase; letter-spacing: 0.05em; }
-        .mini-stat .value { font-size: 14px; font-weight: 800; color: #1C1C1E; tabular-nums; }
-        .text-green { color: #34C759 !important; }
-        .text-red { color: #FF3B30 !important; }
-        .expand-icon { color: var(--brown-soft); transition: 0.3s; }
-        .history-date-block.expanded .expand-icon { transform: rotate(90deg); color: var(--orange); }
-
-        .history-date-content { padding: 0 20px 20px 20px; border-top: 1px solid var(--line-light); background: var(--cream-3); }
-        .mini-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-        .mini-table th { text-align: left; padding: 10px; font-size: 11px; font-weight: 800; color: var(--brown-soft); uppercase; border-bottom: 2px solid var(--line); }
-        .mini-table td { padding: 12px 10px; border-bottom: 1px solid var(--line-light); font-size: 13px; }
-        .mini-table tr:last-child td { border-bottom: none; }
-      `}</style>
+      
     </div>
   );
 }
@@ -636,23 +519,7 @@ function OrderMiniCard({ order, deliverymen, onAssign }: { order: any, deliverym
           ))}
         </select>
       </div>
-      <style jsx>{`
-        .order-mini-card { 
-          background: white; border-radius: 12px; padding: 12px; 
-          box-shadow: var(--shadow-sm); border: 1px solid var(--line);
-          transition: transform 0.2s, box-shadow 0.2s;
-        }
-        .order-mini-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: var(--orange-soft); }
-        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-        .order-ref { font-family: var(--font-mono); font-weight: 700; font-size: 12px; color: var(--orange); }
-        .customer-name { font-weight: 700; font-size: 13px; color: #111; margin-bottom: 4px; }
-        .commune-info, .date-info { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--brown-soft); margin-bottom: 2px; }
-        .card-footer { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line-light); }
-        .mini-assign-select { 
-          width: 100%; padding: 6px; border-radius: 6px; border: 1px solid var(--line); 
-          font-size: 11px; font-weight: 700; background: var(--cream); outline: none;
-        }
-      `}</style>
+      
     </div>
   );
 }

@@ -1,0 +1,4 @@
+.order-details-grid h4 { margin-top: 0; }
+.simple-table { width: 100%; border-collapse: collapse; }
+.simple-table th { text-align: left; padding: 10px; border-bottom: 2px solid var(--line); font-size: 11px; text-transform: uppercase; opacity: 0.6; }
+.simple-table td { padding: 10px; border-bottom: 1px solid var(--line); font-size: 13px; }

@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { updateOrderStatus } from "@/modules/orders/actions";
 import NonPackedModal from "./_components/NonPackedModal";
 import NonPackedItem from "./_components/NonPackedItem";
+import "./non-packed-client.css";
 
 interface NonPackedClientProps {
   notPacked: any[];
@@ -277,27 +278,7 @@ export default function NonPackedClient({ notPacked, withAlternatives, user }: N
         )}
       </AnimatePresence>
 
-      <style jsx>{`
-        .mobile-root {
-          background: #F8F9FA;
-          min-height: calc(100vh - 60px);
-        }
-        .info-banner {
-          padding: 12px 16px;
-          font-weight: 700;
-          font-size: 14px;
-        }
-        .info-banner.amber {
-          background: #FFFBEB;
-          color: #B45309;
-          border: 1px solid #FDE68A;
-        }
-        .info-banner.green {
-          background: #F0FDF4;
-          color: #15803D;
-          border: 1px solid #BBF7D0;
-        }
-      `}</style>
+      
     </div>
   );
 }

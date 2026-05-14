@@ -20,6 +20,7 @@ import {
 import { formatDate } from '@/lib/constants';
 import { StockMovement } from '@/lib/types';
 import { motion, AnimatePresence } from 'framer-motion';
+import "./stock-history-client.css";
 
 interface StockHistoryClientProps {
   movements: StockMovement[];
@@ -468,31 +469,7 @@ export default function StockHistoryClient({ movements, warehouses }: StockHisto
         </div>
       </TableCard>
 
-      <style jsx>{`
-        .action-btn {
-          width: 34px;
-          height: 34px;
-          border-radius: 10px;
-          border: 1px solid var(--line);
-          background: white;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          transition: all 0.2s;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-        }
-        .action-btn:hover:not(:disabled) {
-          background: var(--cream);
-          transform: translateY(-1px);
-        }
-        .action-btn:disabled {
-          cursor: not-allowed;
-          background: var(--line);
-        }
-        .animate-spin { animation: spin 1s linear infinite; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-      `}</style>
+      
     </div>
   );
 }

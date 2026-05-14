@@ -8,7 +8,7 @@ import { getAutomaticDiscountAction } from "@/modules/products/actions";
 import { COMMUNES, formatPrice, DELIVERY_FEES } from "@/lib/constants";
 import { getCustomers } from "@/modules/crm/actions";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search, X, ShoppingCart, User, Plus, Minus, Trash2, CreditCard, Filter, RotateCcw, Info, Check, Maximize, Sparkles, RotateCw, Package, ArrowLeft, Tag } from "lucide-react";
+import { Search, X, ShoppingCart, User, Plus, Minus, Trash2, CreditCard, Filter, RotateCcw, Info, Check, Maximize, Sparkles, RotateCw, Package, ArrowLeft, Tag, ChevronRight, ChevronLeft } from "lucide-react";
 import { getImageUrl } from "@/lib/utils";
 import VariantSelectionModal from "@/components/VariantSelectionModal";
 import ProductCard from "@/components/ProductCard";
@@ -29,6 +29,10 @@ export default function NewOrderClient({ products, user, categories }: NewOrderC
   const [isPending, startTransition] = useTransition();
   const { showToast } = useToast();
   const router = useRouter();
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20; // Nombre de produits par page
 
   // Promo State
   const [discount, setDiscount] = useState<{ code: string | null, amount: number, label: string | null }>({
@@ -196,15 +200,44 @@ export default function NewOrderClient({ products, user, categories }: NewOrderC
   }, [products]);
 
   const filteredProducts = useMemo(() => {
+    const searchTerms = search.toLowerCase().trim().split(/\s+/);
+
     return products.filter(p => {
       const matchesCat = activeCategory === 'all' || p.categoryId === activeCategory || p.category?.name === activeCategory;
-      const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
-        p.supplier?.name.toLowerCase().includes(search.toLowerCase()) ||
-        p.variants?.some((v: any) => v.size.toLowerCase().includes(search.toLowerCase()) || v.color.toLowerCase().includes(search.toLowerCase()));
 
-      return matchesCat && matchesSearch;
+      if (!matchesCat) return false;
+      if (!search) return true;
+
+      // Search across name, supplier, ref, and variants
+      const productName = (p.name || '').toLowerCase();
+      const productSupplier = (p.supplier?.name || '').toLowerCase();
+      const productRef = (p.ref || '').toLowerCase();
+      const variantMatches = p.variants?.some((v: any) =>
+        (v.size || '').toLowerCase().includes(search.toLowerCase()) ||
+        (v.color || '').toLowerCase().includes(search.toLowerCase())
+      );
+
+      // Multi-word matching: ALL search terms must match somewhere in the product
+      return searchTerms.every(term =>
+        productName.includes(term) ||
+        productSupplier.includes(term) ||
+        productRef.includes(term) ||
+        variantMatches
+      );
     });
   }, [products, activeCategory, search]);
+
+  // Reset pagination when search or category changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, activeCategory]);
+
+  const paginatedProducts = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredProducts.slice(start, start + itemsPerPage);
+  }, [filteredProducts, currentPage]);
+
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
 
   const productVariantsBySize = useMemo(() => {
     if (!selectingProduct) return {};
@@ -386,7 +419,7 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
     startTransition(async () => {
       try {
         const finalPaymentMethod = paymentMethod === 'Autres' ? customPaymentMethod : paymentMethod;
-        
+
         // Validation for Hors Abidjan
         if (commune === 'Hors Abidjan' && !finalPaymentMethod) {
           showToast('Veuillez préciser le mode de règlement pour une expédition', 'error');
@@ -486,7 +519,7 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
           </nav>
 
           <div className="pos-product-grid">
-            {filteredProducts.map(p => (
+            {paginatedProducts.map(p => (
               <ProductCard
                 key={p.id}
                 product={p}
@@ -502,13 +535,42 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
                 }}
               />
             ))}
-            {filteredProducts.length === 0 && (
+            {paginatedProducts.length === 0 && (
               <div className="pos-empty-catalog">
                 <Package size={48} />
                 <p>Aucun produit trouvé</p>
               </div>
             )}
           </div>
+
+          {/* PAGINATION CONTROLS */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-4 mt-8 py-4 border-t border-[#E8DDD0]">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="p-2 rounded-lg bg-white border border-[#E8DDD0] disabled:opacity-30 disabled:cursor-not-allowed hover:border-[#D4541C] transition-colors"
+              >
+                <ChevronLeft size={20} />
+              </button>
+
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-[#1A1410]">Page</span>
+                <div className="px-3 py-1 bg-[#D4541C] text-white rounded-md font-bold text-sm">
+                  {currentPage}
+                </div>
+                <span className="text-sm font-bold text-[#1A1410]">sur {totalPages}</span>
+              </div>
+
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="p-2 rounded-lg bg-white border border-[#E8DDD0] disabled:opacity-30 disabled:cursor-not-allowed hover:border-[#D4541C] transition-colors"
+              >
+                <ChevronRight size={20} />
+              </button>
+            </div>
+          )}
         </section>
 
         {/* RIGHT PANEL: CART */}
@@ -792,7 +854,7 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
                 <div className="mini-row"><span>Livraison</span> <span>{formatPrice(deliveryFee)}</span></div>
                 {discount.amount > 0 && (
                   <div className="mini-row" style={{ color: 'var(--orange)', fontWeight: 600 }}>
-                    <span>Remise ({discount.label})</span> 
+                    <span>Remise ({discount.label})</span>
                     <span>-{formatPrice(discount.amount)}</span>
                   </div>
                 )}

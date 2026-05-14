@@ -2,6 +2,7 @@ import React from "react";
 import prisma from "@/lib/prisma";
 import { StatCard, TableCard, StatusBadge, SectionLabel, EmptyState } from "@/components/UI";
 import { formatPrice, formatDay } from "@/lib/constants";
+import "./dashboard.css";
 
 export default async function StockDashboard({ user }: { user: any }) {
   const today = new Date();

@@ -6,6 +6,7 @@ import { formatPrice, formatDate } from "@/lib/constants";
 import { useRouter } from "next/navigation";
 import { ArrowRight, RefreshCw, ShoppingCart, Clock } from "lucide-react";
 import Link from "next/link";
+import "./to-process-client.css";
 
 interface ToProcessClientProps {
   orders: any[];
@@ -88,10 +89,7 @@ export default function ToProcessClient({ orders }: ToProcessClientProps) {
         )}
       </TableCard>
 
-      <style jsx>{`
-        .animate-spin { animation: spin 1s linear infinite; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-      `}</style>
+      
     </div>
   );
 }

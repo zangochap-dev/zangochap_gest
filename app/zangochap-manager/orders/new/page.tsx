@@ -12,10 +12,10 @@ export default async function NewOrderPage() {
   const salesStats = user?.id ? await prisma.orderItem.groupBy({
     by: ['productId'],
     where: {
+      productId: { not: null },
       order: {
-        commercialId: user.id
-      },
-      productId: { not: null }
+        status: { not: 'CANCELLED' }
+      }
     },
     _sum: {
       qty: true

@@ -3,8 +3,8 @@ import prisma from "@/lib/prisma";
 import { StatCard, TableCard, StatusBadge, SectionLabel, EmptyState } from "@/components/UI";
 import { formatPrice, formatDay, formatDate } from "@/lib/constants";
 import Link from "next/link";
-
 import Topbar from "@/components/Topbar";
+import "./dashboard.css";
 
 export default async function CommercialDashboard({ user }: { user: any }) {
   const today = new Date();
@@ -77,11 +77,11 @@ export default async function CommercialDashboard({ user }: { user: any }) {
                     </td>
                     <td>
                       {order.items.map((item, i) => (
-                        <div key={i} style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4, margin: '2px 0' }}>
+                        <div key={i} className="order-item-mini">
                           <span>{item.emoji || '📦'}</span>
                           <span>{item.name}</span>
                           <span className="size-dot">{item.size}</span>
-                          <strong style={{ fontSize: 10 }}>{item.color}</strong>
+                          <strong className="order-item-color">{item.color}</strong>
                           <span>× {item.qty}</span>
                         </div>
                       ))}

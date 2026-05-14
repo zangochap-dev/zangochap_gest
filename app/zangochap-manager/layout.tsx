@@ -1,4 +1,5 @@
 import Sidebar from "@/components/Sidebar";
+import "./manager-layout.css";
 import { getSession } from "@/modules/auth/actions";
 import prisma from "@/lib/prisma";
 import { redirect } from "next/navigation";
@@ -68,32 +69,6 @@ export default async function ManagerLayout({
         </div>
       </main>
 
-      <style>{`
-        .app-container {
-          display: flex;
-          height: 100vh;
-          overflow: hidden;
-          background: var(--cream);
-        }
-        .main-content {
-          flex: 1;
-          min-width: 0;
-          display: flex;
-          flex-direction: column;
-          position: relative;
-        }
-        @media (max-width: 1024px) {
-          .main-content {
-            padding-top: 60px;
-          }
-        }
-        .main-scroll-area {
-          flex: 1;
-          overflow-y: auto;
-          overflow-x: hidden;
-          -webkit-overflow-scrolling: touch;
-        }
-      `}</style>
     </div>
   );
 }

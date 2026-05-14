@@ -15,6 +15,7 @@ import Script from "next/script";
 import VariantSelectionModal from "@/components/VariantSelectionModal";
 import ProductCard from "@/components/ProductCard";
 import ReceiptModal from "@/components/ReceiptModal";
+import "../dashboard/dashboard.css";
 
 const ZANGOCHAP_LOGO_SVG = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%">
   <path d="M 70 60 Q 70 35 100 35 Q 130 35 130 60" stroke="#D4541C" stroke-width="9" fill="none" stroke-linecap="round"/>
@@ -659,20 +660,20 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
   return (
     <div className="content animate-fade-in">
       {/* SEARCH BAR */}
-      <div style={{ position: 'relative', marginBottom: 14 }}>
+      <div className="search-container" style={{ marginBottom: 14 }}>
         <Search size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--brown-soft)' }} />
         <input
           type="text"
-          className="field-input"
+          className="field-input search-input"
           placeholder="Rechercher par réf, nom, téléphone, commercial..."
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
-          style={{ paddingLeft: 40, borderRadius: 12, height: 44, fontSize: 14, fontWeight: 500 }}
         />
         {searchQuery && (
           <button
             onClick={() => setSearchQuery('')}
-            style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: '#DEE2E6', border: 'none', width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--brown-soft)' }}
+            className="cell-btn-icon"
+            style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: '#DEE2E6', width: 22, height: 22, borderRadius: '50%' }}
           >
             <X size={12} />
           </button>
@@ -701,7 +702,7 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
           </select>
         )}
         <div className="filter-spacer" />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--cream)', padding: '2px 6px', borderRadius: 10, border: '1px solid var(--line)' }}>
+        <div className="dashboard-actions" style={{ background: 'var(--cream)', padding: '2px 6px', borderRadius: 10, border: '1px solid var(--line)', alignItems: 'center' }}>
           <button className={`shortcut-btn ${!dateFrom && !dateTo ? 'active' : ''}`} onClick={() => setQuickDate('all')}>Tout</button>
           <button className="shortcut-btn" onClick={() => setQuickDate('today')}>Aujourd'hui</button>
           <button className="shortcut-btn" onClick={() => setQuickDate('yesterday')}>Hier</button>

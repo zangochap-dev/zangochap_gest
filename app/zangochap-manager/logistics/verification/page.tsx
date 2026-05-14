@@ -7,6 +7,7 @@ import { formatDay } from "@/lib/constants";
 import { Printer, CheckCircle2, Search, X, Warehouse, MapPin, Loader2 } from "lucide-react";
 import { toggleItemVerification } from "@/modules/logistics/actions";
 import { useToast } from "@/components/Toast";
+import "./page.css";
 
 export default function VerificationPage() {
   return (
@@ -298,39 +299,7 @@ function VerificationClient() {
         </div>
       )}
 
-      <style jsx>{`
-        .check-btn {
-          width: 28px;
-          height: 28px;
-          border: 2px solid var(--line-2);
-          border-radius: 8px;
-          background: white;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: var(--green);
-          transition: all 0.2s;
-        }
-        .check-btn:hover { border-color: var(--green); background: var(--green-soft); }
-        .check-btn.active { background: var(--green); border-color: var(--green); color: white; transform: scale(1.1); }
-        
-        .row-checked { background: var(--cream-2); opacity: 0.7; }
-        .loc-badge-mini { font-size: 9px; color: var(--orange); background: var(--orange-soft); padding: 2px 6px; border-radius: 5px; display: flex; alignItems: center; gap: 4; font-weight: 600; }
-
-        @media print {
-          .no-print { display: none !important; }
-          .print-only { display: block !important; }
-          .content { padding: 0 !important; background: white !important; }
-          .verification-card { border: none !important; box-shadow: none !important; margin: 0 !important; }
-          .verification-table { width: 100% !important; border-collapse: collapse !important; }
-          .verification-table th, .verification-table td { border: 1px solid #eee !important; padding: 8px 10px !important; color: #000 !important; }
-          .check-btn { border: 1.5px solid #000 !important; width: 20px !important; height: 20px !important; background: transparent !important; }
-          .cell-mono { background: #f0f0f0 !important; border: 1px solid #ddd !important; padding: 2px 4px !important; border-radius: 4px !important; }
-          :global(.sidebar), :global(.topbar) { display: none !important; }
-          :global(.main) { margin: 0 !important; padding: 0 !important; }
-        }
-      `}</style>
+      
     </div>
   );
 }

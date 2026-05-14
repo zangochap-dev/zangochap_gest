@@ -1,0 +1,24 @@
+.content { padding: 24px 28px; }
+.tabs { display: flex; gap: 4px; background: var(--cream-2); padding: 4px; border-radius: 10px; margin-bottom: 24px; width: fit-content; }
+.tab { padding: 8px 16px; border-radius: 7px; font-size: 12px; font-weight: 600; color: var(--brown-soft); }
+.tab.active { background: white; color: var(--ink); box-shadow: var(--shadow-sm); }
+
+.upload-zone { 
+  background: white; border: 2px dashed var(--line-2); border-radius: 20px; 
+  padding: 60px 40px; text-align: center; display: flex; flex-direction: column; align-items: center;
+}
+.upload-icon { color: var(--line-2); margin-bottom: 20px; }
+.upload-zone h3 { font-family: var(--font-display); font-size: 20px; margin-bottom: 8px; }
+.upload-zone p { color: var(--brown-soft); font-size: 14px; }
+.import-tips { margin-top: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; text-align: left; }
+.tip-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--brown-soft); }
+.tip-item :global(svg) { color: var(--green); }
+
+.mapping-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+
+.result-container { display: flex; justify-content: center; padding-top: 40px; }
+.result-card { background: white; border-radius: 24px; padding: 40px; text-align: center; box-shadow: var(--shadow-lg); max-width: 400px; width: 100%; border: 1px solid var(--line); }
+.result-card h2 { font-family: var(--font-display); font-size: 24px; margin: 16px 0 8px; }
+.result-card p { color: var(--brown-soft); margin-bottom: 24px; }
+.result-details { background: var(--cream); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 8px; text-align: left; margin-bottom: 24px; }
+.result-details span { font-size: 13px; font-weight: 600; }

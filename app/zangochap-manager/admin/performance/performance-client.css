@@ -1,0 +1,48 @@
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+.role-btn {
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: var(--cream);
+  color: var(--brown);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+.role-btn:hover {
+  border-color: var(--orange);
+  color: var(--orange);
+}
+.role-btn.active {
+  background: var(--orange);
+  border-color: var(--orange);
+  color: white;
+  box-shadow: 0 4px 12px rgba(212, 84, 28, 0.2);
+}
+.icon-btn-small {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: white;
+  color: var(--brown-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.icon-btn-small:hover {
+  border-color: var(--blue);
+  color: var(--blue);
+  background: var(--blue-soft);
+}
+@media (max-width: 1024px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+}

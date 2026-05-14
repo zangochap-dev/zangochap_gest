@@ -293,8 +293,33 @@ export default function PackingClient({ initialOrders, products, user }: { initi
                           <StatusBadge status={o.status} size="sm" />
                         </div>
 
-                        <div style={{ fontSize: 12, fontWeight: 700, color: '#1C1C1E', marginBottom: 2 }}>{o.customerName}</div>
-                        <div style={{ fontSize: 10, color: '#8E8E93', fontWeight: 600, marginBottom: 8 }}>{o.commune || 'Abidjan'} • {formatDay(o.createdAt)}</div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                          <div>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: '#1C1C1E', marginBottom: 2 }}>{o.customerName}</div>
+                            <div style={{ fontSize: 10, color: '#8E8E93', fontWeight: 600 }}>{o.commune || 'Abidjan'} • {formatDay(o.createdAt)}</div>
+                          </div>
+                          <button 
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              const p = productMap.get(o.items[0]?.productId);
+                              if (p) setEditingVariants({ product: p, variants: p.variants }); 
+                            }}
+                            style={{ 
+                              background: 'var(--cream)', 
+                              border: '1px solid var(--line)', 
+                              borderRadius: 10, 
+                              padding: '6px 12px', 
+                              fontSize: 12, 
+                              fontWeight: 800, 
+                              color: 'var(--brown-soft)', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: 6
+                            }}
+                          >
+                            <Edit2 size={14} /> Stock
+                          </button>
+                        </div>
 
                         <div style={{ background: '#F2F2F7', padding: '8px', borderRadius: 8 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, fontWeight: 800, color: '#8E8E93', marginBottom: 4 }}>

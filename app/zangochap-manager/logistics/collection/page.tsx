@@ -45,14 +45,14 @@ export default async function CollectionPage() {
   }
 
   return (
-    <>
+    <React.Suspense fallback={<div className="p-8 text-center opacity-50">Chargement de la collecte...</div>}>
       <Topbar title="Logistique" subtitle="Collecte" />
       <CollectionClient 
-        toCollect={toCollect} 
-        user={user} 
-        categories={categories} 
-        warehouses={warehouses}
+        toCollect={JSON.parse(JSON.stringify(toCollect))} 
+        user={user ? JSON.parse(JSON.stringify(user)) : null} 
+        categories={JSON.parse(JSON.stringify(categories))} 
+        warehouses={JSON.parse(JSON.stringify(warehouses))}
       />
-    </>
+    </React.Suspense>
   );
 }

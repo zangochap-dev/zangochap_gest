@@ -52,28 +52,36 @@ const NAV_FOR_ROLE: Record<string, (counts?: any) => any[]> = {
   ],
   admin: (counts) => [
     { items: [{ label: 'Dashboard', href: '/zangochap-manager/dashboard', icon: <LayoutDashboard size={18} /> }, { label: 'Répertoire', href: '/zangochap-manager/directory', icon: <Users size={18} /> }] },
-    { title: 'Commandes', items: [
-      { label: 'Toutes', href: '/zangochap-manager/orders', icon: <ShoppingBag size={18} />, badge: counts?.orders },
-      { label: 'À traiter (site)', href: '/zangochap-manager/orders/to-process', icon: <AlertTriangle size={18} />, badge: counts?.toProcess },
-      { label: 'Non emballées', href: '/zangochap-manager/orders/non-packed', icon: <Package size={18} /> },
-      { label: 'Nouvelle commande', href: '/zangochap-manager/orders/new', icon: <ClipboardList size={18} /> }
-    ]},
-    { title: 'Logistique', items: [
-      { label: 'Emballage', href: '/zangochap-manager/logistics/packing', icon: <Package size={18} />, badge: counts?.packing },
-      { label: 'Collecte', href: '/zangochap-manager/logistics/collection', icon: <Truck size={18} />, badge: counts?.collection },
-      { label: 'Entrepôts', href: '/zangochap-manager/logistics/warehouses', icon: <Warehouse size={18} /> }
-    ]},
-    { title: 'Catalogue & Stock', items: [
-      { label: 'Produits', href: '/zangochap-manager/products', icon: <Box size={18} /> },
-      { label: 'Ruptures', href: '/zangochap-manager/products/shortages', icon: <AlertTriangle size={18} /> },
-      { label: 'Historique Stock', href: '/zangochap-manager/inventory/history', icon: <History size={18} /> },
-      { label: 'CRM Clients', href: '/zangochap-manager/admin/crm', icon: <Users size={18} /> }
-    ]},
-    { title: 'Pilotage', items: [
-      { label: 'Gestion Livraisons', href: '/zangochap-manager/admin/delivery', icon: <Truck size={18} /> },
-      { label: 'Règlements', href: '/zangochap-manager/admin/settlements', icon: <Wallet size={18} /> },
-      { label: 'Settings', href: '/zangochap-manager/admin/settings', icon: <Settings size={18} /> }
-    ]},
+    {
+      title: 'Commandes', items: [
+        { label: 'Toutes les commandes', href: '/zangochap-manager/orders', icon: <ShoppingBag size={18} />, badge: counts?.orders },
+        { label: 'À traiter (site)', href: '/zangochap-manager/orders/to-process', icon: <AlertTriangle size={18} />, badge: counts?.toProcess },
+        { label: 'Non emballées', href: '/zangochap-manager/orders/non-packed', icon: <Package size={18} /> },
+        { label: 'Nouvelle commande', href: '/zangochap-manager/orders/new', icon: <ClipboardList size={18} /> }
+      ]
+    },
+    {
+      title: 'Logistique', items: [
+        { label: 'Emballage', href: '/zangochap-manager/logistics/packing', icon: <Package size={18} />, badge: counts?.packing },
+        { label: 'Collecte', href: '/zangochap-manager/logistics/collection', icon: <Truck size={18} />, badge: counts?.collection },
+        { label: 'Entrepôts', href: '/zangochap-manager/logistics/warehouses', icon: <Warehouse size={18} /> }
+      ]
+    },
+    {
+      title: 'Catalogue & Stock', items: [
+        { label: 'Produits', href: '/zangochap-manager/products', icon: <Box size={18} /> },
+        { label: 'Ruptures', href: '/zangochap-manager/products/shortages', icon: <AlertTriangle size={18} /> },
+        { label: 'Historique Stock', href: '/zangochap-manager/inventory/history', icon: <History size={18} /> },
+        { label: 'CRM Clients', href: '/zangochap-manager/admin/crm', icon: <Users size={18} /> }
+      ]
+    },
+    {
+      title: 'Pilotage', items: [
+        { label: 'Gestion Livraisons', href: '/zangochap-manager/admin/delivery', icon: <Truck size={18} /> },
+        { label: 'Règlements', href: '/zangochap-manager/admin/settlements', icon: <Wallet size={18} /> },
+        { label: 'Settings', href: '/zangochap-manager/admin/settings', icon: <Settings size={18} /> }
+      ]
+    },
   ],
   livreur: (counts) => [
     { items: [{ label: 'Mes Livraisons', href: '/zangochap-rider', icon: <Truck size={18} />, badge: counts?.myDeliveries }, { label: 'Répertoire', href: '/zangochap-manager/directory', icon: <Users size={18} /> }] },
@@ -82,6 +90,7 @@ const NAV_FOR_ROLE: Record<string, (counts?: any) => any[]> = {
 
 export default function Sidebar({ user, counts }: SidebarProps) {
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
@@ -96,6 +105,7 @@ export default function Sidebar({ user, counts }: SidebarProps) {
 
   // Track Online/Offline Status
   useEffect(() => {
+    setMounted(true);
     const handleOnline = () => { setIsOffline(false); showToast("Connexion rétablie ! Synchronisation...", "success"); };
     const handleOffline = () => { setIsOffline(true); showToast("Mode hors-ligne activé. 📡", "error"); };
 
@@ -131,7 +141,7 @@ export default function Sidebar({ user, counts }: SidebarProps) {
     if (newPacking || newOrders) {
       setHasNewNotifications(true);
       showToast(newPacking ? "Nouvelle commande à emballer ! 📦" : "Nouvelle commande reçue ! 🛍️", "success");
-      
+
       if ("Notification" in window && Notification.permission === "granted") {
         new Notification("ZangoChap Manager", {
           body: newPacking ? "Vous avez une nouvelle commande à préparer." : "Une nouvelle commande vient d'arriver.",
@@ -141,7 +151,7 @@ export default function Sidebar({ user, counts }: SidebarProps) {
 
       const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
       audio.volume = 0.5;
-      audio.play().catch(() => {});
+      audio.play().catch(() => { });
     }
 
     prevCounts.current = counts;
@@ -165,11 +175,11 @@ export default function Sidebar({ user, counts }: SidebarProps) {
         <button className="mobile-nav-trigger" onClick={() => setIsMobileOpen(true)}><Menu size={24} /></button>
         <div className="mobile-logo-center">
           <Image src="/logo.png" alt="Logo" width={100} height={30} style={{ objectFit: 'contain' }} />
-          {isOffline && <WifiOff size={14} color="#FF3B30" style={{ marginLeft: 8 }} />}
+          {mounted && isOffline && <WifiOff size={14} color="#FF3B30" style={{ marginLeft: 8 }} />}
         </div>
         <button className="mobile-notif-btn" onClick={() => setShowNotifications(!showNotifications)}>
-          <Bell size={22} color={hasNewNotifications ? 'var(--orange)' : '#8E8E93'} />
-          {hasNewNotifications && <span className="notif-dot" />}
+          <Bell size={22} color={mounted && hasNewNotifications ? 'var(--orange)' : '#8E8E93'} />
+          {mounted && hasNewNotifications && <span className="notif-dot" />}
         </button>
       </div>
 
@@ -188,26 +198,26 @@ export default function Sidebar({ user, counts }: SidebarProps) {
               <div className="logo-icon-mini">Z</div>
             </Link>
           </div>
-          
+
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            {isOffline && (
+            {mounted && isOffline && (
               <div className="offline-badge" title="Mode hors-ligne">
                 <WifiOff size={16} />
               </div>
             )}
-            <button 
+            <button
               className={`notif-btn-desktop ${hasNewNotifications ? 'has-new' : ''}`}
               onClick={() => { setShowNotifications(!showNotifications); setHasNewNotifications(false); }}
             >
               <Bell size={20} />
-              {hasNewNotifications && <span className="notif-dot" />}
+              {mounted && hasNewNotifications && <span className="notif-dot" />}
             </button>
             <button className="mobile-close" onClick={() => setIsMobileOpen(false)}><X size={20} /></button>
           </div>
         </div>
 
         {/* OFFLINE STATUS BANNER */}
-        {isOffline && (
+        {mounted && isOffline && (
           <div className="offline-banner">
             <WifiOff size={12} />
             <span>Mode hors-ligne</span>
@@ -227,7 +237,7 @@ export default function Sidebar({ user, counts }: SidebarProps) {
                         <span className="icon-wrapper">{item.icon}</span>
                         {!isCollapsed && <span className="label-text">{item.label}</span>}
                       </div>
-                      {item.badge > 0 && <span className="sidebar-badge">{item.badge}</span>}
+                      {mounted && item.badge > 0 && <span className="sidebar-badge">{item.badge}</span>}
                     </Link>
                   );
                 })}
@@ -282,7 +292,8 @@ export default function Sidebar({ user, counts }: SidebarProps) {
           align-items: center;
           justify-content: space-between;
           padding: 0 16px;
-          z-index: 900;
+          z-index: 9999;
+          color: #1C1C1E;
         }
         @media (max-width: 1024px) { .mobile-top-bar { display: flex; } }
 

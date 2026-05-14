@@ -61,7 +61,7 @@ export default async function ManagerLayout({
 
   return (
     <div className="app-container">
-      <Sidebar user={user} counts={counts} />
+      <Sidebar user={JSON.parse(JSON.stringify(user))} counts={counts} />
       <main className="main-content">
         <div className="main-scroll-area">
           {children}

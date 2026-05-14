@@ -136,237 +136,261 @@ export default function CollectionClient({ toCollect, user, categories = [], war
 
   if (isMobile) {
     return (
-      <div className="logistics-mobile-root">
-        <LogisticsMobileStyles />
-        <div className="logistics-mobile-header">
-          <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
-            <h1 style={{ fontSize: 20, fontWeight: 800 }}>Collecte</h1>
-            <div style={{ position: 'absolute', right: 0, fontSize: 12, fontWeight: 700, color: 'var(--green)', background: 'var(--green-soft)', padding: '4px 10px', borderRadius: 20 }}>
-              {counts.all} à faire
+      <>
+        <div className="logistics-mobile-root">
+          <LogisticsMobileStyles />
+          <div className="logistics-mobile-header">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div style={{ fontWeight: 900, fontSize: 18, color: 'var(--orange)' }}>Collecte</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--brown-soft)' }}>{stats.filtered} / {stats.total}</div>
+            </div>
+            <div className="mobile-search-bar">
+              <Search size={16} style={{ position: 'absolute', left: 12, top: 12, color: '#AEAEB2' }} />
+              <input
+                type="text"
+                placeholder="Réf, produit, client..."
+                className="mobile-search-input"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
+            </div>
+
+            <div className="mobile-status-tabs">
+              {[
+                { id: 'all', label: 'À collecter' },
+                { id: 'collected', label: 'Collectés' },
+                { id: 'unavailable', label: 'Indispos' },
+                { id: 'alternative', label: 'Alts' }
+              ].map(t => (
+                <button key={t.id} onClick={() => setFilter(t.id)} className={`status-tab ${filter === t.id ? 'active' : ''}`}>
+                  {t.label} ({counts[t.id as keyof typeof counts]})
+                </button>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <select
+                className="filter-select"
+                value={warehouseId}
+                onChange={e => setWarehouseId(e.target.value)}
+                style={{ flex: 1, minWidth: '45%', height: 36, borderRadius: 10, background: '#F2F2F7', border: 'none', fontSize: 11, fontWeight: 600 }}
+              >
+                <option value="all">🏢 Entrepôts</option>
+                {warehouses.map((w: any) => <option key={w.id} value={w.id}>{w.name}</option>)}
+              </select>
+              <select
+                className="filter-select"
+                value={categoryId}
+                onChange={e => setCategoryId(e.target.value)}
+                style={{ flex: 1, minWidth: '45%', height: 36, borderRadius: 10, background: '#F2F2F7', border: 'none', fontSize: 11, fontWeight: 600 }}
+              >
+                <option value="all">📁 Catégories</option>
+                {categories.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <div style={{ display: 'flex', gap: 4, width: '100%' }}>
+                <input type="date" className="filter-date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={{ flex: 1, height: 36, borderRadius: 10, border: 'none', background: '#F2F2F7', fontSize: 11 }} />
+                <button onClick={() => setDatePreset('today')} className="btn-secondary" style={{ flex: 0.5, height: 36, borderRadius: 10, fontSize: 10 }}>Aujourd'hui</button>
+              </div>
             </div>
           </div>
 
-          <div className="mobile-search-bar">
-            <Search size={16} style={{ position: 'absolute', left: 12, top: 12, color: '#AEAEB2' }} />
-            <input
-              type="text"
-              placeholder="Réf, produit, client..."
-              className="mobile-search-input"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
-          </div>
+          <div className="logistics-mobile-content">
+            <AnimatePresence mode="popLayout">
+              {filteredToCollect.length === 0 ? (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ padding: '40px 0', textAlign: 'center' }}>
+                  <Package size={48} style={{ margin: '0 auto 12px', opacity: 0.2 }} />
+                  <p style={{ color: '#8E8E93', fontSize: 14 }}>Rien à collecter</p>
+                </motion.div>
+              ) : (
+                filteredToCollect.map((tc, idx) => {
+                  const h = Array.isArray(tc.order.history) ? tc.order.history : [];
+                  const lastLog = h.filter((l: any) => {
+                    const act = l.action.toLowerCase();
+                    return (act.includes('collecté') || act.includes('indisponible') || act.includes('alternative')) &&
+                      act.includes(tc.item.name.toLowerCase());
+                  }).sort((a: any, b: any) => new Date(b.at).getTime() - new Date(a.at).getTime())[0];
+                  
+                  const currentStatus = lastLog?.action.toLowerCase() || '';
+                  const isCollected = currentStatus.includes('collecté') && !currentStatus.includes('alternative');
+                  const isUnavailable = currentStatus.includes('indisponible');
+                  const isAlt = currentStatus.includes('alternative');
+                  
+                  let altNote = '';
+                  if (isAlt) {
+                    const match = lastLog.action.match(/\(([^)]+)\)/);
+                    altNote = match ? match[1] : '';
+                  }
 
-          <div className="mobile-status-tabs">
-            {[
-              { id: 'all', label: 'À collecter' },
-              { id: 'collected', label: 'Collectés' },
-              { id: 'unavailable', label: 'Indispos' },
-              { id: 'alternative', label: 'Alts' }
-            ].map(t => (
-              <button key={t.id} onClick={() => setFilter(t.id)} className={`status-tab ${filter === t.id ? 'active' : ''}`}>
-                {t.label} ({counts[t.id as keyof typeof counts]})
-              </button>
-            ))}
-          </div>
+                  return (
+                    <motion.div
+                      key={idx}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: idx * 0.05 }}
+                      className="mobile-card"
+                      style={{ padding: 0, overflow: 'hidden' }}
+                    >
+                      <div style={{ display: 'flex', padding: '12px', gap: 14 }}>
+                        {/* IMAGE LEFT */}
+                        <div style={{ position: 'relative', flexShrink: 0 }}>
+                          <div
+                            onClick={(e) => { e.stopPropagation(); setPreviewImage(tc.item.image || tc.product.images?.[0]?.url); }}
+                            style={{ width: 100, height: 100, background: '#F2F2F7', borderRadius: 14, overflow: 'hidden', border: '1px solid #E5E5EA' }}
+                          >
+                            {tc.item.image || tc.product.images?.[0]?.url ? (
+                              <img src={tc.item.image || tc.product.images[0].url} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: (isCollected || isUnavailable) ? 0.5 : 1 }} alt="" />
+                            ) : (
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 32 }}>{tc.item.emoji || '📦'}</div>
+                            )}
+                            <div style={{ position: 'absolute', bottom: 6, right: 6, background: 'rgba(0,0,0,0.4)', borderRadius: 6, padding: 4, backdropFilter: 'blur(2px)' }}>
+                              <Search size={12} color="white" strokeWidth={3} />
+                            </div>
+                            {isCollected && <div style={{ position: 'absolute', inset: 0, background: 'rgba(52, 199, 89, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Check size={40} color="white" strokeWidth={4} /></div>}
+                            {isUnavailable && <div style={{ position: 'absolute', inset: 0, background: 'rgba(255, 59, 48, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={40} color="white" strokeWidth={4} /></div>}
+                          </div>
+                        </div>
 
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <select
-              className="filter-select"
-              value={warehouseId}
-              onChange={e => setWarehouseId(e.target.value)}
-              style={{ flex: 1, minWidth: '45%', height: 36, borderRadius: 10, background: '#F2F2F7', border: 'none', fontSize: 11, fontWeight: 600 }}
-            >
-              <option value="all">🏢 Entrepôts</option>
-              {warehouses.map((w: any) => <option key={w.id} value={w.id}>{w.name}</option>)}
-            </select>
-            <select
-              className="filter-select"
-              value={categoryId}
-              onChange={e => setCategoryId(e.target.value)}
-              style={{ flex: 1, minWidth: '45%', height: 36, borderRadius: 10, background: '#F2F2F7', border: 'none', fontSize: 11, fontWeight: 600 }}
-            >
-              <option value="all">📁 Catégories</option>
-              {categories.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-            <div style={{ display: 'flex', gap: 4, width: '100%' }}>
-              <input type="date" className="filter-date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={{ flex: 1, height: 36, borderRadius: 10, border: 'none', background: '#F2F2F7', fontSize: 11 }} />
-              <button onClick={() => setDatePreset('today')} className="btn-secondary" style={{ flex: 0.5, height: 36, borderRadius: 10, fontSize: 10 }}>Aujourd'hui</button>
-            </div>
-          </div>
-        </div>
+                        {/* INFO RIGHT */}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+                            <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 13, color: '#8E8E93' }}>{tc.order.ref}</div>
+                            <div style={{ fontWeight: 900, fontSize: 18, color: 'var(--orange)' }}>x{tc.item.qty}</div>
+                          </div>
+                          
+                          <div style={{ fontWeight: 800, fontSize: 15, color: '#1C1C1E', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tc.item.name}</div>
+                          
+                          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                            <span className="size-dot" style={{ background: '#1C1C1E', color: 'white', border: 'none' }}>{tc.item.size}</span>
+                            <span style={{ fontSize: 12, color: '#8E8E93', fontWeight: 700 }}>{tc.item.color}</span>
+                          </div>
 
-        <div className="logistics-mobile-content">
-          <AnimatePresence mode="popLayout">
-            {filteredToCollect.length === 0 ? (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ padding: '40px 0', textAlign: 'center' }}>
-                <Package size={48} style={{ margin: '0 auto 12px', opacity: 0.2 }} />
-                <p style={{ color: '#8E8E93', fontSize: 14 }}>Rien à collecter</p>
-              </motion.div>
-            ) : (
-              filteredToCollect.map((tc, idx) => {
-                const h = Array.isArray(tc.order.history) ? tc.order.history : [];
-                const lastLog = h.filter((l: any) => {
-                  const act = l.action.toLowerCase();
-                  return (act.includes('collecté') || act.includes('indisponible') || act.includes('alternative')) &&
-                    act.includes(tc.item.name.toLowerCase());
-                }).sort((a: any, b: any) => new Date(b.at).getTime() - new Date(a.at).getTime())[0];
-                
-                const currentStatus = lastLog?.action.toLowerCase() || '';
-                const isCollected = currentStatus.includes('collecté') && !currentStatus.includes('alternative');
-                const isUnavailable = currentStatus.includes('indisponible');
-                const isAlt = currentStatus.includes('alternative');
-                
-                let altNote = '';
-                if (isAlt) {
-                  const match = lastLog.action.match(/\(([^)]+)\)/);
-                  altNote = match ? match[1] : '';
-                }
+                          {isAlt && altNote && (
+                            <div style={{ background: 'var(--orange-soft)', padding: '4px 8px', borderRadius: 8, fontSize: 11, fontWeight: 700, color: 'var(--orange)', marginBottom: 8, display: 'inline-block' }}>
+                              Alt: {altNote}
+                            </div>
+                          )}
 
-                return (
-                  <motion.div
-                    key={idx}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.05 }}
-                    className="mobile-card"
-                    style={{ padding: 0, overflow: 'hidden', background: 'white', display: 'flex', flexDirection: 'column' }}
-                  >
-                    <div style={{ display: 'flex', padding: '14px', gap: 14 }}>
-                      {/* IMAGE LEFT */}
-                      <div style={{ position: 'relative', flexShrink: 0 }}>
-                        <div
-                          onClick={() => setPreviewImage(tc.item.image || tc.product.images?.[0]?.url)}
-                          style={{
-                            width: 100,
-                            height: 100,
-                            background: '#F2F2F7',
-                            borderRadius: 14,
-                            overflow: 'hidden',
-                            border: '1.5px solid #E5E5EA',
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+                            {tc.product.variants.find((v: any) => v.size === tc.item.size && v.color === tc.item.color)?.stockLevels?.map((sl: any) => (
+                              <div key={sl.id} style={{ fontSize: 10, background: '#F2F2F7', padding: '3px 8px', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <Warehouse size={10} color="#FF6B2C" />
+                                <span style={{ fontWeight: 700 }}>{sl.position || sl.warehouse.name}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ fontSize: 10, color: '#8E8E93', fontWeight: 600 }}>{tc.order.customerName}</div>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); setEditingVariants({ product: tc.product, variants: tc.product.variants }); }}
+                              style={{ 
+                                background: 'var(--orange-soft)', 
+                                border: 'none', 
+                                borderRadius: 10, 
+                                padding: '6px 12px', 
+                                fontSize: 12, 
+                                fontWeight: 800, 
+                                color: 'var(--orange)', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: 6,
+                                boxShadow: '0 2px 8px rgba(255, 107, 44, 0.15)'
+                              }}
+                            >
+                              <Edit2 size={14} /> Stock
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* ACTIONS BOTTOM */}
+                      <div style={{ display: 'flex', borderTop: '1px solid #E5E5EA' }}>
+                        <button
+                          onClick={() => handleMark(tc.order.id, tc.product.id, 'collected', tc.item.id)}
+                          style={{ 
+                            flex: 1.5, height: 50, 
+                            background: isCollected ? '#28a745' : '#34C759', 
+                            color: 'white', border: 'none', fontWeight: 800, fontSize: 12, 
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                            opacity: isCollected ? 1 : 0.8,
+                            borderTop: isCollected ? '3px solid #1e7e34' : 'none'
                           }}
                         >
-                          {tc.item.image || tc.product.images?.[0]?.url ? (
-                            <img src={tc.item.image || tc.product.images[0].url} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: (isCollected || isUnavailable) ? 0.5 : 1 }} alt="" />
-                          ) : (
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 32 }}>{tc.item.emoji || '📦'}</div>
-                          )}
-                          <div style={{ position: 'absolute', bottom: 6, right: 6, background: 'rgba(0,0,0,0.4)', borderRadius: 6, padding: 4, backdropFilter: 'blur(2px)' }}>
-                            <Search size={12} color="white" strokeWidth={3} />
-                          </div>
-                          {isCollected && <div style={{ position: 'absolute', inset: 0, background: 'rgba(52, 199, 89, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Check size={40} color="white" strokeWidth={4} /></div>}
-                          {isUnavailable && <div style={{ position: 'absolute', inset: 0, background: 'rgba(255, 59, 48, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={40} color="white" strokeWidth={4} /></div>}
-                        </div>
+                          <Check size={18} strokeWidth={3} /> {isCollected ? 'COLLECTÉ ✓' : 'COLLECTÉ'}
+                        </button>
+                        <button
+                          onClick={() => {
+                            const note = window.prompt(`Alternative pour "${tc.item.name}" :`, altNote);
+                            if (note) handleMark(tc.order.id, tc.product.id, 'alternative', tc.item.id, note);
+                          }}
+                          style={{ 
+                            flex: 1, height: 50, 
+                            background: isAlt ? '#e68a00' : '#FF9500', 
+                            color: 'white', border: 'none', fontWeight: 800, fontSize: 11, 
+                            borderLeft: '1px solid rgba(255,255,255,0.2)', 
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            borderTop: isAlt ? '3px solid #b36b00' : 'none'
+                          }}
+                        >
+                          {isAlt ? 'ALT ⌥' : 'ALTER.'}
+                        </button>
+                        <button
+                          onClick={() => handleMark(tc.order.id, tc.product.id, 'unavailable', tc.item.id)}
+                          style={{ 
+                            flex: 1, height: 50, 
+                            background: isUnavailable ? '#dc3545' : '#FF3B30', 
+                            color: 'white', border: 'none', fontWeight: 800, fontSize: 11, 
+                            borderLeft: '1px solid rgba(255,255,255,0.2)', 
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            borderTop: isUnavailable ? '3px solid #bd2130' : 'none'
+                          }}
+                        >
+                          {isUnavailable ? 'INDISP ✕' : 'INDISP.'}
+                        </button>
                       </div>
+                    </motion.div>
+                  );
+                })
+              )}
+            </AnimatePresence>
+          </div>
 
-                      {/* INFO RIGHT */}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-                          <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 13, color: '#8E8E93' }}>{tc.order.ref}</div>
-                          <div style={{ fontWeight: 900, fontSize: 18, color: 'var(--orange)' }}>x{tc.item.qty}</div>
-                        </div>
-                        
-                        <div style={{ fontWeight: 800, fontSize: 15, color: '#1C1C1E', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tc.item.name}</div>
-                        
-                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-                          <span className="size-dot" style={{ background: '#1C1C1E', color: 'white', border: 'none' }}>{tc.item.size}</span>
-                          <span style={{ fontSize: 12, color: '#8E8E93', fontWeight: 700 }}>{tc.item.color}</span>
-                        </div>
+          {/* LIGHTBOX PORTAL */}
+          {previewImage && typeof document !== 'undefined' && createPortal(
+            <div
+              className="lightbox-overlay"
+              onClick={() => setPreviewImage(null)}
+              style={{ position: 'fixed', inset: 0, zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(8px)' }}
+            >
+              <div className="lightbox-content animate-zoom-in" onClick={e => e.stopPropagation()} style={{ position: 'relative', maxWidth: '95%', maxHeight: '95%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <img src={previewImage} alt="Preview" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 16, boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }} />
+                <button onClick={() => setPreviewImage(null)} style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', borderRadius: '50%', width: 44, height: 44, backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={28} /></button>
+              </div>
+            </div>,
+            document.body
+          )}
 
-                        {isAlt && altNote && (
-                          <div style={{ background: 'var(--orange-soft)', padding: '4px 8px', borderRadius: 8, fontSize: 11, fontWeight: 700, color: 'var(--orange)', marginBottom: 8, display: 'inline-block' }}>
-                            Alt: {altNote}
-                          </div>
-                        )}
-
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
-                          {tc.product.variants.find((v: any) => v.size === tc.item.size && v.color === tc.item.color)?.stockLevels?.map((sl: any) => (
-                            <div key={sl.id} style={{ fontSize: 10, background: '#F2F2F7', padding: '3px 8px', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
-                              <Warehouse size={10} color="#FF6B2C" />
-                              <span style={{ fontWeight: 700 }}>{sl.position || sl.warehouse.name}</span>
-                            </div>
-                          ))}
-                        </div>
-
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <div style={{ fontSize: 10, color: '#8E8E93', fontWeight: 600 }}>{tc.order.customerName}</div>
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); setEditingVariants({ product: tc.product, variants: tc.product.variants }); }}
-                            style={{ background: 'var(--cream)', border: '1px solid var(--line)', borderRadius: 8, padding: '4px 8px', fontSize: 10, fontWeight: 800, color: 'var(--brown-soft)', display: 'flex', alignItems: 'center', gap: 4 }}
-                          >
-                            <Edit2 size={10} /> Stock
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* ACTIONS BOTTOM */}
-                    <div style={{ display: 'flex', borderTop: '1px solid #E5E5EA' }}>
-                      <button
-                        onClick={() => handleMark(tc.order.id, tc.product.id, 'collected', tc.item.id)}
-                        style={{ 
-                          flex: 1.5, height: 50, 
-                          background: isCollected ? '#28a745' : '#34C759', 
-                          color: 'white', border: 'none', fontWeight: 800, fontSize: 12, 
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                          opacity: isCollected ? 1 : 0.8,
-                          borderTop: isCollected ? '3px solid #1e7e34' : 'none'
-                        }}
-                      >
-                        <Check size={18} strokeWidth={3} /> {isCollected ? 'COLLECTÉ ✓' : 'COLLECTÉ'}
-                      </button>
-                      <button
-                        onClick={() => {
-                          const note = window.prompt(`Alternative pour "${tc.item.name}" :`, altNote);
-                          if (note) handleMark(tc.order.id, tc.product.id, 'alternative', tc.item.id, note);
-                        }}
-                        style={{ 
-                          flex: 1, height: 50, 
-                          background: isAlt ? '#e68a00' : '#FF9500', 
-                          color: 'white', border: 'none', fontWeight: 800, fontSize: 11, 
-                          borderLeft: '1px solid rgba(255,255,255,0.2)', 
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          borderTop: isAlt ? '3px solid #b36b00' : 'none'
-                        }}
-                      >
-                        {isAlt ? 'ALT ⌥' : 'ALTER.'}
-                      </button>
-                      <button
-                        onClick={() => handleMark(tc.order.id, tc.product.id, 'unavailable', tc.item.id)}
-                        style={{ 
-                          flex: 1, height: 50, 
-                          background: isUnavailable ? '#dc3545' : '#FF3B30', 
-                          color: 'white', border: 'none', fontWeight: 800, fontSize: 11, 
-                          borderLeft: '1px solid rgba(255,255,255,0.2)', 
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          borderTop: isUnavailable ? '3px solid #bd2130' : 'none'
-                        }}
-                      >
-                        {isUnavailable ? 'INDISP ✕' : 'INDISP.'}
-                      </button>
-                    </div>
-                  </motion.div>
-                );
-              })
-            )}
-          </AnimatePresence>
+          {editingVariants && (
+            <VariantsEditorModal 
+              product={editingVariants.product} 
+              variants={editingVariants.variants} 
+              onClose={() => setEditingVariants(null)} 
+              onSave={(vars: any[]) => {
+                startTransition(async () => {
+                  try {
+                    await updateProductVariants(editingVariants.product.id, vars);
+                    showToast('Variantes mises à jour ✓', 'success');
+                    router.refresh();
+                    setEditingVariants(null);
+                  } catch (e: any) {
+                    showToast('Erreur', 'error');
+                  }
+                });
+              }}
+            />
+          )}
         </div>
-
-        {/* LIGHTBOX PORTAL */}
-        {previewImage && typeof document !== 'undefined' && createPortal(
-          <div
-            className="lightbox-overlay"
-            onClick={() => setPreviewImage(null)}
-            style={{ position: 'fixed', inset: 0, zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(8px)' }}
-          >
-            <div className="lightbox-content animate-zoom-in" onClick={e => e.stopPropagation()} style={{ position: 'relative', maxWidth: '95%', maxHeight: '95%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <img src={previewImage} alt="Preview" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 16, boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }} />
-              <button onClick={() => setPreviewImage(null)} style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', borderRadius: '50%', width: 44, height: 44, backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={28} /></button>
-            </div>
-          </div>,
-          document.body
-        )}
-      </div>
+      </>
     );
   }
 

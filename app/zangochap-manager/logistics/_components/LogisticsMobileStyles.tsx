@@ -8,12 +8,14 @@ export default function LogisticsMobileStyles() {
       .logistics-mobile-root {
         position: fixed;
         inset: 0;
+        top: 0;
         background: #F5F5F7;
         z-index: 100;
         display: flex;
         flex-direction: column;
         font-family: 'Outfit', sans-serif;
         color: #1C1C1E;
+        padding-top: 60px; /* Room for Sidebar top bar */
       }
 
       .logistics-mobile-header {

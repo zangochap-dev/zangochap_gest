@@ -30,12 +30,6 @@ const nextConfig: NextConfig = {
       ],
     },
   },
-  allowedDevOrigins: [
-    "russel-unclinging-incalculably.ngrok-free.dev", 
-    "172.20.10.2",
-    "zangochap.in",
-    "*.zangochap.in"
-  ],
 };
 
 export default nextConfig;

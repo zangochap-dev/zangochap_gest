@@ -93,7 +93,7 @@ export async function markCollection(orderId: string, productId: string, status:
     });
 
     if (updatedOrder && updatedOrder.status === 'CONFIRMED') {
-      const allAvailable = updatedOrder.items.every(item => {
+      const allAvailable = updatedOrder.items.every((item: any) => {
         if (!item.productId) return true; // Custom items are always "available"
         return (item.product?.stock || 0) > 0;
       });

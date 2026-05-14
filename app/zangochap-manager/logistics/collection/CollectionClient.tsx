@@ -411,7 +411,7 @@ export default function CollectionClient({ toCollect, user, categories = [], war
         {filteredToCollect.length === 0 ? <EmptyState icon="🔍" title="Aucun résultat" description="Essayez de modifier vos filtres." /> : (
           <table>
             <thead><tr><th>Commande</th><th>Produit</th><th>Variation</th><th>Qté</th><th>Emplacement</th><th>Actions</th></tr></thead>
-            <tbody>{filteredToCollect.map((tc, i) => <CollectionRow key={i} {...tc} isPending={isPending} onMark={handleMark} onPreview={setPreviewImage} />)}</tbody>
+            <tbody>{filteredToCollect.map((tc, i) => <CollectionRow key={i} {...tc} isPending={isPending} onMark={handleMark} onPreview={setPreviewImage} onEditStock={() => setEditingVariants({ product: tc.product, variants: tc.product.variants })} />)}</tbody>
           </table>
         )}
       </TableCard>
@@ -429,7 +429,7 @@ export default function CollectionClient({ toCollect, user, categories = [], war
   );
 }
 
-function CollectionRow({ order, item, product, isPending, onMark, onPreview }: any) {
+function CollectionRow({ order, item, product, isPending, onMark, onPreview, onEditStock }: any) {
   return (
     <tr>
       <td><div className="cell-mono" style={{ fontWeight: 800 }}>{order.ref}</div><div className="cell-muted" style={{ fontSize: 11 }}>{order.customerName}</div></td>
@@ -452,9 +452,10 @@ function CollectionRow({ order, item, product, isPending, onMark, onPreview }: a
       </td>
       <td style={{ width: 120 }}>
         <div className="row-actions">
-          <button className="action-btn" onClick={() => onMark(order.id, product.id, 'collected', item.id)} style={{ background: 'var(--green-soft)', color: 'var(--green)' }}><Check size={16} /></button>
-          <button className="action-btn" onClick={() => { const note = window.prompt(`Alternative for "${item.name}" :`); if (note) onMark(order.id, product.id, 'alternative', item.id, note); }} style={{ background: 'var(--orange-soft)', color: 'var(--orange)' }}><ArrowLeftRight size={16} /></button>
-          <button className="action-btn" onClick={() => onMark(order.id, product.id, 'unavailable', item.id)} style={{ background: 'var(--red-soft)', color: 'var(--red)' }}><X size={16} /></button>
+          <button className="action-btn" onClick={() => onMark(order.id, product.id, 'collected', item.id)} style={{ background: 'var(--green-soft)', color: 'var(--green)' }} title="Collecté"><Check size={16} /></button>
+          <button className="action-btn" onClick={() => { const note = window.prompt(`Alternative pour "${item.name}" :`); if (note) onMark(order.id, product.id, 'alternative', item.id, note); }} style={{ background: 'var(--orange-soft)', color: 'var(--orange)' }} title="Alternative"><ArrowLeftRight size={16} /></button>
+          <button className="action-btn" onClick={() => onMark(order.id, product.id, 'unavailable', item.id)} style={{ background: 'var(--red-soft)', color: 'var(--red)' }} title="Indisponible"><X size={16} /></button>
+          <button className="action-btn" onClick={onEditStock} style={{ background: 'var(--cream)', color: 'var(--brown-soft)' }} title="Modifier Stock"><Edit2 size={16} /></button>
         </div>
       </td>
     </tr>

@@ -51,10 +51,28 @@ const NAV_FOR_ROLE: Record<string, (counts?: any) => any[]> = {
     { title: 'Inventaire', items: [{ label: 'Tous les produits', href: '/zangochap-manager/products', icon: <Box size={18} /> }, { label: 'Ruptures de stock', href: '/zangochap-manager/products/shortages', icon: <AlertTriangle size={18} /> }, { label: 'Historique stock', href: '/zangochap-manager/inventory/history', icon: <History size={18} /> }, { label: 'Entrepôts', href: '/zangochap-manager/logistics/warehouses', icon: <Warehouse size={18} /> }] },
   ],
   admin: (counts) => [
-    { items: [{ label: 'Dashboard', href: '/zangochap-manager/dashboard', icon: <LayoutDashboard size={18} /> }, { label: 'Répertoire', href: '/zangochap-manager/directory', icon: <Users size={18} /> }] },
-    { title: 'Opérations', items: [{ label: 'Commandes', href: '/zangochap-manager/orders', icon: <ShoppingBag size={18} />, badge: counts?.orders }, { label: 'Emballage', href: '/zangochap-manager/logistics/packing', icon: <Package size={18} />, badge: counts?.packing }, { label: 'Collecte', href: '/zangochap-manager/logistics/collection', icon: <Truck size={18} />, badge: counts?.collection }] },
-    { title: 'Catalogue', items: [{ label: 'Produits', href: '/zangochap-manager/products', icon: <Box size={18} /> }, { label: 'Ajouter', href: '/zangochap-manager/products/new', icon: <ClipboardList size={18} /> }] },
-    { title: 'Pilotage', items: [{ label: 'Livreurs', href: '/zangochap-admin/delivery', icon: <Truck size={18} /> }, { label: 'Settings', href: '/zangochap-manager/admin/settings', icon: <Settings size={18} /> }] },
+    { items: [{ label: 'Vue globale', href: '/zangochap-manager/dashboard', icon: <LayoutDashboard size={18} /> }, { label: 'Répertoire', href: '/zangochap-manager/directory', icon: <Users size={18} /> }] },
+    { title: 'Commandes', items: [
+      { label: 'Toutes', href: '/zangochap-manager/orders', icon: <ShoppingBag size={18} />, badge: counts?.orders },
+      { label: 'À traiter (site)', href: '/zangochap-manager/orders/to-process', icon: <AlertTriangle size={18} />, badge: counts?.toProcess },
+      { label: 'Non emballées', href: '/zangochap-manager/orders/non-packed', icon: <Package size={18} /> },
+      { label: 'Nouvelle commande', href: '/zangochap-manager/orders/new', icon: <ClipboardList size={18} /> }
+    ]},
+    { title: 'Logistique', items: [
+      { label: 'Emballage', href: '/zangochap-manager/logistics/packing', icon: <Package size={18} />, badge: counts?.packing },
+      { label: 'Collecte', href: '/zangochap-manager/logistics/collection', icon: <Truck size={18} />, badge: counts?.collection },
+      { label: 'Entrepôts', href: '/zangochap-manager/logistics/warehouses', icon: <Warehouse size={18} /> }
+    ]},
+    { title: 'Catalogue & Stock', items: [
+      { label: 'Produits', href: '/zangochap-manager/products', icon: <Box size={18} /> },
+      { label: 'Ruptures', href: '/zangochap-manager/products/shortages', icon: <AlertTriangle size={18} /> },
+      { label: 'Historique Stock', href: '/zangochap-manager/inventory/history', icon: <History size={18} /> },
+      { label: 'CRM Clients', href: '/zangochap-manager/admin/crm', icon: <Users size={18} /> }
+    ]},
+    { title: 'Pilotage', items: [
+      { label: 'Gestion Livraisons', href: '/zangochap-admin/delivery', icon: <Truck size={18} /> },
+      { label: 'Settings', href: '/zangochap-manager/admin/settings', icon: <Settings size={18} /> }
+    ]},
   ],
   livreur: (counts) => [
     { items: [{ label: 'Mes Livraisons', href: '/zangochap-rider', icon: <Truck size={18} />, badge: counts?.myDeliveries }, { label: 'Répertoire', href: '/zangochap-manager/directory', icon: <Users size={18} /> }] },
@@ -71,7 +89,8 @@ export default function Sidebar({ user, counts }: SidebarProps) {
   const prevCounts = useRef(counts);
   const { showToast } = useToast();
 
-  const sections = (NAV_FOR_ROLE[user.role] || NAV_FOR_ROLE.admin)(counts);
+  const roleKey = user.role?.toLowerCase() || 'admin';
+  const sections = (NAV_FOR_ROLE[roleKey] || NAV_FOR_ROLE.admin)(counts);
   const roleLabel = ROLE_LABELS[user.role] || user.role;
 
   // Track Online/Offline Status

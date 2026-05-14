@@ -220,7 +220,7 @@ export async function updateProductVariants(productId: string, variants: Array<{
   stock: number;
   location?: string;
 }>) {
-  await ensureAuth(["admin", "stock"]);
+  await ensureAuth(["admin", "stock", "packing", "collection"]);
   // Delete existing variants and their stock levels (Cascade will handle StockLevel)
   await prisma.productVariant.deleteMany({ where: { productId } });
   

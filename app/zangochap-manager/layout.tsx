@@ -44,20 +44,7 @@ export default async function ManagerLayout({
       prisma.order.count({ where: { status: OrderStatus.CONFIRMED } }),
       prisma.order.count({ where: { status: OrderStatus.TO_PROCESS } }),
       prisma.order.count({ where: { deliverymanId: user.id, status: { notIn: [OrderStatus.DELIVERED, OrderStatus.CANCELLED] } } }),
-      prisma.order.count({
-        where: {
-          status: { notIn: [OrderStatus.CANCELLED, OrderStatus.DELIVERED] },
-          items: {
-            some: {
-              product: {
-                variants: {
-                  none: { stock: { gt: 0 } }
-                }
-              }
-            }
-          }
-        }
-      })
+      prisma.order.count({ where: { status: OrderStatus.CONFIRMED } }) // Simplifié pour le badge collecte temporairement
     ]);
 
     counts = {

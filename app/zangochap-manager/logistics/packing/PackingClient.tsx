@@ -297,6 +297,10 @@ export default function PackingClient({ initialOrders, products, user }: { initi
                           <div>
                             <div style={{ fontSize: 12, fontWeight: 700, color: '#1C1C1E', marginBottom: 2 }}>{o.customerName}</div>
                             <div style={{ fontSize: 10, color: '#8E8E93', fontWeight: 600 }}>{o.commune || 'Abidjan'} • {formatDay(o.createdAt)}</div>
+                            <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
+                              {o.commercialName && <span style={{ fontSize: 9, fontWeight: 700, background: '#E8F4FD', color: '#0A84FF', padding: '2px 6px', borderRadius: 6 }}>🛒 {o.commercialName}</span>}
+                              {o.packedByName && <span style={{ fontSize: 9, fontWeight: 700, background: '#F2FBF4', color: '#34C759', padding: '2px 6px', borderRadius: 6 }}>📦 {o.packedByName}</span>}
+                            </div>
                           </div>
                           <button
                             onClick={(e) => {
@@ -717,7 +721,13 @@ export default function PackingClient({ initialOrders, products, user }: { initi
                       })}
                     </div>
                   </td>
-                  <td><span className="cell-muted">{o.commercialName || '—'}</span></td>
+                  <td>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      {o.commercialName && <span style={{ fontSize: 10, fontWeight: 700 }}>🛒 {o.commercialName}</span>}
+                      {o.packedByName && <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--green)' }}>📦 {o.packedByName}</span>}
+                      {!o.commercialName && !o.packedByName && <span className="cell-muted">—</span>}
+                    </div>
+                  </td>
                   <td><StatusBadge status={o.status} /></td>
                   <td>
                     <div style={{ display: 'flex', gap: 6 }}>
@@ -768,6 +778,10 @@ export default function PackingClient({ initialOrders, products, user }: { initi
             <div>
               <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--orange)', fontSize: 20 }}>{selectedOrder.ref}</div>
               <div style={{ fontWeight: 700, marginTop: 4 }}>{selectedOrder.customerName} · {selectedOrder.commune}</div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                {selectedOrder.commercialName && <span style={{ fontSize: 10, fontWeight: 700, background: '#E8F4FD', color: '#0A84FF', padding: '2px 8px', borderRadius: 6 }}>🛒 {selectedOrder.commercialName}</span>}
+                {selectedOrder.packedByName && <span style={{ fontSize: 10, fontWeight: 700, background: '#F2FBF4', color: '#34C759', padding: '2px 8px', borderRadius: 6 }}>📦 {selectedOrder.packedByName}</span>}
+              </div>
             </div>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--brown-soft)', marginBottom: 4 }}>PROGRESSION</div>

@@ -30,9 +30,13 @@ export default function CollectionClient({ toCollect, user, categories = [], war
   const router = useRouter();
   const isMobile = useIsMobile();
 
-  // Auto-refresh every 30s
+  // Auto-refresh every 15s using a transition to avoid blocking UI
   useEffect(() => {
-    const interval = setInterval(() => router.refresh(), 30000);
+    const interval = setInterval(() => {
+      startTransition(() => {
+        router.refresh();
+      });
+    }, 15000);
     return () => clearInterval(interval);
   }, [router]);
 
@@ -48,7 +52,8 @@ export default function CollectionClient({ toCollect, user, categories = [], war
         showToast(labels[status] || 'Fait', 'success');
         router.refresh();
       } catch (e: any) {
-        showToast(e.message || 'Erreur', 'error');
+        console.error('Collection Action Error:', e);
+        showToast(e?.message || 'Une erreur est survenue lors du marquage', 'error');
       }
     });
   };

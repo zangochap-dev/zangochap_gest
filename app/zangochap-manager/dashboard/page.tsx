@@ -37,7 +37,9 @@ export default async function DashboardPage() {
 
   const DashboardView = dashboards[user?.role] || AdminDashboard;
 
+  const serializedUser = JSON.parse(JSON.stringify(user));
+
   return (
-    <DashboardView user={user} />
+    <DashboardView user={serializedUser} />
   );
 }

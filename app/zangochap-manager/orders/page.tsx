@@ -94,16 +94,25 @@ export default async function OrdersPage({ searchParams }: PageProps) {
 
   const deliverymen = staffUsers.filter(u => u.phone);
 
+  // Final serialization for all data to ensure no complex objects reach the client
+  const data = JSON.parse(JSON.stringify({
+    orders,
+    products,
+    deliverymen,
+    staffUsers,
+    user
+  }));
+
   return (
     <>
       <Topbar title="Gestion des" subtitle="commandes" />
       <OrdersClient 
-        initialOrders={JSON.parse(JSON.stringify(orders))} 
+        initialOrders={data.orders} 
         totalCount={totalCount}
-        products={JSON.parse(JSON.stringify(products))} 
-        deliverymen={deliverymen}
-        staffUsers={staffUsers}
-        user={user} 
+        products={data.products} 
+        deliverymen={data.deliverymen}
+        staffUsers={data.staffUsers}
+        user={data.user} 
         currentPage={page}
         pageSize={limit}
       />

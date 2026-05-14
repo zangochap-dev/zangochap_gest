@@ -37,21 +37,29 @@ export default async function CollectionPage() {
       if (!product) continue;
 
       toCollect.push({
-        order: JSON.parse(JSON.stringify(order)),
-        item: JSON.parse(JSON.stringify(item)),
-        product: JSON.parse(JSON.stringify(product)),
+        order,
+        item,
+        product,
       });
     }
   }
+
+  // Final serialization to ensure no complex objects reach the client
+  const data = JSON.parse(JSON.stringify({
+    toCollect,
+    user,
+    categories,
+    warehouses
+  }));
 
   return (
     <React.Suspense fallback={<div className="p-8 text-center opacity-50">Chargement de la collecte...</div>}>
       <Topbar title="Logistique" subtitle="Collecte" />
       <CollectionClient 
-        toCollect={JSON.parse(JSON.stringify(toCollect))} 
-        user={user ? JSON.parse(JSON.stringify(user)) : null} 
-        categories={JSON.parse(JSON.stringify(categories))} 
-        warehouses={JSON.parse(JSON.stringify(warehouses))}
+        toCollect={data.toCollect} 
+        user={data.user} 
+        categories={data.categories} 
+        warehouses={data.warehouses}
       />
     </React.Suspense>
   );

@@ -33,9 +33,13 @@ export default function PackingClient({ initialOrders, products, user }: { initi
   const isMobile = useIsMobile();
   const [editingVariants, setEditingVariants] = useState<any>(null);
 
-  // Auto-refresh every 15s for packing queue (real-time critical)
+  // Auto-refresh every 15s using a transition to avoid blocking UI
   useEffect(() => {
-    const interval = setInterval(() => router.refresh(), 15000);
+    const interval = setInterval(() => {
+      startTransition(() => {
+        router.refresh();
+      });
+    }, 15000);
     return () => clearInterval(interval);
   }, [router]);
 
@@ -109,7 +113,8 @@ export default function PackingClient({ initialOrders, products, user }: { initi
         setSelectedIds(new Set());
         router.refresh();
       } catch (e: any) {
-        showToast(e.message || 'Erreur lors du traitement groupé', 'error');
+        console.error('Bulk Action Error:', e);
+        showToast(e?.message || 'Erreur lors du traitement groupé', 'error');
       }
     });
   };
@@ -133,7 +138,8 @@ export default function PackingClient({ initialOrders, products, user }: { initi
         setSelectedOrder(null);
         setPackingNote('');
       } catch (e: any) {
-        showToast(e.message || 'Erreur', 'error');
+        console.error('Packing Action Error:', e);
+        showToast(e?.message || 'Erreur lors du marquage', 'error');
       }
     });
   };

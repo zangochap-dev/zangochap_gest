@@ -4,6 +4,7 @@ import React, { useState, useTransition } from "react";
 import { ShoppingBag, ChevronRight, AlertCircle, Info } from "lucide-react";
 import { loginAction } from "@/modules/auth/actions";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 export default function LoginPage() {
   const [error, setError] = useState("");
@@ -26,7 +27,7 @@ export default function LoginPage() {
     <div className="login-screen">
       <div className="login-card animate-fade-in">
         <div className="login-header">
-          <img src="/logo.png" alt="ZangoChap Logo" className="login-logo-img" />
+          <img src="/logo.png" alt="ZangoChap Logo" width="160" height="50" className="login-logo-img h-auto mx-auto block" />
           <div className="login-eyebrow">ZangoChap Manager</div>
           <h1 className="login-title">Bon retour</h1>
         </div>

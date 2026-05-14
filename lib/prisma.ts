@@ -21,8 +21,12 @@ const prismaClientSingleton = () => {
       : undefined
   });
 
+  pool.on('connect', () => {
+    // console.log('New client connected to pool');
+  });
+
   pool.on('error', (err) => {
-    console.error('Unexpected error on idle client', err);
+    console.error('❌ Prisma Pool Error:', err.message);
   });
   
   const adapter = new PrismaPg(pool);

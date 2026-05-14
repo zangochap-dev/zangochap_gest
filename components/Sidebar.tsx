@@ -174,7 +174,7 @@ export default function Sidebar({ user, counts }: SidebarProps) {
       <div className="mobile-top-bar">
         <button className="mobile-nav-trigger" onClick={() => setIsMobileOpen(true)}><Menu size={24} /></button>
         <div className="mobile-logo-center">
-          <Image src="/logo.png" alt="Logo" width={100} height={30} style={{ objectFit: 'contain' }} />
+          <img src="/logo.png" alt="Logo" width="100" height="30" className="h-auto block" style={{ objectFit: 'contain' }} />
           {mounted && isOffline && <WifiOff size={14} color="#FF3B30" style={{ marginLeft: 8 }} />}
         </div>
         <button className="mobile-notif-btn" onClick={() => setShowNotifications(!showNotifications)}>
@@ -194,7 +194,7 @@ export default function Sidebar({ user, counts }: SidebarProps) {
         <div className="sidebar-header">
           <div className="sidebar-logo">
             <Link href="/zangochap-manager/dashboard" className="logo-link">
-              <Image src="/logo.png" alt="ZANGOCHAP" width={140} height={40} className="logo-img" priority />
+              <img src="/logo.png" alt="ZANGOCHAP" width="140" height="40" className="logo-img h-auto block" />
               <div className="logo-icon-mini">Z</div>
             </Link>
           </div>

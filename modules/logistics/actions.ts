@@ -106,6 +106,9 @@ export async function markCollection(orderId: string, productId: string, status:
   }
 
   revalidatePath("/zangochap-manager/logistics");
+  revalidatePath("/zangochap-manager/logistics/packing");
+  revalidatePath("/zangochap-manager/logistics/collection");
+  revalidatePath("/zangochap-manager/orders");
   revalidatePath("/zangochap-manager/dashboard");
   return { success: true };
 }

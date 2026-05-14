@@ -70,7 +70,7 @@ export default function DeliveryClient({
   useEffect(() => {
     if ("Notification" in window && Notification.permission === "default") { Notification.requestPermission(); }
     if ("serviceWorker" in navigator) { navigator.serviceWorker.register("/sw.js").catch(() => {}); }
-    const interval = setInterval(() => router.refresh(), 45000);
+    const interval = setInterval(() => router.refresh(), 20000);
     return () => clearInterval(interval);
   }, [router]);
 

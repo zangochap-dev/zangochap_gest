@@ -99,7 +99,9 @@ export default async function DeliveryPage() {
     };
   });
 
+  const serializedUser = JSON.parse(JSON.stringify(user));
+
   return (
-    <DeliveryClient orders={orders} user={user} />
+    <DeliveryClient orders={orders} user={serializedUser} />
   );
 }

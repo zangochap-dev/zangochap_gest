@@ -291,6 +291,8 @@ export async function createOrder(data: {
 
   revalidatePath("/zangochap-manager/orders");
   revalidatePath("/zangochap-manager/dashboard");
+  revalidatePath("/zangochap-manager/logistics/collection");
+  revalidatePath("/zangochap-manager/logistics/packing");
   return order;
 }
 
@@ -375,6 +377,10 @@ export async function updateOrderStatus(orderId: string, newStatus: string, note
 
   revalidatePath("/zangochap-manager/orders");
   revalidatePath("/zangochap-manager/logistics");
+  revalidatePath("/zangochap-manager/logistics/packing");
+  revalidatePath("/zangochap-manager/logistics/collection");
+  revalidatePath("/zangochap-manager/dashboard");
+  revalidatePath("/zangochap-rider");
   return { success: true };
 }
 
@@ -505,6 +511,9 @@ export async function markPartialDelivery(orderId: string, deliveredQuantities: 
   });
 
   revalidatePath("/zangochap-manager/orders");
+  revalidatePath("/zangochap-manager/dashboard");
+  revalidatePath("/zangochap-rider");
+  revalidatePath("/zangochap-manager/admin/delivery");
   return { success: true };
 }
 
@@ -543,6 +552,8 @@ export async function assignOrderToDeliveryman(orderId: string, deliverymanId: s
 
   revalidatePath("/zangochap-manager/orders");
   revalidatePath("/zangochap-rider");
+  revalidatePath("/zangochap-manager/admin/delivery");
+  revalidatePath("/zangochap-manager/dashboard");
   return { success: true };
 }
 

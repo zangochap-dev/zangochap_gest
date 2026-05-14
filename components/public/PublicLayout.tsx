@@ -69,7 +69,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
         <div className="bg-[#1A1614] text-white py-[70px] pb-[50px] px-6 w-full">
           <div className="max-w-[1200px] mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1fr] gap-10 md:gap-[60px]">
             <div className="col-span-1 sm:col-span-2 lg:col-span-1">
-              <img src="/logo.png" alt="ZANGOCHAP" className="h-[40px] mb-6 brightness-0 invert" />
+              <img src="/logo.png" alt="ZANGOCHAP" className="h-[40px] w-auto mb-6 brightness-0 invert" />
               <p className="text-[13px] leading-relaxed text-white/45 mb-6">Zangochap : Mieux s'habiller à prix bas ! Nous offrons une sélection exceptionnelle de produits de qualité avec un service client réactif et des livraisons rapides.</p>
               <div className="flex gap-3">
                 <a href="https://instagram.com/zangochap" target="_blank" className="w-9 h-9 border border-white/15 rounded-full flex items-center justify-center text-white/50 text-[10px] font-bold tracking-wider no-underline transition-all hover:border-white/40 hover:text-white">IG</a>

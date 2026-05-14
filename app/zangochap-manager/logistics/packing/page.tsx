@@ -32,13 +32,19 @@ export default async function PackingPage() {
     },
   });
 
+  const data = JSON.parse(JSON.stringify({
+    orders,
+    products,
+    user
+  }));
+
   return (
     <React.Suspense fallback={<div className="p-8 text-center opacity-50">Chargement du service emballage...</div>}>
       <Topbar title="Service" subtitle="emballage" />
       <PackingClient
-        initialOrders={JSON.parse(JSON.stringify(orders))}
-        products={JSON.parse(JSON.stringify(products))}
-        user={user ? JSON.parse(JSON.stringify(user)) : null}
+        initialOrders={data.orders}
+        products={data.products}
+        user={data.user}
       />
     </React.Suspense>
   );

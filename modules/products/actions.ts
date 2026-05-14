@@ -254,6 +254,10 @@ export async function updateProductVariants(productId: string, variants: Array<{
 
   revalidatePath("/zangochap-manager/products");
   revalidatePath("/zangochap-manager/logistics");
+  revalidatePath("/zangochap-manager/logistics/packing");
+  revalidatePath("/zangochap-manager/logistics/collection");
+  revalidatePath("/zangochap-manager/dashboard");
+  revalidatePath("/");
   return { success: true };
 }
 

@@ -15,7 +15,7 @@ export default async function PackingPage() {
     },
     orderBy: { createdAt: "desc" },
     include: { items: true },
-    take: 200 // Limite pour éviter les problèmes de performance au chargement initial
+    take: 500 // Increased limit to ensure no orders are missed during busy shifts
   });
 
   const products = await prisma.product.findMany({

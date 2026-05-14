@@ -257,7 +257,14 @@ export default function CollectionClient({ toCollect, user, categories = [], war
                             <div style={{ fontWeight: 900, fontSize: 18, color: 'var(--orange)' }}>x{tc.item.qty}</div>
                           </div>
                           
-                          <div style={{ fontWeight: 800, fontSize: 15, color: '#1C1C1E', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tc.item.name}</div>
+                          <div style={{ fontWeight: 800, fontSize: 15, color: '#1C1C1E', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tc.item.name}</div>
+                          <div style={{ fontSize: 11, color: '#8E8E93', fontWeight: 600, marginBottom: 4 }}>{tc.order.customerName}</div>
+
+                          <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+                            {tc.order.commercialName && <span style={{ fontSize: 9, fontWeight: 700, background: '#E8F4FD', color: '#0A84FF', padding: '2px 6px', borderRadius: 6 }}>🛒 {tc.order.commercialName}</span>}
+                            {lastLog?.byName && <span style={{ fontSize: 9, fontWeight: 700, background: '#F2FBF4', color: '#34C759', padding: '2px 6px', borderRadius: 6 }}>⚒️ {lastLog.byName}</span>}
+                            {tc.order.packedByName && <span style={{ fontSize: 9, fontWeight: 700, background: '#FFF1F2', color: '#FF3B30', padding: '2px 6px', borderRadius: 6 }}>📦 {tc.order.packedByName}</span>}
+                          </div>
                           
                           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
                             <span className="size-dot" style={{ background: '#1C1C1E', color: 'white', border: 'none' }}>{tc.item.size}</span>
@@ -454,9 +461,24 @@ export default function CollectionClient({ toCollect, user, categories = [], war
 }
 
 function CollectionRow({ order, item, product, isPending, onMark, onPreview, onEditStock }: any) {
+  const h = Array.isArray(order.history) ? order.history : [];
+  const collector = h.filter((l: any) => {
+    const act = l.action.toLowerCase();
+    return (act.includes('collecté') || act.includes('indisponible') || act.includes('alternative')) &&
+      act.includes(item.name.toLowerCase());
+  }).sort((a: any, b: any) => new Date(b.at).getTime() - new Date(a.at).getTime())[0];
+
   return (
     <tr>
-      <td><div className="cell-mono" style={{ fontWeight: 800 }}>{order.ref}</div><div className="cell-muted" style={{ fontSize: 11 }}>{order.customerName}</div></td>
+      <td>
+        <div className="cell-mono" style={{ fontWeight: 800 }}>{order.ref}</div>
+        <div className="cell-muted" style={{ fontSize: 11 }}>{order.customerName}</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 4 }}>
+          {order.commercialName && <span style={{ fontSize: 9, fontWeight: 700, color: '#0A84FF' }}>🛒 {order.commercialName}</span>}
+          {collector?.byName && <span style={{ fontSize: 9, fontWeight: 700, color: '#34C759' }}>⚒️ {collector.byName}</span>}
+          {order.packedByName && <span style={{ fontSize: 9, fontWeight: 700, color: '#FF3B30' }}>📦 {order.packedByName}</span>}
+        </div>
+      </td>
       <td>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div onClick={() => onPreview(item.image || product.images?.[0]?.url)} style={{ width: 44, height: 44, background: 'var(--cream-2)', borderRadius: 10, overflow: 'hidden', border: '1px solid var(--line)', cursor: 'zoom-in' }}>

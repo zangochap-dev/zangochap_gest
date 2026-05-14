@@ -34,16 +34,28 @@ export default function PackingClient({ initialOrders, products, user }: { initi
   const router = useRouter();
   const isMobile = useIsMobile();
   const [editingVariants, setEditingVariants] = useState<any>(null);
+  const [optimisticChecks, setOptimisticChecks] = useState<Record<string, boolean>>({});
+  const [savingChecks, setSavingChecks] = useState<Set<string>>(new Set());
 
-  // Auto-refresh every 15s using a transition to avoid blocking UI
+  // Auto-refresh every 10s using a transition to avoid blocking UI
   useEffect(() => {
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible') {
         router.refresh();
       }
-    }, 30000);
+    }, 10000); // 10 seconds for more reactive logistics
     return () => clearInterval(interval);
   }, [router]);
+
+  // Sync selectedOrder with initialOrders when props update
+  useEffect(() => {
+    if (selectedOrder) {
+      const updated = initialOrders.find(o => o.id === selectedOrder.id);
+      if (updated) {
+        setSelectedOrder(updated);
+      }
+    }
+  }, [initialOrders, selectedOrder?.id]);
 
   const productMap = useMemo(() => {
     const map = new Map();
@@ -122,14 +134,42 @@ export default function PackingClient({ initialOrders, products, user }: { initi
   };
 
   const toggleCheckItem = (orderId: string, item: any) => {
-    startTransition(async () => {
-      try {
-        await toggleItemVerification(item.id, !item.isVerified);
-        router.refresh();
-      } catch (e: any) {
+    const currentStatus = optimisticChecks[item.id] !== undefined 
+      ? optimisticChecks[item.id] 
+      : item.isVerified;
+    const newStatus = !currentStatus;
+    
+    // Optimistic Update: Change UI INSTANTLY
+    setOptimisticChecks(prev => ({
+      ...prev,
+      [item.id]: newStatus
+    }));
+
+    // Track saving state for spinner
+    setSavingChecks(prev => new Set(prev).add(item.id));
+
+    // Fire-and-forget: persist to DB without blocking UI
+    toggleItemVerification(item.id, newStatus)
+      .then(() => {
+        setSavingChecks(prev => {
+          const next = new Set(prev);
+          next.delete(item.id);
+          return next;
+        });
+      })
+      .catch(() => {
+        // Rollback on error
+        setOptimisticChecks(prev => ({
+          ...prev,
+          [item.id]: currentStatus
+        }));
+        setSavingChecks(prev => {
+          const next = new Set(prev);
+          next.delete(item.id);
+          return next;
+        });
         showToast("Erreur lors de la vérification", "error");
-      }
-    });
+      });
   };
 
   const handleMarkPacking = (orderId: string, status: string) => {
@@ -294,6 +334,8 @@ export default function PackingClient({ initialOrders, products, user }: { initi
           onEditStock={(p) => setEditingVariants({ product: p, variants: p.variants })}
           onToggleCheckItem={toggleCheckItem}
           onPreviewImage={setPreviewImage}
+          optimisticChecks={optimisticChecks}
+          savingChecks={savingChecks}
         />
 
         {/* LIGHTBOX PORTAL */}

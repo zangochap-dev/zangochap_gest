@@ -8,8 +8,9 @@ import { useToast } from "@/components/Toast";
 import { updateOrderStatus } from "@/modules/orders/actions";
 import { formatPrice, formatDay, STATUS_LABELS } from "@/lib/constants";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Eye, Package, Check, ArrowLeftRight, Warehouse, X, Search, ChevronRight, ClipboardList } from "lucide-react";
+import { Eye, Package, Check, ArrowLeftRight, Warehouse, X, Search, ChevronRight, ClipboardList, Edit2 } from "lucide-react";
 import { addOrderHistoryEntry } from "@/modules/orders/actions";
+import { updateProductVariants } from "@/modules/products/actions";
 import { useIsMobile } from "@/lib/hooks";
 import LogisticsMobileStyles from "../_components/LogisticsMobileStyles";
 import { motion, AnimatePresence } from "framer-motion";
@@ -30,6 +31,7 @@ export default function PackingClient({ initialOrders, products, user }: { initi
   const { showToast } = useToast();
   const router = useRouter();
   const isMobile = useIsMobile();
+  const [editingVariants, setEditingVariants] = useState<any>(null);
 
   // Auto-refresh every 15s for packing queue (real-time critical)
   useEffect(() => {
@@ -434,13 +436,26 @@ export default function PackingClient({ initialOrders, products, user }: { initi
                               </div>
                             ))}
                           </div>
-                          <button
-                            className="action-btn"
-                            onClick={(e) => { e.stopPropagation(); handleProposeAlternative(selectedOrder.id, item.name); }}
-                            style={{ background: 'var(--orange-soft)', color: 'var(--orange)', width: 28, height: 28, borderRadius: 8, border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                          >
-                            <ArrowLeftRight size={14} />
-                          </button>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button
+                              className="action-btn"
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                if (p) setEditingVariants({ product: p, variants: p.variants }); 
+                              }}
+                              style={{ background: 'var(--cream)', color: 'var(--brown-soft)', width: 28, height: 28, borderRadius: 8, border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                              title="Modifier Stock"
+                            >
+                              <Edit2 size={14} />
+                            </button>
+                            <button
+                              className="action-btn"
+                              onClick={(e) => { e.stopPropagation(); handleProposeAlternative(selectedOrder.id, item.name); }}
+                              style={{ background: 'var(--orange-soft)', color: 'var(--orange)', width: 28, height: 28, borderRadius: 8, border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            >
+                              <ArrowLeftRight size={14} />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -739,7 +754,19 @@ export default function PackingClient({ initialOrders, products, user }: { initi
                         <div style={{ fontWeight: 700, fontSize: 15, textDecoration: isChecked ? 'line-through' : 'none' }}>{item.name}</div>
                         <div style={{ fontSize: 13, color: 'var(--brown-soft)', marginTop: 4 }}>Taille : {item.size} | Couleur : {item.color} | Qté : x{item.qty}</div>
                       </div>
-                      <button className="action-btn" onClick={(e) => { e.stopPropagation(); handleProposeAlternative(selectedOrder.id, item.name); }}><ArrowLeftRight size={14} /></button>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button 
+                          className="action-btn" 
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            if (p) setEditingVariants({ product: p, variants: p.variants }); 
+                          }}
+                          title="Modifier Stock"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                        <button className="action-btn" onClick={(e) => { e.stopPropagation(); handleProposeAlternative(selectedOrder.id, item.name); }}><ArrowLeftRight size={14} /></button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -785,6 +812,93 @@ export default function PackingClient({ initialOrders, products, user }: { initi
         </div>,
         document.body
       )}
+      {editingVariants && (
+        <VariantsEditorModal 
+          product={editingVariants.product} 
+          variants={editingVariants.variants} 
+          onClose={() => setEditingVariants(null)} 
+          onSave={(vars: any[]) => {
+            startTransition(async () => {
+              try {
+                await updateProductVariants(editingVariants.product.id, vars);
+                showToast('Variantes mises à jour ✓', 'success');
+                router.refresh();
+                setEditingVariants(null);
+              } catch (e: any) {
+                showToast('Erreur lors de la mise à jour', 'error');
+              }
+            });
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+function VariantsEditorModal({ product, variants: initialVariants, onClose, onSave }: any) {
+  const [variants, setVariants] = React.useState(initialVariants);
+  const updateVariant = (idx: number, field: string, value: any) => {
+    const next = [...variants];
+    next[idx] = { 
+      ...next[idx], 
+      [field]: field === 'stock' ? Math.max(0, parseInt(value) || 0) : value 
+    };
+    setVariants(next);
+  };
+
+  return (
+    <Modal 
+      isOpen={true} 
+      onClose={onClose} 
+      title={`Stock · ${product.name}`} 
+      large 
+      footer={
+        <>
+          <button className="btn-secondary" onClick={onClose}>Annuler</button>
+          <button className="btn-orange" onClick={() => onSave(variants)}>Enregistrer</button>
+        </>
+      }
+    >
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontWeight: 600 }}>{product.name}</div>
+        <div style={{ fontSize: 11, color: 'var(--brown-soft)' }}>ID: {product.id}</div>
+      </div>
+      <div className="table-wrap">
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--line)' }}>
+              <th style={{ padding: '8px 4px', fontSize: 12 }}>Taille</th>
+              <th style={{ padding: '8px 4px', fontSize: 12 }}>Couleur</th>
+              <th style={{ padding: '8px 4px', fontSize: 12 }}>Stock</th>
+              <th style={{ padding: '8px 4px', fontSize: 12 }}>Emplacement</th>
+            </tr>
+          </thead>
+          <tbody>
+            {variants.map((v: any, i: number) => (
+              <tr key={i} style={{ borderBottom: '1px solid var(--line-2)' }}>
+                <td style={{ padding: '8px 4px' }}><span className="size-dot">{v.size}</span></td>
+                <td style={{ padding: '8px 4px', fontSize: 12, fontWeight: 600 }}>{v.color}</td>
+                <td style={{ padding: '8px 4px' }}>
+                  <input 
+                    type="number" 
+                    value={v.stock} 
+                    onChange={e => updateVariant(i, 'stock', e.target.value)} 
+                    style={{ width: 60, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--line)' }} 
+                  />
+                </td>
+                <td style={{ padding: '8px 4px' }}>
+                  <input 
+                    type="text" 
+                    value={v.location || ''} 
+                    onChange={e => updateVariant(i, 'location', e.target.value)} 
+                    style={{ width: '100%', minWidth: 80, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--line)' }} 
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Modal>
   );
 }

@@ -119,14 +119,6 @@ export default function Sidebar({ user, counts }: SidebarProps) {
     };
   }, [showToast]);
 
-  // Register Service Worker
-  useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').then(() => {
-        console.log('Service Worker Registered');
-      });
-    }
-  }, []);
 
   // Track New Orders / Packing Tasks
   useEffect(() => {

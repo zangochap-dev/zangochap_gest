@@ -31,46 +31,43 @@ export default async function NonPackedOrdersPage() {
     include: { items: true },
   });
 
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const ISSUE_KEYWORDS = ['propose', 'alternative', 'indispo', 'manque', 'pas en stock', 'note', 'problème', 'épuisé', 'stock', 'rupture'];
+  const ALTERNATIVE_KEYWORDS = ['propose', 'alternative'];
+
   const notPacked: any[] = [];
   const withAlternatives: any[] = [];
 
   allOrders.forEach(o => {
     const history = Array.isArray(o.history) ? (o.history as any[]) : [];
     
-    // Check if packers explicitly signaled an issue
-    const hasLogIssue = history.some(h => {
+    // Check if there is an alternative proposed
+    const hasAlt = history.some(h => {
       const act = h.action.toLowerCase();
-      return act.includes('propose') || 
-             act.includes('alternative') || 
-             act.includes('indispo') || 
-             act.includes('manque') || 
-             act.includes('pas en stock') || 
-             act.includes('note') || 
-             act.includes('problème');
+      return ALTERNATIVE_KEYWORDS.some(kw => act.includes(kw));
     });
 
-    // Explicitly include PARTIAL orders even without specific logs (though they should have logs)
-    if (!hasLogIssue && o.status !== 'PARTIAL') return;
-
-    const hasAlt = history.some(h => 
-      h.action.toLowerCase().includes('propose') || 
-      h.action.toLowerCase().includes('alternative')
-    );
-    
-    // Extract motif
-    const lastLogEvent = [...history].reverse().find(h => {
+    // Extract motif: Match the mockup's logic
+    const lastIssueEvent = [...history].reverse().find(h => {
       const act = h.action.toLowerCase();
-      return act.includes('note') || 
-             act.includes('indispo') || 
-             act.includes('propose') || 
-             act.includes('alternative') ||
-             act.includes('manque') ||
-             act.includes('pas en stock');
+      return ISSUE_KEYWORDS.some(kw => act.includes(kw));
     });
+
+    const isToday = new Date(o.createdAt) >= today;
     
+    // An order is "not packed" if it's confirmed/pending but not packed yet
+    // The mockup specifically looks for pending/confirmed of today
+    // We'll also include PARTIAL which are definitely non-packed
+    const isActuallyNonPacked = ['CONFIRMED', 'PENDING', 'PARTIAL', 'TO_PROCESS'].includes(o.status);
+
+    if (!isActuallyNonPacked && !hasAlt) return;
+
     const orderWithMotif = {
       ...o,
-      motif: lastLogEvent ? lastLogEvent.action : (o.status === 'PARTIAL' ? 'Emballage partiel' : 'Signalement emballeur')
+      motif: lastIssueEvent ? lastIssueEvent.action : (o.status === 'PARTIAL' ? 'Emballage partiel' : 'En attente d\'emballage'),
+      isToday
     };
 
     if (hasAlt) {

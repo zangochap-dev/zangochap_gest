@@ -37,7 +37,7 @@ export default function DeliveryClient({
   const [localOrders, setLocalOrders] = useState<RiderOrder[]>(orders);
   const [isOffline, setIsOffline] = useState(false);
   const prevOrderCount = useRef(orders.length);
-  
+
   const router = useRouter();
   const { showToast } = useToast();
 
@@ -61,16 +61,18 @@ export default function DeliveryClient({
         new Notification("ZangoChap Rider", { body: "Vous avez une nouvelle livraison à effectuer.", icon: "/logo.png" });
       }
       const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
-      audio.volume = 0.5; audio.play().catch(() => {});
+      audio.volume = 0.5; audio.play().catch(() => { });
     }
     prevOrderCount.current = orders.length;
     setLocalOrders(orders);
   }, [orders, showToast, isOffline]);
 
   useEffect(() => {
-    if ("Notification" in window && Notification.permission === "default") { Notification.requestPermission(); }
-    if ("serviceWorker" in navigator) { navigator.serviceWorker.register("/sw.js").catch(() => {}); }
-    const interval = setInterval(() => router.refresh(), 20000);
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        router.refresh();
+      }
+    }, 30000);
     return () => clearInterval(interval);
   }, [router]);
 

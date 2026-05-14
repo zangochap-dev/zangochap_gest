@@ -1,19 +1,39 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
-import { TableCard, StatusBadge, EmptyState, DetailCard, ItemLine, SectionLabel } from "@/components/UI";
-import Modal from "@/components/Modal";
-import { formatPrice, formatDate, STATUS_LABELS } from "@/lib/constants";
-import { Eye, X, MessageCircle, Truck, Package, Ban, Check } from "lucide-react";
-import { updateOrderStatus } from "@/modules/orders/actions";
+import React, { useState, useTransition, useEffect, useMemo } from "react";
+import { TableCard, EmptyState, SectionLabel, StatusBadge } from "@/components/UI";
 import { useToast } from "@/components/Toast";
 import { useRouter } from "next/navigation";
+import { Search, Package, AlertCircle, Eye } from "lucide-react";
+import { useIsMobile } from "@/lib/hooks";
+import { motion, AnimatePresence } from "framer-motion";
+import { updateOrderStatus } from "@/modules/orders/actions";
+import NonPackedModal from "./_components/NonPackedModal";
+import NonPackedItem from "./_components/NonPackedItem";
 
-export default function NonPackedClient({ notPacked, withAlternatives, user }: { notPacked: any[]; withAlternatives: any[]; user: any }) {
+interface NonPackedClientProps {
+  notPacked: any[];
+  withAlternatives: any[];
+  user: any;
+}
+
+export default function NonPackedClient({ notPacked, withAlternatives, user }: NonPackedClientProps) {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [search, setSearch] = useState("");
   const [isPending, startTransition] = useTransition();
   const { showToast } = useToast();
   const router = useRouter();
+  const isMobile = useIsMobile();
+
+  // Auto-refresh logic
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        router.refresh();
+      }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [router]);
 
   const handleStatusChange = (orderId: string, status: string) => {
     startTransition(async () => {
@@ -28,160 +48,256 @@ export default function NonPackedClient({ notPacked, withAlternatives, user }: {
     });
   };
 
-  const handleWhatsApp = (order: any) => {
-    const phone = order.customerPhone.replace(/[^0-9]/g, '');
-    const msg = `Bonjour ${order.customerName}, je reviens vers vous concernant votre commande ${order.ref}...`;
-    window.open(`https://wa.me/225${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+  const filteredNotPacked = useMemo(() => {
+    if (!search) return notPacked;
+    const s = search.toLowerCase();
+    return notPacked.filter(o => 
+      o.ref.toLowerCase().includes(s) || 
+      o.customerName.toLowerCase().includes(s)
+    );
+  }, [notPacked, search]);
+
+  const filteredAlternatives = useMemo(() => {
+    if (!search) return withAlternatives;
+    const s = search.toLowerCase();
+    return withAlternatives.filter(o => 
+      o.ref.toLowerCase().includes(s) || 
+      o.customerName.toLowerCase().includes(s)
+    );
+  }, [withAlternatives, search]);
+
+  const totalCount = filteredNotPacked.length + filteredAlternatives.length;
+
+  const OrderSection = ({ orders, title, meta, showCommercial = false, grouped = false }: { orders: any[], title: string, meta: string, showCommercial?: boolean, grouped?: boolean }) => {
+    
+    const renderGroupedOrders = () => {
+      const byCommercial: Record<string, any[]> = {};
+      orders.forEach(o => {
+        const c = o.commercialName || 'Inconnu';
+        if (!byCommercial[c]) byCommercial[c] = [];
+        byCommercial[c].push(o);
+      });
+
+      return Object.entries(byCommercial).map(([commName, list]) => (
+        <div key={commName} style={{ borderBottom: '1px solid var(--line)', padding: '16px 0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, padding: '0 16px' }}>
+             <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--ink)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800 }}>
+                {commName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+             </div>
+             <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>
+               {commName} <span style={{ color: '#8E8E93', fontWeight: 400, fontSize: 12, marginLeft: 6 }}>· {list.length} commande(s)</span>
+             </h3>
+          </div>
+          <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {list.map((o) => (
+              <div 
+                key={o.id} 
+                onClick={() => setSelectedOrder(o)}
+                style={{ 
+                  background: 'var(--cream)', 
+                  borderRadius: 10, 
+                  padding: '10px 14px', 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center', 
+                  gap: 12,
+                  cursor: 'pointer',
+                  border: '1px solid transparent',
+                  transition: 'all 0.2s'
+                }}
+                className="hover-card"
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span className="cell-mono" style={{ color: 'var(--orange)', fontWeight: 700, fontSize: 13 }}>{o.ref}</span>
+                    <span style={{ fontWeight: 600, fontSize: 13 }}>{o.customerName}</span>
+                  </div>
+                  <div style={{ color: '#8E8E93', fontSize: 11, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    → {o.motif}
+                  </div>
+                </div>
+                <StatusBadge status={o.status} size="sm" />
+                <button className="action-btn" style={{ background: 'white' }}>
+                  <Eye size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      ));
+    };
+
+    if (isMobile) {
+      return (
+        <div style={{ marginBottom: 30 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 12, padding: '0 4px' }}>
+            <h2 style={{ fontSize: 18, fontWeight: 800 }}>{title}</h2>
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--orange)' }}>{meta}</span>
+          </div>
+          {orders.length === 0 ? (
+            <div style={{ padding: '40px 0', textAlign: 'center', background: 'white', borderRadius: 20, border: '1px dashed #E5E5EA' }}>
+              <Package size={40} style={{ margin: '0 auto 12px', opacity: 0.2 }} />
+              <p style={{ color: '#8E8E93', fontSize: 13 }}>Aucune commande</p>
+            </div>
+          ) : (
+            grouped ? renderGroupedOrders() : 
+            orders.map((o, i) => (
+              <NonPackedItem 
+                key={o.id} 
+                order={o} 
+                isMobile={true} 
+                idx={i} 
+                showCommercial={showCommercial}
+                onSelect={setSelectedOrder} 
+              />
+            ))
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <TableCard title={title} meta={meta}>
+        {orders.length === 0 ? (
+          <EmptyState icon="✓" title="Tout est emballé" description="Aucune commande dans cette section." />
+        ) : grouped ? (
+          <div style={{ padding: '0' }}>{renderGroupedOrders()}</div>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Réf.</th>
+                <th>Client</th>
+                <th>Articles</th>
+                <th style={{ width: 220 }}>Motif / État Logistique</th>
+                {showCommercial && <th>Commercial</th>}
+                <th>Statut</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {orders.map(order => (
+                <NonPackedItem 
+                  key={order.id} 
+                  order={order} 
+                  isMobile={false} 
+                  showCommercial={showCommercial}
+                  onSelect={setSelectedOrder} 
+                />
+              ))}
+            </tbody>
+          </table>
+        )}
+      </TableCard>
+    );
   };
 
-  const OrderTable = ({ orders, title, meta, showCommercial = false }: { orders: any[], title: string, meta: string, showCommercial?: boolean }) => (
-    <TableCard title={title} meta={meta}>
-      {orders.length === 0 ? (
-        <EmptyState icon="✓" title="Tout est emballé" description="Aucune commande dans cette section." />
-      ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>Réf.</th>
-              <th>Client</th>
-              <th>Articles</th>
-              <th style={{ width: 220 }}>Motif / État Logistique</th>
-              {showCommercial && <th>Commercial</th>}
-              <th>Statut</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {orders.map(order => (
-              <tr key={order.id}>
-                <td><span className="cell-mono">{order.ref}</span></td>
-                <td>
-                  <div className="cell-strong">{order.customerName}</div>
-                  <div className="cell-muted" style={{ fontSize: 10 }}>{order.commune}</div>
-                </td>
-                <td>
-                  {order.items.map((item: any, i: number) => (
-                    <div key={i} style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 6, margin: '2px 0' }}>
-                      {item.image ? (
-                        <img src={item.image} style={{ width: 20, height: 20, borderRadius: 4, objectFit: 'cover' }} />
-                      ) : (
-                        <span>{item.emoji || '📦'}</span>
-                      )}
-                      <span>{item.name}</span>
-                      <span className="size-dot" style={{ fontSize: 9 }}>{item.size}</span>
-                    </div>
-                  ))}
-                </td>
-                <td>
-                  <div style={{ fontSize: 11, color: 'var(--brown)', lineHeight: 1.4, fontWeight: 500 }}>
-                    {order.motif}
-                  </div>
-                </td>
-                {showCommercial && <td><span className="cell-muted" style={{ fontSize: 11 }}>{order.commercialName}</span></td>}
-                <td><StatusBadge status={order.status} /></td>
-                <td>
-                  <button className="action-btn" onClick={() => setSelectedOrder(order)}>
-                    <Eye size={14} />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </TableCard>
-  );
-
   return (
-    <div className="content animate-fade-in">
-      <div className="info-banner amber">
-        ⚠️ {notPacked.length + withAlternatives.length} commande(s) en attente d'emballage ou de confirmation client.
-      </div>
+    <div className={`content animate-fade-in ${isMobile ? 'mobile-root' : ''}`} style={{ padding: isMobile ? '16px' : '20px' }}>
+      
+      {/* HEADER / SEARCH */}
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: isMobile ? 'column' : 'row', 
+        justifyContent: 'space-between', 
+        alignItems: isMobile ? 'stretch' : 'center', 
+        gap: 16, 
+        marginBottom: 20 
+      }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <AlertCircle size={20} color="var(--orange)" />
+            <h1 style={{ fontSize: isMobile ? 22 : 24, fontWeight: 900 }}>Suivi des Retards</h1>
+          </div>
+          <p style={{ fontSize: 13, color: '#8E8E93', fontWeight: 500, marginTop: 4 }}>
+            Commandes nécessitant une intervention commerciale ou logistique.
+          </p>
+        </div>
 
-      <OrderTable 
-        orders={notPacked} 
-        title="Commandes non emballées" 
-        meta={`${notPacked.length} en attente`} 
-      />
-
-      {withAlternatives.length > 0 && (
-        <div style={{ marginTop: 24 }}>
-          <OrderTable 
-            orders={withAlternatives} 
-            title="En attente de confirmation (Alternatives)" 
-            meta={`${withAlternatives.length} à relancer`}
-            showCommercial={true}
+        <div style={{ position: 'relative', width: isMobile ? '100%' : 300 }}>
+          <Search size={18} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', opacity: 0.3 }} />
+          <input
+            type="text"
+            placeholder="Rechercher..."
+            className="field-input"
+            style={{ 
+              paddingLeft: 40, 
+              height: 44, 
+              borderRadius: 12, 
+              background: isMobile ? 'white' : 'var(--cream-2)',
+              border: isMobile ? '1px solid #E5E5EA' : 'none'
+            }}
+            value={search}
+            onChange={e => setSearch(e.target.value)}
           />
         </div>
-      )}
+      </div>
 
-      {selectedOrder && (
-        <Modal
-          isOpen={true}
-          onClose={() => setSelectedOrder(null)}
-          title={`Détail · ${selectedOrder.ref}`}
-          large
-          footer={
-            <>
-              <button className="btn-secondary" onClick={() => setSelectedOrder(null)}>Fermer</button>
-              <button className="btn-whatsapp" onClick={() => handleWhatsApp(selectedOrder)}>
-                <MessageCircle size={14} /> WhatsApp
-              </button>
-              {user.role === 'admin' && (
-                <button className="btn-orange" onClick={() => handleStatusChange(selectedOrder.id, 'CONFIRMED')} disabled={isPending}>
-                  <Check size={14} /> Confirmer
-                </button>
-              )}
-            </>
-          }
-        >
-          <div className="order-detail-grid">
-            <div>
-              <DetailCard label="Client">
-                <div style={{ fontWeight: 600, fontSize: 15 }}>{selectedOrder.customerName}</div>
-                <div className="cell-muted" style={{ marginTop: 4 }}>{selectedOrder.customerPhone}</div>
-                <div className="cell-muted" style={{ marginTop: 4 }}>{selectedOrder.customerLocation} ({selectedOrder.commune})</div>
-              </DetailCard>
+      <div className={`info-banner ${totalCount > 0 ? 'amber' : 'green'}`} style={{ marginBottom: 24, borderRadius: 12 }}>
+        {totalCount > 0 
+          ? `⚠️ ${totalCount} commande(s) en attente de traitement.` 
+          : "✨ Toutes les anomalies ont été traitées !"}
+      </div>
 
-              <div style={{ marginTop: 14 }}>
-                <DetailCard label="Articles">
-                  {selectedOrder.items.map((item: any, i: number) => (
-                    <ItemLine
-                      key={i}
-                      emoji={item.emoji}
-                      image={item.image}
-                      name={item.name}
-                      meta={`Taille ${item.size} · ${item.color} · Qté ${item.qty}`}
-                      price={formatPrice(item.price * item.qty)}
-                    />
-                  ))}
-                </DetailCard>
-              </div>
-            </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <OrderSection 
+          orders={filteredNotPacked.filter(o => o.isToday)} 
+          title="Non emballées du jour" 
+          meta={`${filteredNotPacked.filter(o => o.isToday).length} à traiter`} 
+        />
 
-            <div>
-              <DetailCard label="Historique Logistique">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {(selectedOrder.history as any[]).map((h, i) => (
-                    <div key={i} style={{ fontSize: 11, borderLeft: '2px solid var(--line)', paddingLeft: 10 }}>
-                      <div style={{ fontWeight: 600 }}>{h.action}</div>
-                      <div className="cell-muted">{h.byName} · {formatDate(h.at)}</div>
-                    </div>
-                  ))}
-                </div>
-              </DetailCard>
-              
-              {selectedOrder.notes && (
-                <div style={{ marginTop: 14 }}>
-                  <DetailCard label="Notes">
-                    <div style={{ fontSize: 12 }}>{selectedOrder.notes}</div>
-                  </DetailCard>
-                </div>
-              )}
-            </div>
-          </div>
-        </Modal>
-      )}
+        {filteredNotPacked.some(o => !o.isToday) && (
+          <OrderSection 
+            orders={filteredNotPacked.filter(o => !o.isToday)} 
+            title="Retards antérieurs" 
+            meta={`${filteredNotPacked.filter(o => !o.isToday).length} en attente`} 
+          />
+        )}
+
+        {filteredAlternatives.length > 0 && (
+          <OrderSection 
+            orders={filteredAlternatives} 
+            title="Commandes avec alternative" 
+            meta={`${filteredAlternatives.length} relances`}
+            showCommercial={true}
+            grouped={user?.role === 'admin'}
+          />
+        )}
+      </div>
+
+      <AnimatePresence>
+        {selectedOrder && (
+          <NonPackedModal
+            order={selectedOrder}
+            user={user}
+            isPending={isPending}
+            onClose={() => setSelectedOrder(null)}
+            onStatusChange={handleStatusChange}
+          />
+        )}
+      </AnimatePresence>
+
+      <style jsx>{`
+        .mobile-root {
+          background: #F8F9FA;
+          min-height: calc(100vh - 60px);
+        }
+        .info-banner {
+          padding: 12px 16px;
+          font-weight: 700;
+          font-size: 14px;
+        }
+        .info-banner.amber {
+          background: #FFFBEB;
+          color: #B45309;
+          border: 1px solid #FDE68A;
+        }
+        .info-banner.green {
+          background: #F0FDF4;
+          color: #15803D;
+          border: 1px solid #BBF7D0;
+        }
+      `}</style>
     </div>
   );
 }

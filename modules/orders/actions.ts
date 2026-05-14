@@ -361,7 +361,9 @@ export async function updateOrderStatus(orderId: string, newStatus: string, note
   }
 
   // Si on annule l'emballage ou si on annule la commande alors que le stock était décrémenté
-  if (['CANCELLED', 'RETURNED', 'EXCHANGED', 'CONFIRMED', 'PENDING'].includes(newStatus.toUpperCase()) && order.stockDecremented) {
+  // On restaure le stock pour tout statut qui n'est pas "Emballé", "En livraison" ou "Livré"
+  const shippingStatuses = ['PACKED', 'ON_DELIVERY', 'DELIVERED', 'PARTIALLY_DELIVERED'];
+  if (!shippingStatuses.includes(newStatus.toUpperCase()) && order.stockDecremented) {
     const type = newStatus.toUpperCase() === 'EXCHANGED' ? 'EXCHANGE' : 'RETURN';
     await restoreStockForOrder(order, session, type);
     updateData.stockDecremented = false;
@@ -970,20 +972,26 @@ async function decrementStockForOrder(order: any, session: any) {
     });
 
     if (variant) {
-      const warehouse = await getOrCreateDefaultWarehouse();
+      // Find a warehouse that has enough stock for this variant
+      const existingStock = await prisma.stockLevel.findFirst({
+        where: { variantId: variant.id, quantity: { gte: item.qty } },
+        orderBy: { quantity: 'desc' }
+      });
+      
+      const targetWarehouseId = existingStock?.warehouseId || (await getOrCreateDefaultWarehouse()).id;
 
       // Update or create stock level for this warehouse
       await prisma.stockLevel.upsert({
         where: {
           variantId_warehouseId: {
             variantId: variant.id,
-            warehouseId: warehouse.id
+            warehouseId: targetWarehouseId
           }
         },
         update: { quantity: { decrement: item.qty } },
         create: {
           variantId: variant.id,
-          warehouseId: warehouse.id,
+          warehouseId: targetWarehouseId,
           quantity: -item.qty
         }
       });
@@ -996,7 +1004,7 @@ async function decrementStockForOrder(order: any, session: any) {
 
       await recordStockMovement({
         variantId: variant.id,
-        warehouseId: warehouse.id,
+        warehouseId: targetWarehouseId,
         type: 'SALE',
         quantity: -item.qty,
         orderId: order.id,
@@ -1020,7 +1028,13 @@ async function restoreStockForOrder(order: any, session: any, type: 'RETURN' | '
       where: { productId: item.productId, size: item.size, color: item.color },
     });
     if (variant) {
-      const warehouse = await getOrCreateDefaultWarehouse();
+      // Find where this item was pulled from (to restore to the same warehouse)
+      const lastMovement = await prisma.stockMovement.findFirst({
+        where: { orderId: order.id, variantId: variant.id, type: 'SALE' },
+        orderBy: { createdAt: 'desc' }
+      });
+      
+      const targetWarehouseId = lastMovement?.warehouseId || (await getOrCreateDefaultWarehouse()).id;
 
       // Update global variant stock
       await prisma.productVariant.update({
@@ -1030,14 +1044,14 @@ async function restoreStockForOrder(order: any, session: any, type: 'RETURN' | '
 
       // Update warehouse stock level
       await prisma.stockLevel.upsert({
-        where: { variantId_warehouseId: { variantId: variant.id, warehouseId: warehouse.id } },
+        where: { variantId_warehouseId: { variantId: variant.id, warehouseId: targetWarehouseId } },
         update: { quantity: { increment: item.qty } },
-        create: { variantId: variant.id, warehouseId: warehouse.id, quantity: item.qty }
+        create: { variantId: variant.id, warehouseId: targetWarehouseId, quantity: item.qty }
       });
 
       await recordStockMovement({
         variantId: variant.id,
-        warehouseId: warehouse.id,
+        warehouseId: targetWarehouseId,
         type: type as any,
         quantity: item.qty,
         orderId: order.id,

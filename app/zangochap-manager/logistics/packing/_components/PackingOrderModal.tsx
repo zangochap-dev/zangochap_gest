@@ -1,0 +1,274 @@
+"use client";
+
+import React from "react";
+import Modal from "@/components/Modal";
+import { SectionLabel, DetailCard } from "@/components/UI";
+import { Check, ArrowLeftRight, Warehouse, Edit2 } from "lucide-react";
+
+interface PackingOrderModalProps {
+  order: any;
+  isMobile: boolean;
+  isPending: boolean;
+  productMap: Map<string, any>;
+  packingNote: string;
+  setPackingNote: (note: string) => void;
+  onClose: () => void;
+  onMarkPacking: (orderId: string, status: string) => void;
+  onProposeAlternative: (orderId: string, itemName: string) => void;
+  onEditStock: (product: any) => void;
+  onToggleCheckItem: (orderId: string, item: any) => void;
+  onPreviewImage: (url: string) => void;
+}
+
+export default function PackingOrderModal({
+  order,
+  isMobile,
+  isPending,
+  productMap,
+  packingNote,
+  setPackingNote,
+  onClose,
+  onMarkPacking,
+  onProposeAlternative,
+  onEditStock,
+  onToggleCheckItem,
+  onPreviewImage
+}: PackingOrderModalProps) {
+  
+  if (!order) return null;
+
+  const progress = order.items.filter((i: any) => i.isVerified).length;
+  const total = order.items.length;
+
+  if (isMobile) {
+    return (
+      <Modal 
+        isOpen={true} 
+        onClose={onClose} 
+        title={`Détails · ${order.ref}`} 
+        large
+        footer={
+          <div style={{ display: 'flex', width: '100%', gap: 10 }}>
+            <button className="btn-secondary" style={{ flex: 1 }} onClick={onClose}>Fermer</button>
+            <button className="btn-orange" style={{ flex: 2 }} onClick={() => onMarkPacking(order.id, 'PACKED')} disabled={isPending}>
+              <Check size={16} /> Valider Emballage
+            </button>
+          </div>
+        }
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--orange)', fontSize: 18 }}>{order.ref}</div>
+            <div style={{ fontWeight: 700, fontSize: 14, marginTop: 2 }}>{order.customerName}</div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 9, fontWeight: 800, color: '#8E8E93', marginBottom: 2 }}>PROGRESSION</div>
+            <div style={{ fontWeight: 900, fontSize: 16 }}>{progress} / {total}</div>
+          </div>
+        </div>
+
+        <SectionLabel spaced>Checklist Articles</SectionLabel>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {order.items.map((item: any, idx: number) => {
+            const p = productMap.get(item.productId);
+            const isChecked = item.isVerified;
+            return (
+              <DetailCard
+                key={idx}
+                className={isChecked ? 'checked' : ''}
+                style={{
+                  padding: 0,
+                  overflow: 'hidden',
+                  borderRadius: 14,
+                  border: isChecked ? '1.5px solid #34C759' : '1px solid #E5E5EA',
+                  background: isChecked ? '#F2FBF4' : 'white',
+                  transition: 'all 0.2s ease'
+                }}
+                onClick={() => onToggleCheckItem(order.id, item)}
+              >
+                <div style={{ display: 'flex', minHeight: 90 }}>
+                  <div style={{ position: 'relative', width: 90, flexShrink: 0, background: '#F2F2F7', borderRight: '1px solid #E5E5EA' }}>
+                    {item.image ? (
+                      <img
+                        src={item.image}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: isChecked ? 0.3 : 1 }}
+                        onClick={(e) => { e.stopPropagation(); onPreviewImage(item.image); }}
+                        alt=""
+                      />
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 28 }}>{item.emoji || '📦'}</div>
+                    )}
+                    {isChecked && (
+                      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(52, 199, 89, 0.1)' }}>
+                        <Check size={36} color="#34C759" strokeWidth={5} />
+                      </div>
+                    )}
+                    <div style={{ position: 'absolute', top: 6, left: 6, width: 20, height: 20, borderRadius: 5, border: '2px solid', borderColor: isChecked ? '#34C759' : '#C7C7CC', background: isChecked ? '#34C759' : 'rgba(255,255,255,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {isChecked && <Check size={14} color="white" strokeWidth={4} />}
+                    </div>
+                  </div>
+
+                  <div style={{ flex: 1, padding: '10px 14px', display: 'flex', flexDirection: 'column', justifyContent: 'center', minWidth: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 2 }}>
+                      <div style={{ fontWeight: 800, fontSize: 14, color: isChecked ? '#8E8E93' : '#1C1C1E', textDecoration: isChecked ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {item.name}
+                      </div>
+                      <div style={{ fontWeight: 900, fontSize: 16, color: isChecked ? '#8E8E93' : 'var(--orange)', marginLeft: 6 }}>
+                        x{item.qty}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6 }}>
+                      <span className="size-dot" style={{ background: '#1C1C1E', color: 'white', border: 'none', scale: '0.8' }}>{item.size}</span>
+                      <span style={{ fontSize: 11, color: '#8E8E93', fontWeight: 700 }}>{item.color}</span>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 'auto' }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                        {p?.variants?.find((v: any) => v.size === item.size && v.color === item.color)?.stockLevels?.map((sl: any) => (
+                          <div key={sl.id} style={{ fontSize: 9, background: '#F2F2F7', padding: '2px 6px', borderRadius: 5, display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <Warehouse size={9} color="#FF6B2C" />
+                            <span style={{ fontWeight: 700 }}>{sl.position || sl.warehouse.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button
+                          className="action-btn"
+                          onClick={(e) => { e.stopPropagation(); if (p) onEditStock(p); }}
+                          style={{ background: 'var(--cream)', color: 'var(--brown-soft)', width: 28, height: 28, borderRadius: 8, border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                        <button
+                          className="action-btn"
+                          onClick={(e) => { e.stopPropagation(); onProposeAlternative(order.id, item.name); }}
+                          style={{ background: 'var(--orange-soft)', color: 'var(--orange)', width: 28, height: 28, borderRadius: 8, border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          <ArrowLeftRight size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {order.history?.filter((h: any) => h.action.includes(`Alternative proposée pour "${item.name}"`)).map((h: any, hi: number) => (
+                  <div key={hi} style={{ margin: '0 12px 10px', padding: '8px 12px', background: 'var(--orange-soft)', borderLeft: '3px solid var(--orange)', borderRadius: 6, fontSize: 12, fontWeight: 700, color: 'var(--ink)' }}>
+                    <div style={{ fontSize: 9, textTransform: 'uppercase', opacity: 0.6, marginBottom: 2 }}>Alternative :</div>
+                    {h.action.split(' : ')[1]}
+                  </div>
+                ))}
+              </DetailCard>
+            );
+          })}
+        </div>
+
+        <div style={{ marginTop: 20 }}>
+          <SectionLabel spaced>Note d'emballage</SectionLabel>
+          <textarea
+            className="mobile-search-input"
+            value={packingNote}
+            onChange={e => setPackingNote(e.target.value)}
+            placeholder="Note optionnelle..."
+            style={{ height: 80, padding: 12, fontSize: 13, background: '#F2F2F7', border: 'none', borderRadius: 12, width: '100%' }}
+          />
+        </div>
+      </Modal>
+    );
+  }
+
+  // DESKTOP VIEW
+  return (
+    <Modal isOpen={true} onClose={onClose} title={`Emballage · ${order.ref}`} large
+      footer={
+        <>
+          <button className="btn-secondary" onClick={onClose}>Fermer</button>
+          {order.status === 'PACKED' ? (
+            <button className="btn-secondary" onClick={() => onMarkPacking(order.id, 'CONFIRMED')} disabled={isPending} style={{ background: '#FEE2E2', color: '#EF4444', borderColor: '#FCA5A5' }}>
+              <ArrowLeftRight size={14} /> Annuler l'emballage (Erreur)
+            </button>
+          ) : (
+            <>
+              <button className="btn-secondary" onClick={() => onMarkPacking(order.id, 'CONFIRMED')} disabled={isPending} style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>
+                Pas en stock
+              </button>
+              <button className="btn-secondary" onClick={() => onMarkPacking(order.id, 'PARTIAL')} disabled={isPending} style={{ borderColor: 'var(--amber)', color: 'var(--amber)' }}>
+                Incomplet
+              </button>
+              <button className="btn-orange" onClick={() => onMarkPacking(order.id, 'PACKED')} disabled={isPending}>
+                <Check size={14} /> Prêt pour livraison ✓
+              </button>
+            </>
+          )}
+        </>
+      }
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--orange)', fontSize: 20 }}>{order.ref}</div>
+          <div style={{ fontWeight: 700, marginTop: 4 }}>{order.customerName} · {order.commune}</div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+            {order.commercialName && <span style={{ fontSize: 10, fontWeight: 700, background: '#E8F4FD', color: '#0A84FF', padding: '2px 8px', borderRadius: 6 }}>🛒 {order.commercialName}</span>}
+            {order.packedByName && <span style={{ fontSize: 10, fontWeight: 700, background: '#F2FBF4', color: '#34C759', padding: '2px 8px', borderRadius: 6 }}>📦 {order.packedByName}</span>}
+          </div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--brown-soft)', marginBottom: 4 }}>PROGRESSION</div>
+          <div style={{ fontWeight: 800, fontSize: 18 }}>{progress} / {total}</div>
+        </div>
+      </div>
+
+      <SectionLabel>Checklist de l'emballeur</SectionLabel>
+      {order.items.map((item: any, idx: number) => {
+        const p = productMap.get(item.productId);
+        const isChecked = item.isVerified;
+        return (
+          <DetailCard
+            key={idx}
+            className={isChecked ? 'checked' : ''}
+            style={{ marginBottom: 12 }}
+            onClick={() => onToggleCheckItem(order.id, item)}
+          >
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
+              <div style={{ width: 28, height: 28, borderRadius: 8, border: '2px solid', borderColor: isChecked ? 'var(--green)' : 'var(--line)', background: isChecked ? 'var(--green-soft)' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 4 }}>
+                {isChecked && <Check size={18} color="var(--green)" />}
+              </div>
+              <div style={{ width: 60, height: 60, background: 'var(--cream-2)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, flexShrink: 0, overflow: 'hidden', border: '1px solid var(--line)' }}>
+                {item.image ? <img src={item.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onClick={(e) => { e.stopPropagation(); onPreviewImage(item.image); }} /> : (item.emoji || '📦')}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 15, textDecoration: isChecked ? 'line-through' : 'none' }}>{item.name}</div>
+                    <div style={{ fontSize: 13, color: 'var(--brown-soft)', marginTop: 4 }}>
+                      Taille : {item.size} | Couleur : {item.color} | Qté : x{item.qty}
+                    </div>
+                    {order.history?.filter((h: any) => h.action.includes(`Alternative proposée pour "${item.name}"`)).map((h: any, hi: number) => (
+                      <div key={hi} style={{ fontSize: 10, color: 'var(--orange)', background: 'var(--orange-soft)', padding: '1px 6px', borderRadius: 4, fontWeight: 700, marginTop: 4 }}>
+                        {h.action.split(' : ')[1]}
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button
+                      className="action-btn"
+                      onClick={(e) => { e.stopPropagation(); if (p) onEditStock(p); }}
+                      title="Modifier Stock"
+                    >
+                      <Edit2 size={14} />
+                    </button>
+                    <button className="action-btn" onClick={(e) => { e.stopPropagation(); onProposeAlternative(order.id, item.name); }}><ArrowLeftRight size={14} /></button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </DetailCard>
+        );
+      })}
+
+      <div style={{ marginTop: 20 }}>
+        <SectionLabel>Note d'emballage</SectionLabel>
+        <textarea className="field-input" value={packingNote} onChange={e => setPackingNote(e.target.value)} style={{ minHeight: 80 }} />
+      </div>
+    </Modal>
+  );
+}

@@ -3,7 +3,10 @@
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
+import { ensureAuth } from "@/lib/auth";
+
 export async function createPromoCode(data: any) {
+  await ensureAuth(["admin"]);
   const promo = await prisma.promoCode.create({
     data: {
       code: data.code.toUpperCase(),
@@ -26,6 +29,7 @@ export async function createPromoCode(data: any) {
 }
 
 export async function togglePromoStatus(code: string, isActive: boolean) {
+  await ensureAuth(["admin"]);
   await prisma.promoCode.update({
     where: { code },
     data: { isActive }
@@ -34,6 +38,7 @@ export async function togglePromoStatus(code: string, isActive: boolean) {
 }
 
 export async function deletePromoCode(code: string) {
+  await ensureAuth(["admin"]);
   await prisma.promoCode.delete({
     where: { code }
   });

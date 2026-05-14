@@ -99,8 +99,22 @@ export async function markCollection(orderId: string, productId: string, status:
       });
 
       if (allAvailable) {
-        // Utiliser la fonction standard pour déclencher le déstockage et la cohérence des statuts
-        await updateOrderStatus(orderId, 'PACKED', 'Système : Tous les articles sont disponibles (Auto)');
+        const history = Array.isArray(updatedOrder.history) ? [...(updatedOrder.history as any[])] : [];
+        const alreadyNotified = history.some(h => h.action.includes("disponibles (Auto)"));
+        
+        if (!alreadyNotified) {
+          history.push({
+            at: new Date().toISOString(),
+            action: "Système : Tous les articles de la commande sont désormais disponibles en stock.",
+            by: "system",
+            byName: "Système Zango"
+          });
+          
+          await prisma.order.update({
+            where: { id: orderId },
+            data: { history }
+          });
+        }
       }
     }
   }
@@ -173,5 +187,6 @@ export async function toggleItemVerification(orderItemId: string, isVerified: bo
   });
 
   revalidatePath("/zangochap-manager/logistics/verification");
+  revalidatePath("/zangochap-manager/logistics/packing");
   return { success: true };
 }

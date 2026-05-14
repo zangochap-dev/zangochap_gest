@@ -2,6 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { ensureAuth } from "@/lib/auth";
 
 // ============ CATEGORIES ============
 export async function getCategories() {
@@ -15,6 +16,7 @@ export async function getCategories() {
 }
 
 export async function createCategory(name: string) {
+  await ensureAuth(["admin"]);
   const slug = name.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^\w\-]+/g, '');
   const cat = await prisma.category.create({ data: { name, slug } });
   revalidatePath("/zangochap-manager/admin/settings/categories");
@@ -22,6 +24,7 @@ export async function createCategory(name: string) {
 }
 
 export async function updateCategory(id: string, name: string) {
+  await ensureAuth(["admin"]);
   const slug = name.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^\w\-]+/g, '');
   const cat = await prisma.category.update({ where: { id }, data: { name, slug } });
   revalidatePath("/zangochap-manager/admin/settings/categories");
@@ -29,12 +32,14 @@ export async function updateCategory(id: string, name: string) {
 }
 
 export async function deleteCategory(id: string) {
+  await ensureAuth(["admin"]);
   await prisma.category.delete({ where: { id } });
   revalidatePath("/zangochap-manager/admin/settings/categories");
 }
 
 // ============ SUB-CATEGORIES ============
 export async function createSubCategory(categoryId: string, name: string) {
+  await ensureAuth(["admin"]);
   const slug = name.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^\w\-]+/g, '');
   const subCat = await prisma.subCategory.create({ data: { name, slug, categoryId } });
   revalidatePath("/zangochap-manager/admin/settings/categories");
@@ -42,6 +47,7 @@ export async function createSubCategory(categoryId: string, name: string) {
 }
 
 export async function updateSubCategory(id: string, name: string) {
+  await ensureAuth(["admin"]);
   const slug = name.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^\w\-]+/g, '');
   const subCat = await prisma.subCategory.update({ where: { id }, data: { name, slug } });
   revalidatePath("/zangochap-manager/admin/settings/categories");
@@ -49,6 +55,7 @@ export async function updateSubCategory(id: string, name: string) {
 }
 
 export async function deleteSubCategory(id: string) {
+  await ensureAuth(["admin"]);
   await prisma.subCategory.delete({ where: { id } });
   revalidatePath("/zangochap-manager/admin/settings/categories");
 }
@@ -62,18 +69,21 @@ export async function getSuppliers() {
 }
 
 export async function createSupplier(name: string, contact?: string) {
+  await ensureAuth(["admin"]);
   const s = await prisma.supplier.create({ data: { name, contact } });
   revalidatePath("/zangochap-manager/admin/settings/suppliers");
   return s;
 }
 
 export async function updateSupplier(id: string, name: string, contact?: string) {
+  await ensureAuth(["admin"]);
   const s = await prisma.supplier.update({ where: { id }, data: { name, contact } });
   revalidatePath("/zangochap-manager/admin/settings/suppliers");
   return s;
 }
 
 export async function deleteSupplier(id: string) {
+  await ensureAuth(["admin"]);
   await prisma.supplier.delete({ where: { id } });
   revalidatePath("/zangochap-manager/admin/settings/suppliers");
 }
@@ -86,6 +96,7 @@ export async function getCommunes() {
 }
 
 export async function createCommune(name: string, deliveryFee: number) {
+  await ensureAuth(["admin"]);
   const c = await prisma.commune.create({ data: { name, deliveryFee } });
   revalidatePath("/zangochap-manager/admin/settings/communes");
   revalidatePath("/cart"); // Refresh public cart
@@ -93,6 +104,7 @@ export async function createCommune(name: string, deliveryFee: number) {
 }
 
 export async function updateCommune(id: string, name: string, deliveryFee: number) {
+  await ensureAuth(["admin"]);
   const c = await prisma.commune.update({ where: { id }, data: { name, deliveryFee } });
   revalidatePath("/zangochap-manager/admin/settings/communes");
   revalidatePath("/cart");
@@ -100,6 +112,7 @@ export async function updateCommune(id: string, name: string, deliveryFee: numbe
 }
 
 export async function deleteCommune(id: string) {
+  await ensureAuth(["admin"]);
   await prisma.commune.delete({ where: { id } });
   revalidatePath("/zangochap-manager/admin/settings/communes");
   revalidatePath("/cart");

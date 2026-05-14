@@ -46,7 +46,7 @@ export async function getProducts(filters?: {
   if (filters?.outOfStock) where.stock = 0;
   if (filters?.inStock) where.stock = { gt: 0 };
 
-  return prisma.product.findMany({
+  const products = await prisma.product.findMany({
     where,
     orderBy: { createdAt: "desc" },
     include: { 
@@ -64,10 +64,12 @@ export async function getProducts(filters?: {
       supplier: true
     },
   });
+
+  return JSON.parse(JSON.stringify(products));
 }
 
 export async function getProductById(id: string) {
-  return prisma.product.findUnique({
+  const product = await prisma.product.findUnique({
     where: { id },
     include: { 
       variants: {
@@ -84,6 +86,8 @@ export async function getProductById(id: string) {
       supplier: true
     },
   });
+
+  return JSON.parse(JSON.stringify(product));
 }
 
 // ============ CREATE ============

@@ -9,15 +9,16 @@ const prismaClientSingleton = () => {
     throw new Error("DATABASE_URL is not defined in environment variables");
   }
   console.log("Initializing Prisma Client with Pool...");
-  const pool = new Pool({ 
+  const pool = new Pool({
     connectionString,
-    max: 20,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 30000,
-    ssl: connectionString.includes('neon.tech') 
-      ? { 
-          rejectUnauthorized: false,
-        } 
+    max: 30, // Increased for concurrent refresh cycles
+    idleTimeoutMillis: 60000,
+    connectionTimeoutMillis: 60000,
+    statement_timeout: 60000, // Prevent hanging queries
+    ssl: connectionString.includes('neon.tech')
+      ? {
+        rejectUnauthorized: false,
+      }
       : undefined
   });
 
@@ -28,9 +29,9 @@ const prismaClientSingleton = () => {
   pool.on('error', (err) => {
     console.error('❌ Prisma Pool Error:', err.message);
   });
-  
+
   const adapter = new PrismaPg(pool);
-  
+
   return new PrismaClient({ adapter });
 };
 

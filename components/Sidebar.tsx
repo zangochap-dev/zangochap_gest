@@ -1,4 +1,5 @@
 "use client";
+// Version: 1.0.2 - Force Recompile
 
 import React, { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
@@ -119,6 +120,15 @@ export default function Sidebar({ user, counts }: SidebarProps) {
     };
   }, [showToast]);
 
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && !audioRef.current) {
+      audioRef.current = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
+      audioRef.current.volume = 0.5;
+    }
+  }, []);
+
   // Track New Orders / Packing Tasks
   useEffect(() => {
     if (!prevCounts.current || isOffline) {
@@ -140,9 +150,10 @@ export default function Sidebar({ user, counts }: SidebarProps) {
         });
       }
 
-      const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
-      audio.volume = 0.5;
-      audio.play().catch(() => { });
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+        audioRef.current.play().catch(() => { });
+      }
     }
 
     prevCounts.current = counts;
@@ -188,15 +199,10 @@ export default function Sidebar({ user, counts }: SidebarProps) {
       </AnimatePresence>
 
       <aside 
-        style={{ 
-          transform: (mounted && isMobileOpen && typeof window !== 'undefined' && window.innerWidth < 1024) 
-            ? 'translateX(0)' 
-            : undefined 
-        }}
         className={`
-          fixed inset-y-0 left-0 z-[10001] w-[280px] bg-[#0F1115] text-white flex flex-col border-r border-white/5 transition-transform duration-300 ease-in-out
-          -translate-x-full lg:translate-x-0
-          lg:sticky lg:top-0 lg:h-screen lg:transform-none
+          fixed inset-y-0 left-0 z-[99999] w-[280px] bg-[#0F1115] text-white flex flex-col border-r border-white/5 transition-all duration-300 ease-in-out
+          ${isMobileOpen ? 'translate-x-0 shadow-[20px_0_50px_rgba(0,0,0,0.5)]' : '-translate-x-full'}
+          lg:translate-x-0 lg:static lg:h-screen lg:z-10
           ${isCollapsed ? 'lg:w-[76px]' : 'lg:w-[260px]'}
         `}
       >

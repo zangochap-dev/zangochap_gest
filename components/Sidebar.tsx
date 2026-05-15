@@ -1,5 +1,5 @@
 "use client";
-// Version: 1.0.2 - Force Recompile
+// Version: 1.0.3 - Force Recompile - Fix Hydration Issue
 
 import React, { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
@@ -29,6 +29,8 @@ interface SidebarProps {
     collection?: number;
     toProcess?: number;
     myDeliveries?: number;
+    latestOrder?: { ref: string; customerName: string; image?: string | null } | null;
+    latestToPack?: { ref: string; customerName: string; image?: string | null } | null;
   };
 }
 
@@ -79,6 +81,8 @@ const NAV_FOR_ROLE: Record<string, (counts?: any) => any[]> = {
     {
       title: 'Pilotage', items: [
         { label: 'Gestion Livraisons', href: '/zangochap-manager/admin/delivery', icon: <Truck size={18} /> },
+        { label: 'Fiche d\'expédition', href: '/zangochap-manager/admin/delivery-sheet', icon: <FileText size={18} /> },
+        { label: 'Galerie Media', href: '/zangochap-manager/media', icon: <ImageIcon size={18} /> },
         { label: 'Règlements', href: '/zangochap-manager/admin/settlements', icon: <Wallet size={18} /> },
         { label: 'Settings', href: '/zangochap-manager/admin/settings', icon: <Settings size={18} /> }
       ]
@@ -141,12 +145,21 @@ export default function Sidebar({ user, counts }: SidebarProps) {
 
     if (newPacking || newOrders) {
       setHasNewNotifications(true);
-      showToast(newPacking ? "Nouvelle commande à emballer ! 📦" : "Nouvelle commande reçue ! 🛍️", "success");
+      const details = newPacking ? counts?.latestToPack : counts?.latestOrder;
+      const ref = details?.ref || "?";
+      const name = details?.customerName || "Client";
+      const productImg = details?.image;
+
+      const title = newPacking ? `Emballage : ${ref} 📦` : `Nouvelle Commande : ${ref} 🛍️`;
+      const message = newPacking ? `À emballer pour ${name}` : `Reçue de ${name}`;
+
+      showToast(`${title} — ${message}`, "success");
 
       if ("Notification" in window && Notification.permission === "granted") {
         new Notification("ZangoChap Manager", {
-          body: newPacking ? "Vous avez une nouvelle commande à préparer." : "Une nouvelle commande vient d'arriver.",
-          icon: "/logo.png"
+          body: `${ref} · ${name}\n${newPacking ? 'Prête pour emballage' : 'Nouvelle commande validée'}`,
+          icon: productImg || "/logo.png",
+          badge: "/logo.png", // Petit icône dans la barre de statut (Android)
         });
       }
 
@@ -170,6 +183,7 @@ export default function Sidebar({ user, counts }: SidebarProps) {
     }
   }, []);
 
+
   return (
     <>
       {/* MOBILE TOP BAR */}
@@ -188,17 +202,17 @@ export default function Sidebar({ user, counts }: SidebarProps) {
       {/* OVERLAY */}
       <AnimatePresence>
         {isMobileOpen && (
-          <motion.div 
-            initial={{ opacity: 0 }} 
-            animate={{ opacity: 1 }} 
-            exit={{ opacity: 0 }} 
-            onClick={() => setIsMobileOpen(false)} 
-            className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[10000] lg:hidden" 
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsMobileOpen(false)}
+            className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[10000] lg:hidden"
           />
         )}
       </AnimatePresence>
 
-      <aside 
+      <aside
         className={`
           fixed inset-y-0 left-0 z-[99999] w-[280px] bg-[#0F1115] text-white flex flex-col border-r border-white/5 transition-all duration-300 ease-in-out
           ${isMobileOpen ? 'translate-x-0 shadow-[20px_0_50px_rgba(0,0,0,0.5)]' : '-translate-x-full'}
@@ -261,9 +275,9 @@ export default function Sidebar({ user, counts }: SidebarProps) {
                   {section.items.map((item: any) => {
                     const isActive = pathname === item.href || (item.href !== '/zangochap-manager/dashboard' && pathname.startsWith(item.href));
                     return (
-                      <Link 
-                        key={item.href} 
-                        href={item.href} 
+                      <Link
+                        key={item.href}
+                        href={item.href}
                         className={`
                           flex items-center justify-between p-[11px_12px] rounded-xl text-[13px] font-semibold transition-all duration-200 no-underline mb-0.5
                           ${isActive ? 'bg-[#FF6B2C]/10 text-[#FF6B2C] font-bold' : 'text-white/40 hover:bg-white/[0.03] hover:text-white'}
@@ -306,8 +320,8 @@ export default function Sidebar({ user, counts }: SidebarProps) {
             </div>
             {!isCollapsed && (
               <form action={logoutAction}>
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   className="w-8 h-8 flex items-center justify-center rounded-[10px] bg-white/5 text-white/30 border-none cursor-pointer transition-colors hover:bg-red-500 hover:text-white"
                 >
                   <LogOut size={14} />
@@ -315,8 +329,8 @@ export default function Sidebar({ user, counts }: SidebarProps) {
               </form>
             )}
           </div>
-          <button 
-            className="hidden lg:flex bg-transparent border-none text-white/20 text-[11px] font-bold p-[8px_12px] cursor-pointer items-center gap-2" 
+          <button
+            className="hidden lg:flex bg-transparent border-none text-white/20 text-[11px] font-bold p-[8px_12px] cursor-pointer items-center gap-2"
             onClick={() => setIsCollapsed(!isCollapsed)}
           >
             {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
@@ -325,7 +339,7 @@ export default function Sidebar({ user, counts }: SidebarProps) {
         </div>
       </aside>
 
-      
+
     </>
   );
 }

@@ -477,7 +477,7 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
           return;
         }
 
-        const res = await createOrder({
+        const res: any = await createOrder({
           customerId: customerId || undefined,
           customerName,
           customerPhone,

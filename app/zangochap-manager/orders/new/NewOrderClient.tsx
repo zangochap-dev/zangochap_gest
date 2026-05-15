@@ -494,15 +494,18 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
           discount: discount.amount,
         });
         const order = res.order;
-        showToast(`Commande ${order.ref} créée pour ${customerName} ✓`, 'success');
-        setReceiptOrder(order);
-
+        showToast(`Commande ${order.ref} créée ✓`, 'success');
+        
+        // Close all modals
+        setShowCheckout(false);
+        setShowCustomItem(false);
+        
         // Clear persistence
         localStorage.removeItem('pos_cart_items');
         localStorage.removeItem('pos_cart_customer');
 
-        // We don't redirect immediately so user can print
-        router.refresh();
+        // Redirect to orders list with print parameter
+        router.push(`/zangochap-manager/orders?print=${order.id}`);
       } catch (e: any) {
         showToast(e.message || 'Erreur', 'error');
       }

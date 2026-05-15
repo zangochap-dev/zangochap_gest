@@ -18,7 +18,10 @@ export default async function PackingPage() {
     take: 500 // Increased limit to ensure no orders are missed during busy shifts
   });
 
+  const productIds = Array.from(new Set(orders.flatMap(o => o.items.map(i => i.productId)).filter(Boolean)));
+
   const products = await prisma.product.findMany({
+    where: { id: { in: productIds as string[] } },
     include: { 
       variants: {
         include: {
@@ -28,8 +31,7 @@ export default async function PackingPage() {
         }
       },
       category: true,
-      supplier: true
-    },
+    }
   });
 
   const data = JSON.parse(JSON.stringify({

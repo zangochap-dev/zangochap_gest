@@ -16,12 +16,12 @@ export default function ToProcessClient({ orders }: ToProcessClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
-  // Auto-refresh every 30s to catch new web orders
+  // Auto-refresh every 30s — non-blocking, only when tab is visible
   useEffect(() => {
     const interval = setInterval(() => {
-      startTransition(() => {
+      if (document.visibilityState === 'visible') {
         router.refresh();
-      });
+      }
     }, 30000);
     return () => clearInterval(interval);
   }, [router]);

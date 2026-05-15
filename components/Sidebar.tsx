@@ -181,12 +181,16 @@ export default function Sidebar({ user, counts }: SidebarProps) {
         )}
       </AnimatePresence>
 
-      <aside className={`
-        fixed inset-y-0 left-[-280px] w-[280px] lg:sticky lg:left-0 lg:top-0 lg:h-screen lg:z-[1000]
-        bg-[#0F1115] text-white flex flex-col border-r border-white/5 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]
-        ${isCollapsed ? 'lg:w-[76px]' : 'lg:w-[260px]'} 
-        ${isMobileOpen ? 'left-0!' : ''}
-      `}>
+      <motion.aside 
+        initial={false}
+        animate={{ x: isMobileOpen ? 0 : -280 }}
+        transition={{ type: "spring", damping: 25, stiffness: 200 }}
+        className={`
+          fixed inset-y-0 left-0 z-[10001] w-[280px] bg-[#0F1115] text-white flex flex-col border-r border-white/5
+          lg:sticky lg:top-0 lg:h-screen lg:!transform-none
+          ${isCollapsed ? 'lg:w-[76px]' : 'lg:w-[260px]'}
+        `}
+      >
         <div className="p-5 flex justify-between items-center">
           <div className="flex items-center">
             <Link href="/zangochap-manager/dashboard" className="flex items-center">
@@ -304,7 +308,7 @@ export default function Sidebar({ user, counts }: SidebarProps) {
             {!isCollapsed && <span>Réduire</span>}
           </button>
         </div>
-      </aside>
+      </motion.aside>
 
       
     </>

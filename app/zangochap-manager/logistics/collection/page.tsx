@@ -21,7 +21,10 @@ export default async function CollectionPage() {
     take: 300 // Limit for performance, but enough for recent logistics
   });
 
+  const productIds = Array.from(new Set(orders.flatMap(o => o.items.map(i => i.productId)).filter(Boolean)));
+
   const products = await prisma.product.findMany({
+    where: { id: { in: productIds as string[] } },
     include: { variants: { include: { stockLevels: { include: { warehouse: true } } } }, category: true },
   });
 

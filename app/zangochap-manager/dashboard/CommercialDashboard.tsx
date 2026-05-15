@@ -21,6 +21,7 @@ export default async function CommercialDashboard({ user }: { user: any }) {
     },
     include: { items: true },
     orderBy: { createdAt: 'desc' },
+    take: 1000 // Limit to avoid performance issues with very active commercial accounts
   });
 
   const todayOrders = myOrders.filter(o => new Date(o.createdAt) >= today);

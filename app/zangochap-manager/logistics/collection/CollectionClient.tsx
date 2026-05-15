@@ -30,12 +30,12 @@ export default function CollectionClient({ toCollect, user, categories = [], war
   const router = useRouter();
   const isMobile = useIsMobile();
 
-  // Auto-refresh every 15s using a transition to avoid blocking UI
+  // Auto-refresh every 15s — non-blocking, only when tab is visible
   useEffect(() => {
     const interval = setInterval(() => {
-      startTransition(() => {
+      if (document.visibilityState === 'visible') {
         router.refresh();
-      });
+      }
     }, 15000);
     return () => clearInterval(interval);
   }, [router]);

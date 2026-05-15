@@ -12,8 +12,8 @@ export const COMMUNES: Record<string, string> = {
   'Treichville': 'TV',
   'Anyama': 'AN',
   'Bingerville': 'BV',
-  'Bassam': 'BS',
-  'Songon': 'SG',
+  'Bassam': 'BA',
+  'Songon': 'YP',
   'Abidjan BJ': 'BJ',
   'Hors Abidjan': 'EXP',
 };

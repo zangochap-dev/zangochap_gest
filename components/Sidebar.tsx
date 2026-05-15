@@ -13,7 +13,8 @@ import {
   LayoutDashboard, ShoppingBag, Package, Truck, Box, Users, BarChart3,
   Tag, Upload, FileText, LogOut, ClipboardList,
   AlertTriangle, Settings, MapPin, Store, ChevronRight, ChevronLeft, History, Wallet, Warehouse,
-  User, ExternalLink, Image as ImageIcon, Menu, X, Bell, WifiOff, RefreshCw
+  User, ExternalLink, Image as ImageIcon, Menu, X, Bell, WifiOff, RefreshCw,
+  CheckCircle
 } from "lucide-react";
 
 interface SidebarProps {
@@ -67,13 +68,15 @@ const NAV_FOR_ROLE: Record<string, (counts?: any) => any[]> = {
       title: 'Logistique', items: [
         { label: 'Emballage', href: '/zangochap-manager/logistics/packing', icon: <Package size={18} />, badge: counts?.packing },
         { label: 'Collecte', href: '/zangochap-manager/logistics/collection', icon: <Truck size={18} />, badge: counts?.collection },
-        { label: 'Entrepôts', href: '/zangochap-manager/logistics/warehouses', icon: <Warehouse size={18} /> }
+        { label: 'Entrepôts', href: '/zangochap-manager/logistics/warehouses', icon: <Warehouse size={18} /> },
+        { label: 'Vérification', href: '/zangochap-manager/logistics/verification', icon: <CheckCircle size={18} /> }
       ]
     },
     {
       title: 'Catalogue & Stock', items: [
         { label: 'Produits', href: '/zangochap-manager/products', icon: <Box size={18} /> },
         { label: 'Ruptures', href: '/zangochap-manager/products/shortages', icon: <AlertTriangle size={18} /> },
+        { label: 'Répertoire', href: '/zangochap-manager/directory', icon: <Users size={18} /> },
         { label: 'Historique Stock', href: '/zangochap-manager/inventory/history', icon: <History size={18} /> },
         { label: 'CRM Clients', href: '/zangochap-manager/admin/crm', icon: <Users size={18} /> }
       ]
@@ -83,6 +86,9 @@ const NAV_FOR_ROLE: Record<string, (counts?: any) => any[]> = {
         { label: 'Gestion Livraisons', href: '/zangochap-manager/admin/delivery', icon: <Truck size={18} /> },
         { label: 'Fiche d\'expédition', href: '/zangochap-manager/admin/delivery-sheet', icon: <FileText size={18} /> },
         { label: 'Galerie Media', href: '/zangochap-manager/media', icon: <ImageIcon size={18} /> },
+        { label: 'Top Produits', href: '/zangochap-manager/admin/top-products', icon: <BarChart3 size={18} /> },
+        { label: 'Performance Équipe', href: '/zangochap-manager/admin/performance', icon: <BarChart3 size={18} /> },
+        { label: 'Importation', href: '/zangochap-manager/admin/import', icon: <Upload size={18} /> },
         { label: 'Règlements', href: '/zangochap-manager/admin/settlements', icon: <Wallet size={18} /> },
         { label: 'Settings', href: '/zangochap-manager/admin/settings', icon: <Settings size={18} /> }
       ]

@@ -60,9 +60,17 @@ export default async function ManagerLayout({
     // counts remain at 0, app continues to run
   }
 
+  const cleanUser = {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    initials: user.initials
+  };
+
   return (
     <div className="app-container">
-      <Sidebar user={JSON.parse(JSON.stringify(user))} counts={counts} />
+      <Sidebar user={cleanUser} counts={counts} />
       <main className="main-content">
         <div className="main-scroll-area">
           {children}

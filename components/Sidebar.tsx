@@ -181,13 +181,15 @@ export default function Sidebar({ user, counts }: SidebarProps) {
         )}
       </AnimatePresence>
 
-      <motion.aside 
-        initial={false}
-        animate={{ x: isMobileOpen ? 0 : -280 }}
-        transition={{ type: "spring", damping: 25, stiffness: 200 }}
+      <aside 
+        style={{ 
+          transform: mounted && !isCollapsed && typeof window !== 'undefined' && window.innerWidth < 1024 
+            ? (isMobileOpen ? 'translateX(0)' : 'translateX(-280px)') 
+            : undefined 
+        }}
         className={`
-          fixed inset-y-0 left-0 z-[10001] w-[280px] bg-[#0F1115] text-white flex flex-col border-r border-white/5
-          lg:sticky lg:top-0 lg:h-screen lg:!transform-none
+          fixed inset-y-0 left-0 z-[10001] w-[280px] bg-[#0F1115] text-white flex flex-col border-r border-white/5 transition-transform duration-300 ease-in-out
+          lg:sticky lg:top-0 lg:h-screen lg:transform-none
           ${isCollapsed ? 'lg:w-[76px]' : 'lg:w-[260px]'}
         `}
       >
@@ -308,7 +310,7 @@ export default function Sidebar({ user, counts }: SidebarProps) {
             {!isCollapsed && <span>Réduire</span>}
           </button>
         </div>
-      </motion.aside>
+      </aside>
 
       
     </>

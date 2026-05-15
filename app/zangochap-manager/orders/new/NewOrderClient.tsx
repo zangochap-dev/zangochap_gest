@@ -73,6 +73,20 @@ export default function NewOrderClient({ products, user, categories }: NewOrderC
   const [orderType, setOrderType] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [receiptOrder, setReceiptOrder] = useState<any>(null);
+  const [showGallery, setShowGallery] = useState(false);
+
+  // Extract unique images from all products for the gallery
+  const galleryImages = useMemo(() => {
+    const urls = new Set<string>();
+    products.forEach(p => {
+      if (p.images) {
+        p.images.forEach((img: any) => {
+          if (img.url) urls.add(img.url);
+        });
+      }
+    });
+    return Array.from(urls);
+  }, [products]);
 
   const getDefaultDeliveryDate = () => {
     const now = new Date();
@@ -92,6 +106,43 @@ export default function NewOrderClient({ products, user, categories }: NewOrderC
   const [customPaymentMethod, setCustomPaymentMethod] = useState('');
 
   const searchParams = useSearchParams();
+
+  // Persistence Logic: Load on mount
+  useEffect(() => {
+    const savedItems = localStorage.getItem('pos_cart_items');
+    const savedCustomer = localStorage.getItem('pos_cart_customer');
+
+    // Only load if not pre-filled by URL
+    if (savedItems && !searchParams.get('duplicate')) {
+      try {
+        setItems(JSON.parse(savedItems));
+      } catch (e) { console.error("Error loading saved items", e); }
+    }
+
+    if (savedCustomer) {
+      try {
+        const data = JSON.parse(savedCustomer);
+        if (!searchParams.get('name')) setCustomerName(data.name || '');
+        if (!searchParams.get('phone')) setCustomerPhone(data.phone || '');
+        if (!searchParams.get('commune')) setCommune(data.commune || '');
+        if (!searchParams.get('loc')) setCustomerLocation(data.location || '');
+      } catch (e) { console.error("Error loading saved customer", e); }
+    }
+  }, []);
+
+  // Persistence Logic: Save on change
+  useEffect(() => {
+    if (items.length > 0) {
+      localStorage.setItem('pos_cart_items', JSON.stringify(items));
+    } else {
+      localStorage.removeItem('pos_cart_items');
+    }
+  }, [items]);
+
+  useEffect(() => {
+    const customerData = { name: customerName, phone: customerPhone, commune, location: customerLocation };
+    localStorage.setItem('pos_cart_customer', JSON.stringify(customerData));
+  }, [customerName, customerPhone, commune, customerLocation]);
 
   // Handle URL Pre-fill (Redirection from Exchange)
   useEffect(() => {
@@ -426,7 +477,7 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
           return;
         }
 
-        const order = await createOrder({
+        const res = await createOrder({
           customerId: customerId || undefined,
           customerName,
           customerPhone,
@@ -442,8 +493,14 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
           promoCode: discount.code || undefined,
           discount: discount.amount,
         });
-        showToast('Commande créée ✓', 'success');
+        const order = res.order;
+        showToast(`Commande ${order.ref} créée pour ${customerName} ✓`, 'success');
         setReceiptOrder(order);
+
+        // Clear persistence
+        localStorage.removeItem('pos_cart_items');
+        localStorage.removeItem('pos_cart_customer');
+
         // We don't redirect immediately so user can print
         router.refresh();
       } catch (e: any) {
@@ -580,7 +637,30 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
               <ShoppingCart size={20} />
               <h2 style={{ fontSize: 18, fontWeight: 700 }}>Panier</h2>
             </div>
-            <span className="pos-cart-count">{items.length} articles</span>
+            <div className="flex items-center gap-3">
+              <span className="pos-cart-count">{items.length} articles</span>
+              {items.length > 0 && (
+                <button
+                  onClick={() => {
+                    if (confirm('Vider le panier et les informations client ?')) {
+                      setItems([]);
+                      setCustomerName('');
+                      setCustomerPhone('');
+                      setCustomerPhone2('');
+                      setCommune('');
+                      setCustomerLocation('');
+                      localStorage.removeItem('pos_cart_items');
+                      localStorage.removeItem('pos_cart_customer');
+                      showToast('Panier vidé', 'default');
+                    }
+                  }}
+                  className="p-1.5 rounded-md hover:bg-red-50 text-red-500 transition-colors"
+                  title="Abandonner / Vider tout"
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
+            </div>
           </div>
 
           {/* CUSTOMER SELECTOR */}
@@ -912,14 +992,25 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
             </div>
             <div className="form-row" style={{ gridColumn: '1 / -1' }}>
               <label className="field-label-sm">IMAGE (facultatif)</label>
-              <div
-                onClick={() => document.getElementById('customImageInput')?.click()}
-                style={{ border: '2px dashed var(--line)', borderRadius: 10, padding: 20, textAlign: 'center', cursor: 'pointer', background: 'var(--cream)' }}
-              >
-                <div style={{ fontSize: 24, marginBottom: 4 }}>📸</div>
-                <div style={{ fontWeight: 600, color: 'var(--brown)', fontSize: 12 }}>Cliquer pour ajouter une image</div>
-                <div style={{ fontSize: 10, color: 'var(--brown-soft)', marginTop: 2 }}>JPG, PNG — facultatif</div>
+              
+              <div style={{ display: 'flex', gap: 12 }}>
+                <div
+                  onClick={() => document.getElementById('customImageInput')?.click()}
+                  style={{ flex: 1, border: '2px dashed var(--line)', borderRadius: 10, padding: 15, textAlign: 'center', cursor: 'pointer', background: 'var(--cream)' }}
+                >
+                  <div style={{ fontSize: 20 }}>📸</div>
+                  <div style={{ fontWeight: 600, color: 'var(--brown)', fontSize: 11 }}>Importer</div>
+                </div>
+
+                <div
+                  onClick={() => setShowGallery(true)}
+                  style={{ flex: 1, border: '2px solid var(--orange-soft)', borderRadius: 10, padding: 15, textAlign: 'center', cursor: 'pointer', background: 'white' }}
+                >
+                  <div style={{ fontSize: 20 }}>🖼️</div>
+                  <div style={{ fontWeight: 600, color: 'var(--orange)', fontSize: 11 }}>Galerie</div>
+                </div>
               </div>
+
               <input
                 type="file"
                 id="customImageInput"
@@ -934,10 +1025,11 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
                   }
                 }}
               />
+
               {customImage && (
                 <div style={{ marginTop: 10, position: 'relative', width: 80, height: 80, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--line)' }}>
                   <img
-                    src={customImage}
+                    src={getImageUrl(customImage)}
                     alt="Preview"
                     style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'zoom-in' }}
                     onClick={() => setPreviewImage(customImage)}
@@ -952,6 +1044,45 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
                 </div>
               )}
             </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* GALLERY MODAL */}
+      {showGallery && (
+        <Modal
+          isOpen={true}
+          onClose={() => setShowGallery(false)}
+          title="Galerie des images"
+          footer={<button className="btn-secondary" onClick={() => setShowGallery(false)}>Fermer</button>}
+        >
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 10, maxHeight: '60vh', overflowY: 'auto', padding: 4 }}>
+            {galleryImages.map((url, idx) => (
+              <div 
+                key={idx} 
+                onClick={() => { setCustomImage(url); setShowGallery(false); }}
+                style={{ 
+                  aspectRatio: '1', 
+                  borderRadius: 8, 
+                  overflow: 'hidden', 
+                  cursor: 'pointer', 
+                  border: customImage === url ? '3px solid var(--orange)' : '1px solid var(--line)',
+                  position: 'relative'
+                }}
+              >
+                <img src={getImageUrl(url)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                {customImage === url && (
+                  <div style={{ position: 'absolute', inset: 0, background: 'rgba(212, 84, 28, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Check size={24} style={{ color: 'white' }} />
+                  </div>
+                )}
+              </div>
+            ))}
+            {galleryImages.length === 0 && (
+              <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: 40, color: 'var(--brown-soft)' }}>
+                Aucune image dans le catalogue.
+              </div>
+            )}
           </div>
         </Modal>
       )}

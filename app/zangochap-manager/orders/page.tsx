@@ -36,8 +36,6 @@ export default async function OrdersPage({ searchParams }: PageProps) {
   if (params.status && params.status !== 'all') {
     where.status = params.status.toUpperCase() as OrderStatus;
   } else {
-    // Par défaut (ou si 'all'), on cache TOUJOURS les commandes TO_PROCESS
-    // Elles sont réservées à la section "À traiter (site)"
     where.status = { not: OrderStatus.TO_PROCESS };
   }
 
@@ -64,7 +62,6 @@ export default async function OrdersPage({ searchParams }: PageProps) {
 
   // Role-based restrictions
   if (user?.role === 'commercial' && scope === 'mine') {
-    // Commercials see their own OR website orders by default
     where.OR = [
       ...(where.OR || []),
       { commercialId: user.id },
@@ -73,7 +70,8 @@ export default async function OrdersPage({ searchParams }: PageProps) {
     ];
   }
 
-  const [orders, totalCount, products, staffUsers] = await Promise.all([
+  // Run only what we need: orders + count + staff (for assignment)
+  const [orders, totalCount, staffUsers] = await Promise.all([
     prisma.order.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -82,11 +80,6 @@ export default async function OrdersPage({ searchParams }: PageProps) {
       skip: skip,
     }),
     prisma.order.count({ where }),
-    prisma.product.findMany({
-      include: { variants: true, images: true },
-      orderBy: { name: 'asc' },
-      take: 100, // Still limited for safety, but we might need more or pagination for products too
-    }),
     prisma.user.findMany({
       select: { id: true, name: true, phone: true, email: true },
     })
@@ -94,10 +87,9 @@ export default async function OrdersPage({ searchParams }: PageProps) {
 
   const deliverymen = staffUsers.filter(u => u.phone);
 
-  // Final serialization for all data to ensure no complex objects reach the client
+  // Final serialization
   const data = JSON.parse(JSON.stringify({
     orders,
-    products,
     deliverymen,
     staffUsers,
     user
@@ -109,7 +101,7 @@ export default async function OrdersPage({ searchParams }: PageProps) {
       <OrdersClient 
         initialOrders={data.orders} 
         totalCount={totalCount}
-        products={data.products} 
+        products={[]}
         deliverymen={data.deliverymen}
         staffUsers={data.staffUsers}
         user={data.user} 

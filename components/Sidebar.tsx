@@ -1,7 +1,9 @@
 "use client";
 // Version: 1.0.3 - Force Recompile - Fix Hydration Issue
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { getSidebarCounts } from "@/modules/orders/actions";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -19,6 +21,7 @@ import {
 
 interface SidebarProps {
   user: {
+    id?: string;
     name: string;
     email: string;
     role: string;
@@ -30,8 +33,6 @@ interface SidebarProps {
     collection?: number;
     toProcess?: number;
     myDeliveries?: number;
-    latestOrder?: { ref: string; customerName: string; image?: string | null } | null;
-    latestToPack?: { ref: string; customerName: string; image?: string | null } | null;
   };
 }
 
@@ -99,7 +100,7 @@ const NAV_FOR_ROLE: Record<string, (counts?: any) => any[]> = {
   ],
 };
 
-export default function Sidebar({ user, counts }: SidebarProps) {
+export default function Sidebar({ user, counts: initialCounts }: SidebarProps) {
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -107,11 +108,24 @@ export default function Sidebar({ user, counts }: SidebarProps) {
   const [isOffline, setIsOffline] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [hasNewNotifications, setHasNewNotifications] = useState(false);
-  const prevCounts = useRef(counts);
   const { showToast } = useToast();
 
+  const defaultCounts = { orders: 0, packing: 0, collection: 0, toProcess: 0, myDeliveries: 0 };
+
+  // Fetch counts via server action — non-blocking, auto-refreshes every 10s
+  const { data: counts = defaultCounts } = useQuery({
+    queryKey: ['sidebar-counts', user.id],
+    queryFn: () => getSidebarCounts(user.id),
+    initialData: initialCounts || defaultCounts,
+    refetchInterval: 10_000,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+  });
+
+  const prevCounts = useRef(counts);
+
   const roleKey = user.role?.toLowerCase() || 'admin';
-  const sections = (NAV_FOR_ROLE[roleKey] || NAV_FOR_ROLE.admin)(counts);
+  const sections = useMemo(() => (NAV_FOR_ROLE[roleKey] || NAV_FOR_ROLE.admin)(counts), [roleKey, counts]);
   const roleLabel = ROLE_LABELS[user.role] || user.role;
 
   // Track Online/Offline Status
@@ -151,21 +165,15 @@ export default function Sidebar({ user, counts }: SidebarProps) {
 
     if (newPacking || newOrders) {
       setHasNewNotifications(true);
-      const details = newPacking ? counts?.latestToPack : counts?.latestOrder;
-      const ref = details?.ref || "?";
-      const name = details?.customerName || "Client";
-      const productImg = details?.image;
 
-      const title = newPacking ? `Emballage : ${ref} 📦` : `Nouvelle Commande : ${ref} 🛍️`;
-      const message = newPacking ? `À emballer pour ${name}` : `Reçue de ${name}`;
-
-      showToast(`${title} — ${message}`, "success");
+      const title = newPacking ? `Nouvelle commande à emballer 📦` : `Nouvelle commande reçue 🛍️`;
+      showToast(title, "success");
 
       if ("Notification" in window && Notification.permission === "granted") {
         new Notification("ZangoChap Manager", {
-          body: `${ref} · ${name}\n${newPacking ? 'Prête pour emballage' : 'Nouvelle commande validée'}`,
-          icon: productImg || "/logo.png",
-          badge: "/logo.png", // Petit icône dans la barre de statut (Android)
+          body: newPacking ? 'Nouvelle commande prête pour emballage' : 'Nouvelle commande validée',
+          icon: "/logo.png",
+          badge: "/logo.png",
         });
       }
 

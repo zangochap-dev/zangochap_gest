@@ -114,6 +114,33 @@ export async function getOrder(id: string) {
 }
 
 // ============ CREATE ORDER ============
+// ============ SIDEBAR COUNTS (lightweight, fetched client-side) ============
+export async function getSidebarCounts(userId?: string) {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const [ordersCount, packingCount, toProcessCount, deliveriesCount] = await Promise.all([
+      prisma.order.count({ where: { status: 'CONFIRMED' as any, createdAt: { gte: today } } }),
+      prisma.order.count({ where: { status: 'CONFIRMED' as any } }),
+      prisma.order.count({ where: { status: 'TO_PROCESS' as any } }),
+      userId
+        ? prisma.order.count({ where: { deliverymanId: userId, status: { notIn: ['DELIVERED', 'CANCELLED'] as any } } })
+        : Promise.resolve(0),
+    ]);
+
+    return {
+      orders: ordersCount,
+      packing: packingCount,
+      collection: packingCount,
+      toProcess: toProcessCount,
+      myDeliveries: deliveriesCount,
+    };
+  } catch {
+    return { orders: 0, packing: 0, collection: 0, toProcess: 0, myDeliveries: 0 };
+  }
+}
+
 export async function createOrder(data: {
   customerId?: string;
   customerName: string;
@@ -291,9 +318,9 @@ export async function createOrder(data: {
 
   revalidatePath("/zangochap-manager/orders");
   revalidatePath("/zangochap-manager/dashboard");
-  revalidatePath("/zangochap-manager/logistics/collection");
-  revalidatePath("/zangochap-manager/logistics/packing");
-  return order;
+
+  // Return a plain serializable object to avoid Prisma Decimal issues
+  return { order: JSON.parse(JSON.stringify(order)) };
 }
 
 // ============ UPDATE STATUS ============

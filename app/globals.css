@@ -730,6 +730,9 @@
   }
 
   .filter-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     padding: 5px 12px;
     background: var(--cream);
     border: 1px solid var(--line);
@@ -739,6 +742,20 @@
     color: var(--brown);
     cursor: pointer;
     transition: all 0.15s;
+  }
+
+  .chip-count {
+    background: rgba(0,0,0,0.06);
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--brown-soft);
+  }
+
+  .filter-chip.active .chip-count {
+    background: rgba(255,255,255,0.2);
+    color: white;
   }
 
   .filter-chip:hover {
@@ -2723,6 +2740,8 @@
     flex-shrink: 0;
     box-shadow: -4px 0 16px rgba(0, 0, 0, 0.02);
     z-index: 10;
+    height: 100%;
+    min-height: 0;
   }
 
   .pos-cart-header {
@@ -2731,6 +2750,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-shrink: 0;
   }
 
   .pos-cart-count {
@@ -2749,6 +2769,7 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
+    min-height: 0;
   }
 
   .pos-cart-empty {
@@ -2893,6 +2914,7 @@
   .pos-sidebar-customer {
     padding: 0 16px 16px;
     border-bottom: 1px solid var(--line);
+    flex-shrink: 0;
   }
 
   .pos-select-customer-btn {
@@ -2968,6 +2990,7 @@
     padding: 24px;
     border-top: 1px solid var(--line);
     background: white;
+    flex-shrink: 0;
   }
 
   .pos-summary-row {

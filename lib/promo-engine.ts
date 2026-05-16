@@ -58,10 +58,22 @@ export async function getBestAutomaticDiscount(cart: CartItem[]) {
     label: null as string | null
   };
 
+  // Batch query promo usage counts to avoid N+1 query problem
+  const promosWithGlobalLimits = automaticPromos.filter(p => p.maxGlobalUses !== null).map(p => p.code);
+  const usageCounts = new Map<string, number>();
+  if (promosWithGlobalLimits.length > 0) {
+    const counts = await prisma.promoUsage.groupBy({
+      by: ['promoCode'],
+      where: { promoCode: { in: promosWithGlobalLimits } },
+      _count: true
+    });
+    counts.forEach(c => usageCounts.set(c.promoCode, c._count));
+  }
+
   for (const promo of automaticPromos) {
     // 1. Check Global Usage Limit
     if (promo.maxGlobalUses !== null) {
-      const usageCount = await prisma.promoUsage.count({ where: { promoCode: promo.code } });
+      const usageCount = usageCounts.get(promo.code) || 0;
       if (usageCount >= promo.maxGlobalUses) continue;
     }
 

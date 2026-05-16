@@ -21,11 +21,8 @@ export async function updateOrderStatus(orderId: string, newStatus: string, note
     throw new Error("Accès refusé");
   }
 
-  // Restriction: Commercials cannot mark as DELIVERED or PARTIALLY_DELIVERED
+  // Commercials can now also mark as DELIVERED or PARTIALLY_DELIVERED if needed
   const deliveryStatuses = ['DELIVERED', 'PARTIALLY_DELIVERED'];
-  if (deliveryStatuses.includes(newStatus.toUpperCase()) && session.role.toUpperCase() === 'COMMERCIAL') {
-    throw new Error("Seul un livreur ou un administrateur peut marquer une commande comme livrée.");
-  }
 
   const statusLabels: Record<string, string> = {
     'PENDING': 'En attente',

@@ -44,6 +44,7 @@ const NAV_FOR_ROLE: Record<string, (counts?: any) => any[]> = {
   ],
   packing: (counts) => [
     { items: [{ label: 'Dashboard', href: '/zangochap-manager/dashboard', icon: <LayoutDashboard size={18} /> }, { label: 'Répertoire', href: '/zangochap-manager/directory', icon: <Users size={18} /> }] },
+    { title: 'Commandes', items: [{ label: 'Toutes les commandes', href: '/zangochap-manager/orders', icon: <ShoppingBag size={18} />, badge: counts?.orders }] },
     { title: 'Logistique', items: [{ label: 'Emballage', href: '/zangochap-manager/logistics/packing', icon: <Package size={18} />, badge: counts?.packing }, { label: 'Fiche vérification', href: '/zangochap-manager/logistics/verification', icon: <FileText size={18} /> }] },
     { title: 'Catalogue', items: [{ label: 'Tous les produits', href: '/zangochap-manager/products', icon: <Box size={18} /> }, { label: 'Ajouter un produit', href: '/zangochap-manager/products/new', icon: <ClipboardList size={18} /> }] },
   ],

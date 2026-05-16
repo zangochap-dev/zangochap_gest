@@ -6,11 +6,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     const orders = await prisma.order.findMany({
-      where: {
-        status: {
-          in: ['CONFIRMED', 'PREPARING', 'PACKED', 'PARTIAL']
-        }
-      },
+      where: {}, // Empty where to fetch everything
       include: {
         items: true
       },

@@ -488,7 +488,9 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
     window.location.href = url;
   };
 
-  const handleFinalSubmit = () => {
+  const handleFinalSubmit = (e?: React.MouseEvent) => {
+    if (e && e.preventDefault) e.preventDefault();
+
     if (!customerName || !customerPhone || !commune) {
       showToast('Nom, téléphone et commune requis', 'error');
       return;
@@ -520,6 +522,11 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
           promoCode: discount.code || undefined,
           discount: discount.amount,
         });
+
+        if (!res || !res.order) {
+          throw new Error(res?.error || 'La création de la commande a échoué');
+        }
+
         const order = res.order;
         showToast(`Commande ${order.ref} créée ✓`, 'success');
         
@@ -533,8 +540,9 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
         // Redirect to orders list with print parameter
         router.push(`/zangochap-manager/orders?print=${order.id}`);
-      } catch (e: any) {
-        showToast(e.message || 'Erreur', 'error');
+      } catch (err: any) {
+        console.error("Erreur création commande:", err);
+        showToast(err.message || 'Une erreur est survenue lors de la création', 'error');
       }
     });
   };

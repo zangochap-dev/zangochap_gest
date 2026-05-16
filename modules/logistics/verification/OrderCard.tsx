@@ -78,7 +78,8 @@ export default function OrderCard({
           <tbody className="divide-y divide-gray-100">
             {orderItems.map(item => {
               const isChecked = !!item.isVerified;
-              const imageUrl = item.image || item.product?.images?.[0]?.url;
+              const rawImageUrl = item.image || item.product?.images?.[0]?.url || "";
+              const imageUrl = rawImageUrl.includes(";") ? rawImageUrl.split(";")[0] : rawImageUrl || undefined;
 
               return (
                 <tr

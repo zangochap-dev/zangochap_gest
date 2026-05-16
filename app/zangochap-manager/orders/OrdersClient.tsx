@@ -1570,7 +1570,7 @@ function StaffRow({ label, value, phone, icon }: { label: string; value?: string
   );
 }
 
-function DuplicateOrderModal({ order, products, onClose, onConfirm, isPending, onPreviewImage }: { order: any; products: any[]; onClose: () => void; onConfirm: (data: any) => void; isPending: boolean; onPreviewImage: (url: string | null) => void }) {
+function DuplicateOrderModal({ order, products: _products, onClose, onConfirm, isPending, onPreviewImage }: { order: any; products: any[]; onClose: () => void; onConfirm: (data: any) => void; isPending: boolean; onPreviewImage: (url: string | null) => void }) {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const getDefaultDeliveryDate = () => {
     const now = new Date();
@@ -1580,30 +1580,40 @@ function DuplicateOrderModal({ order, products, onClose, onConfirm, isPending, o
     return target.toISOString().split('T')[0];
   };
 
-  const [formData, setFormData] = useState({
-    customerName: order.customerName,
-    customerPhone: order.customerPhone,
-    customerPhone2: order.customerPhone2 || '',
-    customerLocation: order.customerLocation || '',
-    commune: order.commune || '',
-    deliveryFee: order.deliveryFee || 0,
-    notes: order.notes || '',
-    type: 'Standard',
-    total: 0,
-    items: [] as any[],
-    exchangeReason: '',
-    deliveryDate: getDefaultDeliveryDate()
+  const [formData, setFormData] = useState(() => {
+    // Pre-load original order items into cart
+    const initialItems = (order.items || []).map((item: any, idx: number) => ({
+      id: `dup-${idx}-${Date.now()}`,
+      productId: item.productId,
+      name: item.name,
+      size: item.size,
+      color: item.color,
+      qty: item.qty,
+      price: item.price,
+      emoji: item.emoji || '📦',
+      image: getImageUrl(item.image)
+    }));
+    return {
+      customerName: order.customerName,
+      customerPhone: order.customerPhone,
+      customerPhone2: order.customerPhone2 || '',
+      customerLocation: order.customerLocation || '',
+      commune: order.commune || '',
+      deliveryFee: order.deliveryFee || 0,
+      notes: order.notes || '',
+      type: 'Standard',
+      total: initialItems.reduce((sum: number, i: any) => sum + (Number(i.price) * Number(i.qty)), 0),
+      items: initialItems as any[],
+      exchangeReason: '',
+      deliveryDate: getDefaultDeliveryDate()
+    };
   });
 
-  const categories = useMemo(() => {
-    const cats = new Set<string>();
-    products.forEach(p => { if (p.category) cats.add(p.category); });
-    return Array.from(cats);
-  }, [products]);
-
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-
+  // Product search via API
   const [productSearch, setProductSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [catalogPage, setCatalogPage] = useState(1);
   const [selectedProductForVariant, setSelectedProductForVariant] = useState<any>(null);
   const [selectedVariant, setSelectedVariant] = useState<any>(null);
   const [selectedQty, setSelectedQty] = useState(1);
@@ -1611,14 +1621,36 @@ function DuplicateOrderModal({ order, products, onClose, onConfirm, isPending, o
   const [colorFilter, setColorFilter] = useState('all');
   const [isTotalManuallySet, setIsTotalManuallySet] = useState(false);
 
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => { setDebouncedSearch(productSearch); setCatalogPage(1); }, 300);
+    return () => clearTimeout(timer);
+  }, [productSearch]);
+
+  // Fetch products from API
+  const { data: catalogData, isFetching: isCatalogLoading } = useQuery({
+    queryKey: ['catalog-products', debouncedSearch, selectedCategory, catalogPage],
+    queryFn: async () => {
+      const params = new URLSearchParams({ page: String(catalogPage) });
+      if (debouncedSearch) params.set('q', debouncedSearch);
+      if (selectedCategory) params.set('category', selectedCategory);
+      const res = await fetch(`/api/products/search?${params}`);
+      if (!res.ok) throw new Error('Erreur');
+      return res.json();
+    },
+    staleTime: 30_000,
+  });
+
+  const catalogProducts = catalogData?.products || [];
+  const catalogTotalPages = catalogData?.totalPages || 1;
+  const categories = catalogData?.categories || [];
+
   // Auto-focus search when overlay closes
   useEffect(() => {
-    if (!selectedProductForVariant) {
-      searchInputRef.current?.focus();
-    }
+    if (!selectedProductForVariant) searchInputRef.current?.focus();
   }, [selectedProductForVariant]);
 
-  // Sync total when items change (if not manually set)
+  // Sync total when items change
   useEffect(() => {
     if (!isTotalManuallySet) {
       const calculatedTotal = formData.items.reduce((sum, i) => sum + (Number(i.price) * Number(i.qty)), 0);
@@ -1628,7 +1660,6 @@ function DuplicateOrderModal({ order, products, onClose, onConfirm, isPending, o
 
   const addItemWithVariant = () => {
     if (!selectedProductForVariant || !selectedVariant) return;
-
     const newItem = {
       id: Math.random().toString(),
       productId: selectedProductForVariant.id,
@@ -1640,7 +1671,6 @@ function DuplicateOrderModal({ order, products, onClose, onConfirm, isPending, o
       emoji: selectedProductForVariant.emoji || '📦',
       image: getImageUrl(selectedProductForVariant.images?.[0]?.dataUrl || selectedProductForVariant.images?.[0]?.url)
     };
-
     setFormData(prev => ({ ...prev, items: [...prev.items, newItem] }));
     setSelectedProductForVariant(null);
     setSelectedVariant(null);
@@ -1654,24 +1684,13 @@ function DuplicateOrderModal({ order, products, onClose, onConfirm, isPending, o
   const updateItemQty = (id: string, delta: number) => {
     setFormData(prev => ({
       ...prev,
-      items: prev.items.map(i => {
-        if (i.id === id) {
-          return { ...i, qty: Math.max(1, i.qty + delta) };
-        }
-        return i;
-      })
+      items: prev.items.map(i => i.id === id ? { ...i, qty: Math.max(1, i.qty + delta) } : i)
     }));
   };
 
-  const filteredProducts = products.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(productSearch.toLowerCase());
-    const matchesCategory = !selectedCategory || p.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  }).slice(0, 15);
-
   const getVariantStock = (productId: string, size: string, color: string) => {
-    const product = products.find(p => p.id === productId);
-    if (!product) return 0;
+    const product = catalogProducts.find((p: any) => p.id === productId);
+    if (!product) return -1; // unknown
     const variant = product.variants?.find((v: any) => v.size === size && v.color === color);
     return variant ? variant.stock : product.stock;
   };
@@ -1819,14 +1838,15 @@ function DuplicateOrderModal({ order, products, onClose, onConfirm, isPending, o
         </div>
 
         {/* MIDDLE PANEL: PRODUCT CATALOG */}
-        <div style={{ background: 'var(--cream)', padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div style={{ background: 'var(--cream)', padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{ width: 4, height: 16, background: 'var(--ink)', borderRadius: 2 }}></div>
               <label style={{ fontSize: 11, fontWeight: 800, color: 'var(--ink)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Catalogue Produits</label>
             </div>
             <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--brown-soft)', background: 'var(--cream-2)', padding: '4px 10px', borderRadius: 20 }}>
-              {products.length} ARTICLES DISPONIBLES
+              {catalogData?.total || 0} ARTICLES
+              {isCatalogLoading && <span style={{ marginLeft: 6, color: 'var(--orange)' }}>⟳</span>}
             </div>
           </div>
 
@@ -1836,13 +1856,13 @@ function DuplicateOrderModal({ order, products, onClose, onConfirm, isPending, o
               ref={searchInputRef}
               autoFocus
               className="field-input"
-              style={{ paddingLeft: 48, paddingRight: 40, height: 54, fontSize: 14, borderRadius: 14, border: '1.5px solid var(--line-2)', background: 'white', boxShadow: 'var(--shadow-sm)' }}
-              placeholder="Rechercher par nom, référence ou catégorie..."
+              style={{ paddingLeft: 48, paddingRight: 40, height: 48, fontSize: 13, borderRadius: 12, border: '1.5px solid var(--line-2)', background: 'white', boxShadow: 'var(--shadow-sm)' }}
+              placeholder="Rechercher un produit..."
               value={productSearch}
               onChange={e => setProductSearch(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && filteredProducts.length === 1) {
-                  const p = filteredProducts[0];
+                if (e.key === 'Enter' && catalogProducts.length === 1) {
+                  const p = catalogProducts[0];
                   setSelectedProductForVariant(p);
                   setSelectedVariant(p.variants?.length > 0 ? null : { size: 'Standard', color: 'Standard' });
                   setSelectedQty(1);
@@ -1859,11 +1879,11 @@ function DuplicateOrderModal({ order, products, onClose, onConfirm, isPending, o
             )}
           </div>
 
-          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+          <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
             <button
-              onClick={() => setSelectedCategory(null)}
+              onClick={() => { setSelectedCategory(null); setCatalogPage(1); }}
               style={{
-                padding: '6px 12px', fontSize: 11, fontWeight: 700, borderRadius: 20, border: '1px solid var(--line)',
+                padding: '5px 12px', fontSize: 11, fontWeight: 700, borderRadius: 20, border: '1px solid var(--line)',
                 background: !selectedCategory ? 'var(--ink)' : 'white',
                 color: !selectedCategory ? 'white' : 'var(--brown-soft)',
                 whiteSpace: 'nowrap', cursor: 'pointer'
@@ -1871,30 +1891,32 @@ function DuplicateOrderModal({ order, products, onClose, onConfirm, isPending, o
             >
               Tous
             </button>
-            {categories.map(cat => (
+            {categories.map((cat: any) => (
               <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
+                key={cat.id}
+                onClick={() => { setSelectedCategory(cat.id); setCatalogPage(1); }}
                 style={{
-                  padding: '6px 12px', fontSize: 11, fontWeight: 700, borderRadius: 20, border: '1px solid var(--line)',
-                  background: selectedCategory === cat ? 'var(--ink)' : 'white',
-                  color: selectedCategory === cat ? 'white' : 'var(--brown-soft)',
+                  padding: '5px 12px', fontSize: 11, fontWeight: 700, borderRadius: 20, border: '1px solid var(--line)',
+                  background: selectedCategory === cat.id ? 'var(--ink)' : 'white',
+                  color: selectedCategory === cat.id ? 'white' : 'var(--brown-soft)',
                   whiteSpace: 'nowrap', cursor: 'pointer'
                 }}
               >
-                {cat}
+                {cat.name}
               </button>
             ))}
           </div>
 
-          {filteredProducts.length === 0 ? (
+          {catalogProducts.length === 0 ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'white', borderRadius: 12, border: '1px dashed var(--line-2)', padding: 32, textAlign: 'center' }}>
               <Package size={32} style={{ color: 'var(--brown-soft)', opacity: 0.5, marginBottom: 12 }} />
-              <div style={{ fontSize: 11, color: 'var(--brown-soft)', marginTop: 4 }}>Vérifiez l'orthographe de votre recherche.</div>
+              <div style={{ fontSize: 11, color: 'var(--brown-soft)', marginTop: 4 }}>
+                {isCatalogLoading ? 'Chargement du catalogue...' : 'Aucun produit trouvé.'}
+              </div>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, overflowY: 'auto', padding: 4 }}>
-              {filteredProducts.map(p => (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10, overflowY: 'auto', flex: 1, padding: 4 }}>
+              {catalogProducts.map((p: any) => (
                 <ProductCard
                   key={p.id}
                   product={p}
@@ -1906,6 +1928,29 @@ function DuplicateOrderModal({ order, products, onClose, onConfirm, isPending, o
                   }}
                 />
               ))}
+            </div>
+          )}
+
+          {/* Pagination */}
+          {catalogTotalPages > 1 && (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 10, paddingTop: 8, borderTop: '1px solid var(--line)' }}>
+              <button
+                disabled={catalogPage <= 1}
+                onClick={() => setCatalogPage(p => p - 1)}
+                style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid var(--line)', background: 'white', fontSize: 11, fontWeight: 700, cursor: catalogPage > 1 ? 'pointer' : 'default', opacity: catalogPage <= 1 ? 0.4 : 1 }}
+              >
+                ← Préc.
+              </button>
+              <span style={{ fontSize: 12, fontWeight: 700 }}>
+                {catalogPage} <span style={{ color: '#8E8E93', fontWeight: 400 }}>/ {catalogTotalPages}</span>
+              </span>
+              <button
+                disabled={catalogPage >= catalogTotalPages}
+                onClick={() => setCatalogPage(p => p + 1)}
+                style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid var(--line)', background: 'white', fontSize: 11, fontWeight: 700, cursor: catalogPage < catalogTotalPages ? 'pointer' : 'default', opacity: catalogPage >= catalogTotalPages ? 0.4 : 1 }}
+              >
+                Suiv. →
+              </button>
             </div>
           )}
         </div>

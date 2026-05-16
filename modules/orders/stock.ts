@@ -44,7 +44,7 @@ export async function decrementStockForOrder(order: any, session: any) {
         where: { variantId: variant.id, quantity: { gte: item.qty } },
         orderBy: { quantity: 'desc' }
       });
-      
+
       const targetWarehouseId = existingStock?.warehouseId || (await getOrCreateDefaultWarehouse()).id;
 
       // Update or create stock level for this warehouse
@@ -101,7 +101,7 @@ export async function restoreStockForOrder(order: any, session: any, type: 'RETU
         where: { orderId: order.id, variantId: variant.id, type: 'SALE' },
         orderBy: { createdAt: 'desc' }
       });
-      
+
       const targetWarehouseId = lastMovement?.warehouseId || (await getOrCreateDefaultWarehouse()).id;
 
       // Update global variant stock

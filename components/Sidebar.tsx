@@ -3,7 +3,6 @@
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getSidebarCounts } from "@/modules/orders/actions";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -111,10 +110,14 @@ export default function Sidebar({ user, counts: initialCounts }: SidebarProps) {
 
   const defaultCounts = { orders: 0, packing: 0, collection: 0, toProcess: 0, myDeliveries: 0 };
 
-  // Fetch counts via server action — non-blocking, auto-refreshes every 10s
+  // Fetch counts via lightweight API — instant, no server-action overhead
   const { data: counts = defaultCounts } = useQuery({
     queryKey: ['sidebar-counts', user.id],
-    queryFn: () => getSidebarCounts(user.id),
+    queryFn: async () => {
+      const res = await fetch(`/api/sidebar-counts?userId=${user.id || ''}`);
+      if (!res.ok) return defaultCounts;
+      return res.json();
+    },
     initialData: initialCounts || defaultCounts,
     refetchInterval: 10_000,
     staleTime: 0,

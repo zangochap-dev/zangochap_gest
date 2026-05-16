@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useState, useTransition, useEffect, useMemo } from "react";
-import { TableCard, EmptyState, SectionLabel, StatusBadge } from "@/components/UI";
+import React, { useState, useTransition, useMemo } from "react";
+import { TableCard, EmptyState, StatusBadge } from "@/components/UI";
 import { useToast } from "@/components/Toast";
-import { useRouter } from "next/navigation";
-import { Search, Package, AlertCircle, Eye } from "lucide-react";
+import { Search, Package, AlertCircle, Eye, RefreshCw } from "lucide-react";
 import { useIsMobile } from "@/lib/hooks";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import { updateOrderStatus } from "@/modules/orders/actions";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import NonPackedModal from "./_components/NonPackedModal";
 import NonPackedItem from "./_components/NonPackedItem";
 import "./non-packed-client.css";
@@ -18,30 +18,37 @@ interface NonPackedClientProps {
   user: any;
 }
 
-export default function NonPackedClient({ notPacked, withAlternatives, user }: NonPackedClientProps) {
+export default function NonPackedClient({ notPacked: initialNotPacked, withAlternatives: initialAlternatives, user }: NonPackedClientProps) {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [search, setSearch] = useState("");
   const [isPending, startTransition] = useTransition();
   const { showToast } = useToast();
-  const router = useRouter();
   const isMobile = useIsMobile();
+  const queryClient = useQueryClient();
 
-  // Auto-refresh every 10s — real-time sync for call center
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        router.refresh();
-      }
-    }, 10000);
-    return () => clearInterval(interval);
-  }, [router]);
+  // React Query — smooth background polling, no page flash
+  const { data, isFetching } = useQuery({
+    queryKey: ['non-packed-orders'],
+    queryFn: async () => {
+      const res = await fetch('/api/orders/non-packed');
+      if (!res.ok) throw new Error('Erreur');
+      return res.json();
+    },
+    initialData: { notPacked: initialNotPacked, withAlternatives: initialAlternatives },
+    refetchInterval: 10_000,
+    staleTime: 0,
+  });
+
+  const notPacked = data?.notPacked ?? initialNotPacked;
+  const withAlternatives = data?.withAlternatives ?? initialAlternatives;
 
   const handleStatusChange = (orderId: string, status: string) => {
     startTransition(async () => {
       try {
         await updateOrderStatus(orderId, status);
         showToast('Statut mis à jour ✓', 'success');
-        router.refresh();
+        // Instant refetch instead of router.refresh()
+        queryClient.invalidateQueries({ queryKey: ['non-packed-orders'] });
         setSelectedOrder(null);
       } catch (e: any) {
         showToast(e.message || 'Erreur', 'error');
@@ -52,7 +59,7 @@ export default function NonPackedClient({ notPacked, withAlternatives, user }: N
   const filteredNotPacked = useMemo(() => {
     if (!search) return notPacked;
     const s = search.toLowerCase();
-    return notPacked.filter(o => 
+    return notPacked.filter((o: any) => 
       o.ref.toLowerCase().includes(s) || 
       o.customerName.toLowerCase().includes(s)
     );
@@ -61,7 +68,7 @@ export default function NonPackedClient({ notPacked, withAlternatives, user }: N
   const filteredAlternatives = useMemo(() => {
     if (!search) return withAlternatives;
     const s = search.toLowerCase();
-    return withAlternatives.filter(o => 
+    return withAlternatives.filter((o: any) => 
       o.ref.toLowerCase().includes(s) || 
       o.customerName.toLowerCase().includes(s)
     );
@@ -73,7 +80,7 @@ export default function NonPackedClient({ notPacked, withAlternatives, user }: N
     
     const renderGroupedOrders = () => {
       const byCommercial: Record<string, any[]> = {};
-      orders.forEach(o => {
+      orders.forEach((o: any) => {
         const c = o.commercialName || 'Inconnu';
         if (!byCommercial[c]) byCommercial[c] = [];
         byCommercial[c].push(o);
@@ -90,7 +97,7 @@ export default function NonPackedClient({ notPacked, withAlternatives, user }: N
              </h3>
           </div>
           <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {list.map((o) => (
+            {list.map((o: any) => (
               <div 
                 key={o.id} 
                 onClick={() => setSelectedOrder(o)}
@@ -142,7 +149,7 @@ export default function NonPackedClient({ notPacked, withAlternatives, user }: N
             </div>
           ) : (
             grouped ? renderGroupedOrders() : 
-            orders.map((o, i) => (
+            orders.map((o: any, i: number) => (
               <NonPackedItem 
                 key={o.id} 
                 order={o} 
@@ -177,7 +184,7 @@ export default function NonPackedClient({ notPacked, withAlternatives, user }: N
               </tr>
             </thead>
             <tbody>
-              {orders.map(order => (
+              {orders.map((order: any) => (
                 <NonPackedItem 
                   key={order.id} 
                   order={order} 
@@ -209,6 +216,7 @@ export default function NonPackedClient({ notPacked, withAlternatives, user }: N
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <AlertCircle size={20} color="var(--orange)" />
             <h1 style={{ fontSize: isMobile ? 22 : 24, fontWeight: 900 }}>Suivi des Retards</h1>
+            {isFetching && <RefreshCw size={14} className="animate-spin" style={{ color: 'var(--orange)', opacity: 0.5 }} />}
           </div>
           <p style={{ fontSize: 13, color: '#8E8E93', fontWeight: 500, marginTop: 4 }}>
             Commandes nécessitant une intervention commerciale ou logistique.
@@ -242,16 +250,16 @@ export default function NonPackedClient({ notPacked, withAlternatives, user }: N
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
         <OrderSection 
-          orders={filteredNotPacked.filter(o => o.isToday)} 
+          orders={filteredNotPacked.filter((o: any) => o.isToday)} 
           title="Non emballées du jour" 
-          meta={`${filteredNotPacked.filter(o => o.isToday).length} à traiter`} 
+          meta={`${filteredNotPacked.filter((o: any) => o.isToday).length} à traiter`} 
         />
 
-        {filteredNotPacked.some(o => !o.isToday) && (
+        {filteredNotPacked.some((o: any) => !o.isToday) && (
           <OrderSection 
-            orders={filteredNotPacked.filter(o => !o.isToday)} 
+            orders={filteredNotPacked.filter((o: any) => !o.isToday)} 
             title="Retards antérieurs" 
-            meta={`${filteredNotPacked.filter(o => !o.isToday).length} en attente`} 
+            meta={`${filteredNotPacked.filter((o: any) => !o.isToday).length} en attente`} 
           />
         )}
 

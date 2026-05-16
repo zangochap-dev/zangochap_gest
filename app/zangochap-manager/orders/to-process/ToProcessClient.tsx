@@ -1,37 +1,38 @@
 "use client";
 
-import React, { useEffect, useTransition } from "react";
-import { TableCard, EmptyState, DetailCard, StatusBadge } from "@/components/UI";
+import React from "react";
+import { TableCard, EmptyState } from "@/components/UI";
 import { formatPrice, formatDate } from "@/lib/constants";
-import { useRouter } from "next/navigation";
-import { ArrowRight, RefreshCw, ShoppingCart, Clock } from "lucide-react";
+import { ArrowRight, RefreshCw, Clock } from "lucide-react";
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 import "./to-process-client.css";
 
 interface ToProcessClientProps {
   orders: any[];
 }
 
-export default function ToProcessClient({ orders }: ToProcessClientProps) {
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+export default function ToProcessClient({ orders: initialOrders }: ToProcessClientProps) {
+  // React Query — smooth background polling, no page flash
+  const { data, isFetching } = useQuery({
+    queryKey: ['to-process-orders'],
+    queryFn: async () => {
+      const res = await fetch('/api/orders/to-process');
+      if (!res.ok) throw new Error('Erreur');
+      return res.json();
+    },
+    initialData: { orders: initialOrders },
+    refetchInterval: 10_000,
+    staleTime: 0,
+  });
 
-  // Auto-refresh every 10s — real-time sync for call center
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        router.refresh();
-      }
-    }, 10000);
-    return () => clearInterval(interval);
-  }, [router]);
+  const orders = data?.orders ?? initialOrders;
 
   return (
     <div className="content animate-fade-in">
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-         <button className="btn-secondary" onClick={() => router.refresh()} disabled={isPending}>
-            <RefreshCw size={14} className={isPending ? "animate-spin" : ""} /> Actualiser
-         </button>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12, alignItems: 'center', gap: 8 }}>
+         {isFetching && <RefreshCw size={14} className="animate-spin" style={{ color: 'var(--orange)', opacity: 0.5 }} />}
+         <span style={{ fontSize: 11, color: '#8E8E93', fontWeight: 600 }}>Mise à jour auto</span>
       </div>
 
       <TableCard title={`Commandes en attente de traitement`} meta={`${orders.length} commande(s) provenant du site web`}>
@@ -50,7 +51,7 @@ export default function ToProcessClient({ orders }: ToProcessClientProps) {
               </tr>
             </thead>
             <tbody>
-              {orders.map(order => (
+              {orders.map((order: any) => (
                 <tr key={order.id}>
                   <td>
                     <div className="cell-mono" style={{ color: 'var(--orange)', fontWeight: 700 }}>{order.ref}</div>

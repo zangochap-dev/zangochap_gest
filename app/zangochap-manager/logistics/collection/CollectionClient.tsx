@@ -23,8 +23,9 @@ export default function CollectionClient({ toCollect, user, categories = [], war
   const [search, setSearch] = useState('');
   const [categoryId, setCategoryId] = useState('all');
   const [warehouseId, setWarehouseId] = useState('all');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const todayStr = new Date().toISOString().split('T')[0];
+  const [dateFrom, setDateFrom] = useState(todayStr);
+  const [dateTo, setDateTo] = useState(todayStr);
 
   const { showToast } = useToast();
   const router = useRouter();

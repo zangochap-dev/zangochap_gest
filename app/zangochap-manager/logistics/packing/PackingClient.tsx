@@ -23,8 +23,9 @@ export default function PackingClient({ initialOrders, products, user }: { initi
   const [filter, setFilter] = useState(searchParams.get('status') || 'CONFIRMED');
   const [search, setSearch] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const todayStr = new Date().toISOString().split('T')[0];
+  const [dateFrom, setDateFrom] = useState(todayStr);
+  const [dateTo, setDateTo] = useState(todayStr);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [packingNote, setPackingNote] = useState('');
   const [previewImage, setPreviewImage] = useState<string | null>(null);

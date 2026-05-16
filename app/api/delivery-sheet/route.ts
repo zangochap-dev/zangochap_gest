@@ -31,6 +31,7 @@ export async function GET(req: NextRequest) {
         include: {
           product: {
             include: {
+              images: true,
               variants: {
                 include: {
                   stockLevels: { include: { warehouse: true } }

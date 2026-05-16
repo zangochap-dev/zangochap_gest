@@ -1,6 +1,9 @@
 import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(req: NextRequest) {
   const date = req.nextUrl.searchParams.get('date');
   if (!date) return NextResponse.json([]);
@@ -12,6 +15,7 @@ export async function GET(req: NextRequest) {
 
   const orders = await prisma.order.findMany({
     where: {
+      status: { notIn: ['CANCELLED', 'PENDING', 'TO_PROCESS'] },
       OR: [
         { deliveryDate: { gte: startOfDay, lte: endOfDay } },
         { 
@@ -19,8 +23,7 @@ export async function GET(req: NextRequest) {
             { deliveryDate: null },
             { createdAt: { gte: startOfDay, lte: endOfDay } }
           ]
-        },
-        { createdAt: { gte: startOfDay, lte: endOfDay } }
+        }
       ]
     },
     include: { 
@@ -28,6 +31,7 @@ export async function GET(req: NextRequest) {
         include: {
           product: {
             include: {
+              images: true,
               variants: {
                 include: {
                   stockLevels: { include: { warehouse: true } }

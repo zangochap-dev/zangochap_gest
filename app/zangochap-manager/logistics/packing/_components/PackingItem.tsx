@@ -17,6 +17,7 @@ interface PackingItemProps {
   onMarkPacking: (orderId: string, status: string) => void;
   onPreviewImage: (url: string) => void;
   onToggleCheckItem: (orderId: string, item: any) => void;
+  optimisticChecks?: Record<string, boolean>;
   idx?: number;
 }
 
@@ -31,11 +32,14 @@ export default function PackingItem({
   onMarkPacking,
   onPreviewImage,
   onToggleCheckItem,
+  optimisticChecks = {},
   idx = 0
 }: PackingItemProps) {
   
   const totalItems = o.items.length;
-  const checkedCount = o.items.filter((i: any) => i.isVerified).length;
+  const checkedCount = o.items.filter((i: any) => {
+    return optimisticChecks[i.id] !== undefined ? optimisticChecks[i.id] : i.isVerified;
+  }).length;
   const progress = (checkedCount / totalItems) * 100;
 
   if (isMobile) {
@@ -97,7 +101,10 @@ export default function PackingItem({
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#1C1C1E', marginBottom: 2 }}>{o.customerName}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#1C1C1E', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {o.customerName}
+                  {o.items.some((i: any) => i.isGift) && <span style={{ fontSize: 8, background: 'var(--orange-soft)', color: 'var(--orange)', padding: '1px 5px', borderRadius: 4, fontWeight: 800 }}>CADEAU</span>}
+                </div>
                 <div style={{ fontSize: 10, color: '#8E8E93', fontWeight: 600 }}>{o.commune || 'Abidjan'} • {formatDay(o.createdAt)}</div>
                 <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
                   {o.commercialName && <span style={{ fontSize: 9, fontWeight: 700, background: '#E8F4FD', color: '#0A84FF', padding: '2px 6px', borderRadius: 6 }}>🛒 {o.commercialName}</span>}
@@ -179,7 +186,7 @@ export default function PackingItem({
       </td>
       <td>
         {o.items.map((i: any, idx: number) => {
-          const isChecked = i.isVerified;
+          const isChecked = optimisticChecks[i.id] !== undefined ? optimisticChecks[i.id] : i.isVerified;
           return (
             <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, margin: '2px 0', opacity: isChecked ? 0.4 : 1, transition: 'opacity 0.2s' }}>
               <div
@@ -198,7 +205,10 @@ export default function PackingItem({
               ) : (
                 <span>{i.emoji || '📦'}</span>
               )}
-              <span style={{ fontWeight: 600, textDecoration: isChecked ? 'line-through' : 'none' }}>{i.name}</span>
+              <span style={{ fontWeight: 600, textDecoration: isChecked ? 'line-through' : 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
+                {i.name}
+                {i.isGift && <span style={{ fontSize: 8, background: 'var(--orange-soft)', color: 'var(--orange)', padding: '0 4px', borderRadius: 4, fontWeight: 800 }}>CADEAU</span>}
+              </span>
               <span className="size-dot">{i.size}</span>
               <strong style={{ fontSize: 11 }}>{i.color}</strong>
 

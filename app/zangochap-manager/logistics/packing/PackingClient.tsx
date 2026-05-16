@@ -8,7 +8,7 @@ import { useToast } from "@/components/Toast";
 import { addOrderHistoryEntry, updateOrderStatus } from "@/modules/orders/actions";
 import { formatPrice, formatDay, STATUS_LABELS } from "@/lib/constants";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Eye, Package, Check, ArrowLeftRight, Warehouse, X, Search, ChevronRight, ClipboardList, Edit2 } from "lucide-react";
+import { Eye, Package, Check, ArrowLeftRight, Warehouse, X, Search, ChevronRight, ClipboardList, Edit2, RefreshCw } from "lucide-react";
 import { updateProductVariants } from "@/modules/products/actions";
 import { toggleItemVerification } from "@/modules/logistics/actions";
 import { useIsMobile } from "@/lib/hooks";
@@ -17,15 +17,21 @@ import { motion, AnimatePresence } from "framer-motion";
 import PackingOrderModal from "./_components/PackingOrderModal";
 import VariantsEditorModal from "./_components/VariantsEditorModal";
 import PackingItem from "./_components/PackingItem";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 export default function PackingClient({ initialOrders, products, user }: { initialOrders: any[]; products: any[]; user: any }) {
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
+  
   const [filter, setFilter] = useState(searchParams.get('status') || 'CONFIRMED');
   const [search, setSearch] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  
+  // Date filter: default to empty (all pending) to avoid missing old orders
   const todayStr = new Date().toISOString().split('T')[0];
   const [dateFrom, setDateFrom] = useState(todayStr);
   const [dateTo, setDateTo] = useState(todayStr);
+  
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [packingNote, setPackingNote] = useState('');
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -38,25 +44,28 @@ export default function PackingClient({ initialOrders, products, user }: { initi
   const [optimisticChecks, setOptimisticChecks] = useState<Record<string, boolean>>({});
   const [savingChecks, setSavingChecks] = useState<Set<string>>(new Set());
 
-  // Auto-refresh every 10s using a transition to avoid blocking UI
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        router.refresh();
-      }
-    }, 10000); // 10 seconds for more reactive logistics
-    return () => clearInterval(interval);
-  }, [router]);
+  // REACT QUERY: Smooth background polling (No UI lag)
+  const { data: queryData, isFetching } = useQuery({
+    queryKey: ['packing-orders'],
+    queryFn: async () => {
+      const res = await fetch('/api/orders/packing'); // Ensure this endpoint exists or use appropriate one
+      if (!res.ok) throw new Error('Erreur de synchro');
+      return res.json();
+    },
+    initialData: { orders: initialOrders },
+    refetchInterval: 15000, // Every 15s is enough for logistics
+    staleTime: 5000,
+  });
 
-  // Sync selectedOrder with initialOrders when props update
+  const orders = useMemo(() => queryData?.orders || initialOrders, [queryData, initialOrders]);
+
+  // Sync selectedOrder with latest data from polling
   useEffect(() => {
     if (selectedOrder) {
-      const updated = initialOrders.find(o => o.id === selectedOrder.id);
-      if (updated) {
-        setSelectedOrder(updated);
-      }
+      const updated = orders.find((o: any) => o.id === selectedOrder.id);
+      if (updated) setSelectedOrder(updated);
     }
-  }, [initialOrders, selectedOrder?.id]);
+  }, [orders, selectedOrder?.id]);
 
   const productMap = useMemo(() => {
     const map = new Map();
@@ -67,8 +76,8 @@ export default function PackingClient({ initialOrders, products, user }: { initi
   const warehouses = useMemo(() => {
     const set = new Set<string>();
     products.forEach((p: any) => {
-      p.variants.forEach((v: any) => {
-        v.stockLevels.forEach((sl: any) => {
+      p.variants?.forEach((v: any) => {
+        v.stockLevels?.forEach((sl: any) => {
           if (sl.warehouse?.name) set.add(sl.warehouse.name);
         });
       });
@@ -77,33 +86,52 @@ export default function PackingClient({ initialOrders, products, user }: { initi
   }, [products]);
 
   const filtered = useMemo(() => {
-    let result = initialOrders;
+    let result = [...orders]; // Create a copy to avoid mutating original
+    
+    // 1. Basic Status Filter
     if (filter === 'ALTERNATIVE') {
       result = result.filter((o: any) => o.history?.some((h: any) => h.action.includes('Alternative proposée')));
     } else if (filter !== 'all') {
       result = result.filter((o: any) => o.status === filter);
     }
+
+    // 2. Search
     if (search) {
       const s = search.toLowerCase();
-      result = result.filter((o: any) => o.ref.toLowerCase().includes(s) || o.customerName.toLowerCase().includes(s));
+      result = result.filter((o: any) => 
+        o.ref.toLowerCase().includes(s) || 
+        o.customerName.toLowerCase().includes(s)
+      );
     }
+
+    // 3. Dates (if set)
     if (dateFrom) result = result.filter((o: any) => new Date(o.createdAt) >= new Date(dateFrom));
     if (dateTo) result = result.filter((o: any) => new Date(o.createdAt) <= new Date(dateTo + 'T23:59:59'));
 
+    // 4. Warehouse (Optimized)
     if (warehouseFilter !== 'all') {
       result = result.filter((o: any) => {
         return o.items.some((item: any) => {
           const p = productMap.get(item.productId);
           if (!p) return false;
-          const v = p.variants.find((vv: any) => vv.size === item.size && vv.color === item.color);
-          if (!v) return false;
-          return v.stockLevels.some((sl: any) => sl.warehouse?.name === warehouseFilter);
+          const v = p.variants?.find((vv: any) => vv.size === item.size && vv.color === item.color);
+          return v?.stockLevels?.some((sl: any) => sl.warehouse?.name === warehouseFilter);
         });
       });
     }
 
-    return result;
-  }, [initialOrders, filter, search, dateFrom, dateTo, warehouseFilter, productMap]);
+    // 5. SMART SORTING
+    return result.sort((a: any, b: any) => {
+      // Priority 1: Alternatives proposed first
+      const aAlt = a.history?.some((h: any) => h.action.includes('Alternative proposée'));
+      const bAlt = b.history?.some((h: any) => h.action.includes('Alternative proposée'));
+      if (aAlt && !bAlt) return -1;
+      if (!aAlt && bAlt) return 1;
+
+      // Priority 2: Newest first (Latest at the top)
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  }, [orders, filter, search, dateFrom, dateTo, warehouseFilter, productMap]);
 
   const toggleSelect = (id: string) => {
     const next = new Set(selectedIds);
@@ -121,15 +149,29 @@ export default function PackingClient({ initialOrders, products, user }: { initi
     if (selectedIds.size === 0) return;
     if (!confirm(`Marquer ${selectedIds.size} commandes comme "${status}" ?`)) return;
 
+    // Optimistic Update
+    const previousData = queryClient.getQueryData(['packing-orders']);
+    queryClient.setQueryData(['packing-orders'], (old: any) => {
+      if (!old) return old;
+      return {
+        ...old,
+        orders: old.orders.map((o: any) => 
+          selectedIds.has(o.id) ? { ...o, status } : o
+        )
+      };
+    });
+
     startTransition(async () => {
       try {
         await Promise.all(Array.from(selectedIds).map(id => updateOrderStatus(id, status)));
         showToast(`${selectedIds.size} commandes mises à jour ✓`, 'success');
         setSelectedIds(new Set());
-        router.refresh();
       } catch (e: any) {
-        console.error('Bulk Action Error:', e);
+        // Rollback
+        queryClient.setQueryData(['packing-orders'], previousData);
         showToast(e?.message || 'Erreur lors du traitement groupé', 'error');
+      } finally {
+        queryClient.invalidateQueries({ queryKey: ['packing-orders'] });
       }
     });
   };
@@ -174,7 +216,7 @@ export default function PackingClient({ initialOrders, products, user }: { initi
   };
 
   const handleMarkPacking = (orderId: string, status: string) => {
-    const order = filtered.find(o => o.id === orderId) || selectedOrder;
+    const order = orders.find((o: any) => o.id === orderId) || selectedOrder;
     if (status === 'PACKED' && order) {
       const unverifiedCount = order.items.filter((i: any) => !i.isVerified).length;
       if (unverifiedCount > 0) {
@@ -184,16 +226,27 @@ export default function PackingClient({ initialOrders, products, user }: { initi
       }
     }
 
+    // Optimistic
+    const previousData = queryClient.getQueryData(['packing-orders']);
+    queryClient.setQueryData(['packing-orders'], (old: any) => {
+      if (!old) return old;
+      return {
+        ...old,
+        orders: old.orders.map((o: any) => o.id === orderId ? { ...o, status } : o)
+      };
+    });
+
     startTransition(async () => {
       try {
         await updateOrderStatus(orderId, status, packingNote || undefined);
         showToast('Statut mis à jour ✓', 'success');
-        router.refresh();
         setSelectedOrder(null);
         setPackingNote('');
       } catch (e: any) {
-        console.error('Packing Action Error:', e);
+        queryClient.setQueryData(['packing-orders'], previousData);
         showToast(e?.message || 'Erreur lors du marquage', 'error');
+      } finally {
+        queryClient.invalidateQueries({ queryKey: ['packing-orders'] });
       }
     });
   };
@@ -257,7 +310,7 @@ export default function PackingClient({ initialOrders, products, user }: { initi
             ))}
           </div>
 
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
             <select
               className="filter-select"
               style={{ flex: 1, height: 36, borderRadius: 10, background: '#F2F2F7', border: 'none', fontWeight: 600, color: warehouseFilter !== 'all' ? 'var(--orange)' : 'inherit' }}
@@ -267,15 +320,44 @@ export default function PackingClient({ initialOrders, products, user }: { initi
               <option value="all">🏢 Tous Entrepôts</option>
               {warehouses.map(w => <option key={w} value={w}>{w}</option>)}
             </select>
-            <div style={{ display: 'flex', gap: 4 }}>
-              <input
-                type="date"
-                className="filter-date"
-                value={dateFrom}
-                onChange={e => setDateFrom(e.target.value)}
-                style={{ height: 36, borderRadius: 10, border: 'none', background: '#F2F2F7', width: 110, fontSize: 10 }}
-              />
-            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 4, background: '#F2F2F7', padding: '2px', borderRadius: 10, marginBottom: 12 }}>
+            {[
+              { label: 'Auj.', val: 'today' },
+              { label: 'Hier', val: 'yesterday' },
+              { label: '3J', val: '3days' },
+              { label: 'Tout', val: 'all' }
+            ].map(d => (
+              <button
+                key={d.val}
+                onClick={() => {
+                  const now = new Date();
+                  const today = now.toISOString().split('T')[0];
+                  if (d.val === 'today') { setDateFrom(today); setDateTo(today); }
+                  else if (d.val === 'yesterday') {
+                    const yest = new Date(now.setDate(now.getDate() - 1)).toISOString().split('T')[0];
+                    setDateFrom(yest); setDateTo(yest);
+                  }
+                  else if (d.val === '3days') {
+                    const three = new Date(now.setDate(now.getDate() - 2)).toISOString().split('T')[0];
+                    setDateFrom(three); setDateTo(today);
+                  }
+                  else { setDateFrom(''); setDateTo(''); }
+                }}
+                style={{
+                  flex: 1,
+                  fontSize: 10,
+                  fontWeight: 800,
+                  padding: '6px 0',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: (d.val === 'today' && dateFrom === new Date().toISOString().split('T')[0]) || (d.val === 'all' && !dateFrom) ? 'white' : 'transparent',
+                  boxShadow: (d.val === 'today' && dateFrom === new Date().toISOString().split('T')[0]) || (d.val === 'all' && !dateFrom) ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
+                }}
+              >
+                {d.label}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -305,6 +387,7 @@ export default function PackingClient({ initialOrders, products, user }: { initi
                   onMarkPacking={handleMarkPacking}
                   onPreviewImage={setPreviewImage}
                   onToggleCheckItem={toggleCheckItem}
+                  optimisticChecks={optimisticChecks}
                 />
               ))
             )}
@@ -439,6 +522,44 @@ export default function PackingClient({ initialOrders, products, user }: { initi
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 4, marginRight: 8, padding: '2px', background: '#F2F2F7', borderRadius: 8 }}>
+            {[
+              { label: 'Aujourd\'hui', val: 'today' },
+              { label: 'Hier', val: 'yesterday' },
+              { label: '3J', val: '3days' },
+              { label: 'Tout', val: 'all' }
+            ].map(d => (
+              <button
+                key={d.val}
+                onClick={() => {
+                  const now = new Date();
+                  const today = now.toISOString().split('T')[0];
+                  if (d.val === 'today') { setDateFrom(today); setDateTo(today); }
+                  else if (d.val === 'yesterday') {
+                    const yest = new Date(now.setDate(now.getDate() - 1)).toISOString().split('T')[0];
+                    setDateFrom(yest); setDateTo(yest);
+                  }
+                  else if (d.val === '3days') {
+                    const three = new Date(now.setDate(now.getDate() - 2)).toISOString().split('T')[0];
+                    setDateFrom(three); setDateTo(today);
+                  }
+                  else { setDateFrom(''); setDateTo(''); }
+                }}
+                style={{
+                  fontSize: 10,
+                  fontWeight: 800,
+                  padding: '4px 8px',
+                  borderRadius: 6,
+                  border: 'none',
+                  background: (d.val === 'today' && dateFrom === new Date().toISOString().split('T')[0] && dateTo === new Date().toISOString().split('T')[0]) || (d.val === 'all' && !dateFrom) ? 'white' : 'transparent',
+                  boxShadow: (d.val === 'today' && dateFrom === new Date().toISOString().split('T')[0]) || (d.val === 'all' && !dateFrom) ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                {d.label}
+              </button>
+            ))}
+          </div>
           <select
             className="filter-date"
             style={{ width: 140, fontWeight: 600, color: warehouseFilter !== 'all' ? 'var(--orange)' : 'inherit' }}
@@ -490,6 +611,7 @@ export default function PackingClient({ initialOrders, products, user }: { initi
                   onMarkPacking={handleMarkPacking}
                   onPreviewImage={setPreviewImage}
                   onToggleCheckItem={toggleCheckItem}
+                  optimisticChecks={optimisticChecks}
                 />
               ))}
             </tbody>

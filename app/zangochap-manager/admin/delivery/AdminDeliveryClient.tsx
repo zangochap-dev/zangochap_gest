@@ -444,9 +444,9 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
               <span className="count-badge">{groupedByDriver["unassigned"].length}</span>
             </div>
             <div className="order-cards-list">
-              {groupedByDriver["unassigned"].map(order => (
-                <OrderMiniCard key={order.id} order={order} deliverymen={deliverymen} onAssign={handleAssign} />
-              ))}
+                {groupedByDriver["unassigned"].map(order => (
+                  <OrderMiniCard key={order.id} order={order} deliverymen={deliverymen} onAssign={handleAssign} riderLiveCounts={riderLiveCounts} />
+                ))}
               {groupedByDriver["unassigned"].length === 0 && <div className="empty-col">Tout est assigné ✓</div>}
             </div>
           </div>
@@ -466,7 +466,7 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
               </div>
               <div className="order-cards-list">
                 {groupedByDriver[driver.id]?.map(order => (
-                  <OrderMiniCard key={order.id} order={order} deliverymen={deliverymen} onAssign={handleAssign} />
+                  <OrderMiniCard key={order.id} order={order} deliverymen={deliverymen} onAssign={handleAssign} riderLiveCounts={riderLiveCounts} />
                 ))}
                 {(groupedByDriver[driver.id]?.length || 0) === 0 && <div className="empty-col">Aucune livraison</div>}
               </div>
@@ -691,7 +691,7 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
   );
 }
 
-function OrderMiniCard({ order, deliverymen, onAssign }: { order: any, deliverymen: any[], onAssign: (oid: string, did: string) => void }) {
+function OrderMiniCard({ order, deliverymen, onAssign, riderLiveCounts }: { order: any, deliverymen: any[], onAssign: (oid: string, did: string) => void, riderLiveCounts: Record<string, number> }) {
   return (
     <div className="order-mini-card">
       <div className="card-header">

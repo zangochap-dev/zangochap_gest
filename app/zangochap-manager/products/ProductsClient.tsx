@@ -220,6 +220,7 @@ export default function ProductsClient({ initialProducts, user, totalCount, oosC
                             <div className="cell-strong" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                               {p.name}
                               {p.isFeatured && <span title="Mis en avant" style={{ color: '#EAB308' }}>⭐</span>}
+                              {p.isGift && <span title="Produit Cadeau" style={{ fontSize: 10, padding: '1px 6px', background: 'var(--orange-soft)', color: 'var(--orange)', borderRadius: 10, fontWeight: 800 }}>Cadeau</span>}
                               {p.status !== 'PUBLISHED' && <span title="Non publié" style={{ fontSize: 10, padding: '1px 4px', background: '#FEE2E2', color: '#EF4444', borderRadius: 4, fontWeight: 700 }}>Privé</span>}
                             </div>
                             <div className="cell-muted">{p.category?.name || 'Non catégorisé'} {p.subCategory ? ` > ${p.subCategory.name}` : ''} • {p.material || '—'}</div>

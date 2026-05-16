@@ -107,6 +107,7 @@ export async function createProduct(data: {
   lowStockThreshold?: number;
   isPublished?: boolean;
   isFeatured?: boolean;
+  isGift?: boolean;
   variants: Array<{
     size: string;
     color: string;
@@ -172,6 +173,7 @@ export async function createProduct(data: {
       lowStockThreshold: data.lowStockThreshold,
       status: data.isPublished === false ? 'DRAFT' : 'PUBLISHED',
       isFeatured: data.isFeatured ?? false,
+      isGift: data.isGift ?? false,
       createdBy: { connect: { id: session.id } },
       category: resolvedCategoryId ? { connect: { id: resolvedCategoryId } } : undefined,
       subCategory: resolvedSubCategoryId ? { connect: { id: resolvedSubCategoryId } } : undefined,
@@ -282,6 +284,7 @@ export async function updateProduct(id: string, data: Partial<{
   lowStockThreshold: number;
   isPublished: boolean;
   isFeatured: boolean;
+  isGift: boolean;
   variants?: Array<{ size: string; color: string; stock: number; location: string }>;
   images?: Array<{ name: string; dataUrl: string }>;
   warehouseId?: string;

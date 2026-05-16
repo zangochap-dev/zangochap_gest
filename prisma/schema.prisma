@@ -169,6 +169,7 @@ model Product {
   mainImageId       String?
   status            ProductStatus    @default(DRAFT)
   isFeatured        Boolean          @default(false)
+  isGift            Boolean          @default(false)
   createdBy         User             @relation("CreatedProducts", fields: [creatorId], references: [id])
   creatorId         String
   createdAt         DateTime         @default(now())

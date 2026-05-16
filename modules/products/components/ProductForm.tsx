@@ -165,6 +165,7 @@ export default function ProductForm({
   );
   const [isUnpublished, setIsUnpublished] = useState(initialData ? initialData.status !== 'PUBLISHED' : false);
   const [isFeatured, setIsFeatured] = useState(initialData?.isFeatured ?? false);
+  const [isGift, setIsGift] = useState(initialData?.isGift ?? false);
 
   // -- Handlers --
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -243,7 +244,7 @@ export default function ProductForm({
   };
 
   const handleFormSubmit = () => {
-    if (!name || price <= 0) {
+    if (!name || (price <= 0 && !isGift)) {
       showToast("Nom et prix requis", "error");
       return;
     }
@@ -265,6 +266,7 @@ export default function ProductForm({
       supplier: supplier || 'Non spécifié',
       isPublished: !isUnpublished,
       isFeatured,
+      isGift,
       variants: finalVariants,
       images: images.length > 0 ? images : undefined,
       emoji: initialData?.emoji || "📦",
@@ -401,10 +403,14 @@ export default function ProductForm({
                     <div className="relative">
                       <input
                         type="number"
-                        value={price || ''}
+                        value={isGift ? 0 : (price || '')}
                         onChange={e => setPrice(parseInt(e.target.value) || 0)}
                         placeholder="0"
-                        className="w-full bg-white border border-[#E8DDD0] rounded-lg p-3 pr-12 text-sm font-bold focus:ring-2 focus:ring-[#D4541C]/10 focus:border-[#D4541C] outline-none transition-all"
+                        disabled={isGift}
+                        className={cn(
+                          "w-full bg-white border border-[#E8DDD0] rounded-lg p-3 pr-12 text-sm font-bold focus:ring-2 focus:ring-[#D4541C]/10 focus:border-[#D4541C] outline-none transition-all",
+                          isGift && "bg-[#FDFCFB] opacity-60 cursor-not-allowed"
+                        )}
                       />
                       <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-[#6B4838]">FCFA</span>
                     </div>
@@ -599,6 +605,25 @@ export default function ProductForm({
                     />
                   </label>
                   <p className="text-[10px] text-[#6B4838] mt-2">S'affichera dans la section "Nouveautés" ou "Populaire".</p>
+                </div>
+
+                <div className="pt-4 border-t border-[#F8F5F2]">
+                  <label className="flex items-center justify-between cursor-pointer group">
+                    <div className="flex items-center gap-2">
+                      <Plus size={16} className={isGift ? "text-[#D4541C]" : "text-[#6B4838]"} />
+                      <span className="text-[13px] font-bold text-[#1A1410]">C'est un CADEAU</span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={isGift}
+                      onChange={e => {
+                        setIsGift(e.target.checked);
+                        if (e.target.checked) setPrice(0);
+                      }}
+                      className="w-5 h-5 accent-[#D4541C] rounded border-[#E8DDD0]"
+                    />
+                  </label>
+                  <p className="text-[10px] text-[#6B4838] mt-2">Le prix sera automatiquement fixé à 0 F.</p>
                 </div>
               </div>
             </div>

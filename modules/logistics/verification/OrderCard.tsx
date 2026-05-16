@@ -26,7 +26,7 @@ export default function OrderCard({
   const isAllChecked = checkedCount === orderItems.length && orderItems.length > 0;
 
   return (
-    <div className="bg-white border border-gray-200 rounded-md overflow-hidden print:border-gray-300 print:break-inside-avoid animate-fade-in">
+    <div className="bg-white border border-gray-200 rounded-md overflow-hidden print:overflow-visible print:border-gray-300 print:break-inside-avoid animate-fade-in">
       {/* HEADER */}
       <div className="bg-[#FCFBF9] p-3 md:px-4 md:py-3 border-b border-gray-200 flex flex-wrap items-center justify-between gap-2 print:bg-gray-50 print:p-2.5">
         <div className="flex flex-wrap items-center gap-2.5 md:gap-3">
@@ -68,7 +68,7 @@ export default function OrderCard({
       </div>
 
       {/* ITEMS TABLE */}
-      <div className="w-full overflow-x-auto">
+      <div className="w-full overflow-x-auto print:overflow-visible">
         <table className="w-full border-collapse text-left print:w-full">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50/50 text-xs font-bold text-gray-500 print:bg-gray-100">

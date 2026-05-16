@@ -149,6 +149,82 @@ export default function VerificationClient() {
         </div>
       )}
 
+      {/* PRINT STYLES */}
+      <style>{`
+        @media print {
+          /* FORCE EVERY PARENT TO EXPAND */
+          html, body, #__next, [data-nextjs-scroll-focus-boundary], .app-container, .main-content, .main-scroll-area, main, div {
+            height: auto !important;
+            min-height: auto !important;
+            overflow: visible !important;
+            display: block !important;
+            position: static !important;
+          }
+
+          /* Reset sidebar */
+          .sidebar, .sidebar-root, aside, nav, .topbar {
+            display: none !important;
+          }
+
+          /* Hide UI elements */
+          .print-hidden, button:not(.print-show), .controls-bar {
+            display: none !important;
+          }
+
+          /* Reset body and background */
+          body {
+            background: white !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
+          /* Card optimizations for high-density printing */
+          .animate-fade-in {
+            animation: none !important;
+            opacity: 1 !important;
+            transform: none !important;
+          }
+
+          /* Ensure cards don't split mid-content */
+          .print\\:break-inside-avoid {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+            margin-bottom: 20px !important;
+            display: block !important;
+          }
+
+          /* Fix table headers and rows */
+          thead { display: table-header-group !important; }
+          tr { break-inside: avoid !important; }
+
+          /* Strong borders for print */
+          .border, .border-b, .border-t, .border-l, .border-r {
+            border-color: #000 !important;
+            border-style: solid !important;
+            border-width: 1px !important;
+          }
+          table {
+            border-collapse: collapse !important;
+          }
+          th, td {
+            border: 1px solid #000 !important;
+          }
+
+          /* Clean references: Bold, no background */
+          .font-mono {
+            background: transparent !important;
+            border: none !important;
+            font-weight: 900 !important;
+            color: #000 !important;
+            font-size: 18px !important;
+            padding: 0 !important;
+            letter-spacing: -0.5px !important;
+          }
+        }
+      `}</style>
+
       {/* PRINT HEADER */}
       <div className="hidden print:block mb-6">
         <div className="flex justify-between items-end mb-4">

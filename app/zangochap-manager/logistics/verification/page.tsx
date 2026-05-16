@@ -1,5 +1,5 @@
 import Topbar from "@/components/Topbar";
-import { VerificationClient } from "@/modules/logistics/verification";
+import VerificationClient from "@/modules/logistics/verification/VerificationClient";
 
 export default function VerificationPage() {
   return (

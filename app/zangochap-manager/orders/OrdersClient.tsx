@@ -866,7 +866,16 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
                       </td>
                       <td>{order.commune || '—'}</td>
                       <td><span className="cell-muted">{order.items.length} article{order.items.length > 1 ? 's' : ''}</span></td>
-                      <td><span className="cell-price">{formatPrice(order.total)}</span></td>
+                       <td>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span className="cell-price">{formatPrice(order.total + (order.deliveryFee || 0))}</span>
+                          {order.deliveryFee > 0 && (
+                            <span style={{ fontSize: 9, color: 'var(--brown-soft)', fontWeight: 600 }}>
+                              dont {formatPrice(order.deliveryFee)} livr.
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td>
                         <StatusBadge status={order.status} />
                         {order.status === 'ON_DELIVERY' && order.deliverymanName && (

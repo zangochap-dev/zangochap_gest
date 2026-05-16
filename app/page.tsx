@@ -76,7 +76,8 @@ export default async function HomePage() {
   const products = await prisma.product.findMany({
     where: { status: 'PUBLISHED' },
     include: { images: true, category: true },
-    orderBy: { createdAt: 'desc' }
+    orderBy: { createdAt: 'desc' },
+    take: 40
   });
 
   const categories = await prisma.category.findMany({

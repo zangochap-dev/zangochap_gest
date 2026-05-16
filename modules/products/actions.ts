@@ -116,7 +116,7 @@ export async function createProduct(data: {
   images?: Array<{ name: string; dataUrl: string }>;
   warehouseId?: string;
 }) {
-  const session = await ensureAuth(["admin", "stock"]);
+  const session = await ensureAuth(["admin", "stock", "commercial"]);
 
   // 1. Upload images to S3
   const imageUrls = [];
@@ -224,7 +224,7 @@ export async function updateProductVariants(productId: string, variants: Array<{
   stock: number;
   location?: string;
 }>) {
-  await ensureAuth(["admin", "stock", "packing", "collection"]);
+  await ensureAuth(["admin", "stock", "packing", "collection", "commercial"]);
   // Delete existing variants and their stock levels (Cascade will handle StockLevel)
   await prisma.productVariant.deleteMany({ where: { productId } });
   
@@ -286,7 +286,7 @@ export async function updateProduct(id: string, data: Partial<{
   images?: Array<{ name: string; dataUrl: string }>;
   warehouseId?: string;
 }>) {
-  await ensureAuth(["admin", "stock"]);
+  await ensureAuth(["admin", "stock", "commercial"]);
   const updateData: any = { ...data };
   
   // Remove UI-only fields and relation strings to prevent Prisma validation errors
@@ -432,7 +432,7 @@ export async function updateProduct(id: string, data: Partial<{
 
 // ============ DELETE ============
 export async function deleteProduct(id: string) {
-  await ensureAuth(["admin"]);
+  await ensureAuth(["admin", "commercial"]);
 
   // Fetch product with images to cleanup R2
   const product = await prisma.product.findUnique({
@@ -464,7 +464,7 @@ export async function deleteProduct(id: string) {
 
 // ============ MARK SENT TO SUPPLIER ============
 export async function markProductSent(productId: string) {
-  await ensureAuth(["admin", "stock", "collection"]);
+  await ensureAuth(["admin", "stock", "collection", "commercial"]);
   await prisma.product.update({
     where: { id: productId },
     data: { sentToSupplierAt: new Date() },

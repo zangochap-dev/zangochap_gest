@@ -162,7 +162,7 @@ export async function createOrder(data: {
 // ============ DELETE ORDER ============
 export async function deleteOrder(orderId: string) {
   const session = await getSession();
-  if (!session || session.role?.toLowerCase() !== 'admin') throw new Error("Accès refusé");
+  if (!session || !['admin', 'commercial'].includes(session.role?.toLowerCase())) throw new Error("Accès refusé");
   const order = await prisma.order.findUnique({ where: { id: orderId }, include: { items: true } });
   if (order?.stockDecremented) await restoreStockForOrder(order, session, 'ADJUSTMENT');
   await prisma.order.delete({ where: { id: orderId } });

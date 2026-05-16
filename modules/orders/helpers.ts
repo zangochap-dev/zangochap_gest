@@ -15,9 +15,7 @@ export function checkOrderAccess(order: any, session: any) {
 
   if (role === 'ADMIN') return true;
 
-  if (role === 'COMMERCIAL') {
-    return order.commercialId === session.id;
-  }
+  if (role === 'COMMERCIAL') return true;
 
   if (role === 'LIVREUR') {
     return order.deliverymanId === session.id;

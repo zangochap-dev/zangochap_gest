@@ -115,20 +115,25 @@ export default function NewOrderClient({ products, user, categories }: NewOrderC
     // Only load if not pre-filled by URL
     if (savedItems && !searchParams.get('duplicate')) {
       try {
-        setItems(JSON.parse(savedItems));
+        const parsed = JSON.parse(savedItems);
+        if (Array.isArray(parsed)) {
+          setItems(parsed);
+        }
       } catch (e) { console.error("Error loading saved items", e); }
     }
 
     if (savedCustomer) {
       try {
         const data = JSON.parse(savedCustomer);
-        if (!searchParams.get('name')) setCustomerName(data.name || '');
-        if (!searchParams.get('phone')) setCustomerPhone(data.phone || '');
-        if (!searchParams.get('commune')) setCommune(data.commune || '');
-        if (!searchParams.get('loc')) setCustomerLocation(data.location || '');
+        if (data && typeof data === 'object') {
+          if (!searchParams.get('name')) setCustomerName(data.name || '');
+          if (!searchParams.get('phone')) setCustomerPhone(data.phone || '');
+          if (!searchParams.get('commune')) setCommune(data.commune || '');
+          if (!searchParams.get('loc')) setCustomerLocation(data.location || '');
+        }
       } catch (e) { console.error("Error loading saved customer", e); }
     }
-  }, []);
+  }, [searchParams]);
 
   // Persistence Logic: Save on change
   useEffect(() => {
@@ -184,7 +189,7 @@ export default function NewOrderClient({ products, user, categories }: NewOrderC
 
   // CRM Search Logic
   useEffect(() => {
-    const query = customerName.length >= 3 ? customerName : '';
+    const query = (customerName || '').length >= 3 ? customerName : '';
     if (!query) {
       setCustomerSuggestions([]);
       return;
@@ -251,9 +256,9 @@ export default function NewOrderClient({ products, user, categories }: NewOrderC
   }, [products]);
 
   const filteredProducts = useMemo(() => {
-    const searchTerms = search.toLowerCase().trim().split(/\s+/);
+    const searchTerms = (search || '').toLowerCase().trim().split(/\s+/);
 
-    return products.filter(p => {
+    return (products || []).filter(p => {
       const matchesCat = activeCategory === 'all' || p.categoryId === activeCategory || p.category?.name === activeCategory;
 
       if (!matchesCat) return false;
@@ -285,10 +290,10 @@ export default function NewOrderClient({ products, user, categories }: NewOrderC
 
   const paginatedProducts = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
-    return filteredProducts.slice(start, start + itemsPerPage);
+    return (filteredProducts || []).slice(start, start + itemsPerPage);
   }, [filteredProducts, currentPage]);
 
-  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+  const totalPages = Math.ceil((filteredProducts?.length || 0) / itemsPerPage);
 
   const productVariantsBySize = useMemo(() => {
     if (!selectingProduct) return {};
@@ -641,8 +646,8 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
               <h2 style={{ fontSize: 18, fontWeight: 700 }}>Panier</h2>
             </div>
             <div className="flex items-center gap-3">
-              <span className="pos-cart-count">{items.length} articles</span>
-              {items.length > 0 && (
+              <span className="pos-cart-count">{(items?.length || 0)} articles</span>
+              {(items?.length || 0) > 0 && (
                 <button
                   onClick={() => {
                     if (confirm('Vider le panier et les informations client ?')) {
@@ -830,7 +835,7 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
                   <label className="field-label-sm">NOM DU CLIENT</label>
                   <input className="field-input" value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Ex. Aminata Diabaté" />
 
-                  {customerSuggestions.length > 0 && (
+                  {customerName && (customerSuggestions?.length || 0) > 0 && (
                     <div className="crm-suggestions">
                       {customerSuggestions.map(c => (
                         <div key={c.id} className="crm-suggestion-item" onClick={() => selectCustomer(c)}>
@@ -1081,7 +1086,7 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
                 )}
               </div>
             ))}
-            {galleryImages.length === 0 && (
+            {(galleryImages?.length || 0) === 0 && (
               <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: 40, color: 'var(--brown-soft)' }}>
                 Aucune image dans le catalogue.
               </div>

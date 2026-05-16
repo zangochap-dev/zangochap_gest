@@ -1,8 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import { formatPrice } from "@/lib/constants";
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowRight, Zap, Sparkles, Tag, Truck, ShieldCheck, CreditCard } from "lucide-react";
 import { motion } from "framer-motion";
 import ProductCard from "@/components/public/ProductCard";
@@ -14,8 +15,13 @@ export default function HomeClient({ products, categories, latestPromo }: {
   categories: Category[],
   latestPromo: any
 }) {
-  const flashSales = products.filter((p: Product) => p.oldPrice && Number(p.oldPrice) > Number(p.price)).slice(0, 4);
-  const newArrivals = products.slice(0, 24);
+  const flashSales = useMemo(() => 
+    products.filter((p: Product) => p.oldPrice && Number(p.oldPrice) > Number(p.price)).slice(0, 4)
+  , [products]);
+  
+  const newArrivals = useMemo(() => 
+    products.slice(0, 24)
+  , [products]);
 
   const containerVars = {
     hidden: { opacity: 0 },
@@ -35,7 +41,7 @@ export default function HomeClient({ products, categories, latestPromo }: {
       {/* 1. EDITORIAL HERO */}
       <section className="relative h-[75vh] md:h-[90vh] min-h-[500px] md:min-h-[600px] flex items-center justify-center md:justify-start px-6 md:px-[8%] text-white bg-[#1A1614] overflow-hidden">
         <div className="absolute inset-0 z-[1] w-full h-full">
-          <img src="/images/hero_banner.png" alt="ZangoChap Hero" className="w-full h-full object-cover opacity-70" />
+          <Image src="/images/hero_banner.png" alt="ZangoChap Hero" fill priority className="object-cover opacity-70" sizes="100vw" />
           <div className="absolute inset-0 bg-gradient-to-r from-[#1A1614]/90 via-[#1A1614]/40 to-transparent"></div>
         </div>
         <div className="relative z-[2] max-w-[600px] w-full text-center md:text-left">
@@ -98,7 +104,7 @@ export default function HomeClient({ products, categories, latestPromo }: {
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-4 md:gap-6 lg:h-[600px]">
           <Link href="/shop?category=Chaussures" className="group relative overflow-hidden rounded-lg block h-[300px] lg:h-full">
-            <img src="/images/collection_shoes.png" alt="Collection Chaussures" className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
+            <Image src="/images/collection_shoes.png" alt="Collection Chaussures" fill sizes="(max-width: 1024px) 100vw, 60vw" className="object-cover transition-transform duration-1000 group-hover:scale-105" />
             <div className="absolute inset-x-0 bottom-0 p-6 md:p-10 bg-gradient-to-t from-black/80 to-transparent flex flex-col gap-1 md:gap-2">
               <h3 className="font-display text-[20px] md:text-[24px] lg:text-[40px] font-bold tracking-wider text-white uppercase leading-none">CHAUSSURES</h3>
               <span className="text-[10px] md:text-[12px] font-bold tracking-[0.2em] flex items-center gap-2 opacity-80 text-white uppercase">VOIR LA COLLECTION <ArrowRight size={12} /></span>
@@ -106,7 +112,7 @@ export default function HomeClient({ products, categories, latestPromo }: {
           </Link>
           <div className="grid grid-cols-2 lg:flex lg:flex-col gap-4 md:gap-6">
             <Link href="/shop?category=Vêtements" className="group relative overflow-hidden rounded-lg block h-[200px] md:h-[250px] lg:h-auto lg:flex-1">
-              <img src="/images/collection_clothing.png" alt="Collection Vêtements" className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
+              <Image src="/images/collection_clothing.png" alt="Collection Vêtements" fill sizes="(max-width: 1024px) 50vw, 40vw" className="object-cover transition-transform duration-1000 group-hover:scale-105" />
               <div className="absolute inset-x-0 bottom-0 p-5 md:p-10 bg-gradient-to-t from-black/80 to-transparent flex flex-col gap-1">
                 <h3 className="font-display text-[16px] md:text-[24px] font-bold tracking-wider text-white uppercase leading-none">VÊTEMENTS</h3>
                 <span className="hidden md:flex text-[10px] md:text-[12px] font-bold tracking-[0.2em] items-center gap-2 opacity-80 text-white uppercase">EXPLORER <ArrowRight size={12} /></span>

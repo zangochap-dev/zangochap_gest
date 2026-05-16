@@ -882,7 +882,7 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
                           </button>
 
                           {/* Commercials can only edit/dup/delete their own orders */}
-                          {(user?.role === 'admin' || (user?.role === 'commercial' && (order.commercialId === user.id || order.commercialName === user.name))) && (
+                          {(user?.role === 'admin' || user?.role === 'commercial') && (
                             <>
                               <button className="action-btn" title="Modifier" onClick={() => setOrderToEdit(order)}>
                                 <Edit3 size={14} />
@@ -1233,7 +1233,7 @@ function OrderDetailModal({
                         </select>
                       </div>
                     )}
-                    {['CONFIRMED', 'PACKED', 'ON_DELIVERY'].includes(order.status) && user?.role?.toUpperCase() !== 'COMMERCIAL' && (
+                    {['CONFIRMED', 'PACKED', 'ON_DELIVERY'].includes(order.status) && (
                       <button className="btn-orange" onClick={() => onStatusChange(order.id, 'DELIVERED')} disabled={isPending}>
                         <Truck size={14} /> Livré
                       </button>

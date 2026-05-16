@@ -15,7 +15,7 @@ import {
   Tag, Upload, FileText, LogOut, ClipboardList,
   AlertTriangle, Settings, MapPin, Store, ChevronRight, ChevronLeft, History, Wallet, Warehouse,
   User, ExternalLink, Image as ImageIcon, Menu, X, Bell, WifiOff, RefreshCw,
-  CheckCircle
+  CheckCircle, Plus
 } from "lucide-react";
 
 interface SidebarProps {

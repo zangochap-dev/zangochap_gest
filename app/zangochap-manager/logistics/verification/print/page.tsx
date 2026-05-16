@@ -72,18 +72,18 @@ export default async function VerificationPrintPage({
 
           .order-container { 
             page-break-inside: avoid !important; 
-            border: 0.1px solid #ddd; 
-            margin-bottom: 3px; 
-            padding: 2px;
+            border: 0.1px solid #eee; 
+            margin-bottom: 2px; 
+            padding: 1px 2px;
           }
           
           .item-row {
             display: flex;
-            border-bottom: 0.1px solid #f0f0f0;
+            border-bottom: none;
           }
-          .item-qty { font-weight: 900; min-width: 12px; text-align: center; border-left: 0.5px solid #eee; }
+          .item-qty { font-weight: 900; min-width: 12px; text-align: right; }
         }
-        .cb { width: 7px; height: 7px; border: 0.5px solid #000; display: inline-block; margin-right: 2px; }
+        .cb { width: 7px; height: 7px; border: 0.3px solid #ccc; display: inline-block; margin-right: 2px; }
       `}} />
 
       <PrintActions autoPrint={autoprint === 'true'} />
@@ -92,7 +92,7 @@ export default async function VerificationPrintPage({
       <div className="orders-grid">
         {orders.map((order) => (
           <div key={order.id} className="order-container">
-            <div className="flex items-center border-b border-black/10 mb-0.5 font-black uppercase text-[14px] tracking-tighter font-sans">
+            <div className="flex items-center mb-0.5 font-black uppercase text-[14px] tracking-tighter font-sans">
               <div className="cb" />
               {order.ref}
             </div>

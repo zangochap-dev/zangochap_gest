@@ -24,22 +24,22 @@ interface Props {
   initialRiderId?: string;
 }
 
-export default function SettlementClient({ 
-  pendingOrders, 
-  history, 
+export default function SettlementClient({
+  pendingOrders,
+  history,
   riderStats,
   initialFrom,
   initialTo,
-  initialRiderId 
+  initialRiderId
 }: Props) {
   const [isPending, startTransition] = useTransition();
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<"pending" | "history">("pending");
   const [selectedRiderData, setSelectedRiderData] = useState<any | null>(null);
-  
+
   const [from, setFrom] = useState(initialFrom || "");
   const [to, setTo] = useState(initialTo || "");
-  
+
   const router = useRouter();
   const searchParams = useSearchParams();
   const { showToast } = useToast();
@@ -58,15 +58,15 @@ export default function SettlementClient({
 
   const totalGrandTotal = useMemo(() =>
     riderStats.riders.reduce((s, r) => s + r.totalGrandTotal, 0),
-  [riderStats]);
+    [riderStats]);
 
   const totalProducts = useMemo(() =>
     riderStats.riders.reduce((s, r) => s + r.totalProducts, 0),
-  [riderStats]);
+    [riderStats]);
 
   const totalDeliveryFees = useMemo(() =>
     riderStats.riders.reduce((s, r) => s + r.totalDeliveryFees, 0),
-  [riderStats]);
+    [riderStats]);
 
   const handleSettle = useCallback((dId: string, orders: any[]) => {
     const deliverableOrders = orders.filter(o => ['DELIVERED', 'PARTIALLY_DELIVERED'].includes(o.status));
@@ -77,9 +77,9 @@ export default function SettlementClient({
 
     const total = deliverableOrders.reduce((s: number, o: any) => s + (o.total + o.deliveryFee - (o.discount || 0)), 0);
     const name = orders[0]?.deliverymanName || "Livreur";
-    
+
     if (!confirm(`Valider l'encaissement de ${formatPrice(total)} de ${name} ?`)) return;
-    
+
     startTransition(async () => {
       try {
         await createSettlement(dId, deliverableOrders.map(o => o.id), total);
@@ -97,7 +97,7 @@ export default function SettlementClient({
         showToast("Statut mis à jour", "success");
         // Update local state if modal is open
         if (selectedRiderData) {
-          const updatedOrders = selectedRiderData.orders.map((o: any) => 
+          const updatedOrders = selectedRiderData.orders.map((o: any) =>
             o.id === orderId ? { ...o, isCommercialContacted: !current } : o
           );
           setSelectedRiderData({ ...selectedRiderData, orders: updatedOrders });
@@ -166,7 +166,7 @@ export default function SettlementClient({
           ) : groups.map((d: any) => {
             const initials = d.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2);
             const uncontactedReturns = d.orders.filter((o: any) => ['RETURNED', 'CANCELLED'].includes(o.status) && !o.isCommercialContacted);
-            
+
             return (
               <div key={d.id} className={`settle-card-simple ${uncontactedReturns.length > 0 ? 'has-warning' : ''}`}>
                 {uncontactedReturns.length > 0 && (
@@ -254,8 +254,8 @@ export default function SettlementClient({
       )}
 
       {/* === DETAILS MODAL === */}
-      <Modal 
-        isOpen={!!selectedRiderData} 
+      <Modal
+        isOpen={!!selectedRiderData}
         onClose={() => setSelectedRiderData(null)}
         title={`Détails : ${selectedRiderData?.name}`}
         large
@@ -304,7 +304,7 @@ export default function SettlementClient({
                     <div key={o.id} className="modal-returned-card">
                       <div className="card-header">
                         <span className="ref">#{o.ref?.split("-").pop()}</span>
-                        <button 
+                        <button
                           className={`contact-toggle ${o.isCommercialContacted ? 'active' : ''}`}
                           onClick={() => handleToggleContacted(o.id, o.isCommercialContacted)}
                           disabled={isPending}
@@ -329,7 +329,7 @@ export default function SettlementClient({
         )}
       </Modal>
 
-      
+
     </div>
   );
 }

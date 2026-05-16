@@ -3,7 +3,7 @@
 import React, { useState, useTransition, useMemo } from "react";
 import { TableCard, EmptyState, StatCard, StatusBadge } from "@/components/UI";
 import { formatPrice, formatDate, COMMUNES } from "@/lib/constants";
-import { Truck, User, UserPlus, Clock, Search, X, Package, Check, Filter, MapPin, Calendar, LayoutGrid, List, Archive, TrendingUp, ChevronRight } from "lucide-react";
+import { Truck, User, UserPlus, Clock, Search, X, Package, Check, Filter, MapPin, Calendar, LayoutGrid, List, Archive, TrendingUp, ChevronRight, FileText, Phone, Printer } from "lucide-react";
 import { assignOrderToDeliveryman, bulkAssignOrders } from "@/modules/orders/actions";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/Toast";
@@ -20,11 +20,11 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
   const [filterDeliveryman, setFilterDeliveryman] = useState("ALL");
   const [filterCommune, setFilterCommune] = useState("ALL");
   const [filterDate, setFilterDate] = useState(""); // YYYY-MM-DD
-  const [viewMode, setViewMode] = useState<"table" | "grid" | "history">("table");
+  const [viewMode, setViewMode] = useState<"table" | "grid" | "history" | "sheet">("table");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
-  
+
   const router = useRouter();
   const { showToast } = useToast();
 
@@ -91,7 +91,7 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
 
       const matchesDriver = filterDeliveryman === "ALL" || o.deliverymanId === filterDeliveryman;
       const matchesCommune = filterCommune === "ALL" || o.commune === filterCommune;
-      
+
       const matchesDate = !filterDate || (o.deliveryDate && o.deliveryDate.startsWith(filterDate));
 
       return matchesSearch && matchesStatus && matchesDriver && matchesCommune && matchesDate;
@@ -111,7 +111,7 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
   const groupedByDriver = useMemo(() => {
     const groups: Record<string, any[]> = { "unassigned": [] };
     deliverymen.forEach(d => groups[d.id] = []);
-    
+
     filteredOrders.forEach(o => {
       const key = o.deliverymanId || "unassigned";
       if (!groups[key]) groups[key] = [];
@@ -123,10 +123,10 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
   // Group by date for the "history" view
   const groupedByDate = useMemo(() => {
     const groups: Record<string, any[]> = {};
-    const sortedOrders = [...filteredOrders].sort((a, b) => 
+    const sortedOrders = [...filteredOrders].sort((a, b) =>
       new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime()
     );
-    
+
     sortedOrders.forEach(o => {
       const date = new Date(o.updatedAt || o.createdAt).toLocaleDateString("fr-CA"); // YYYY-MM-DD
       if (!groups[date]) groups[date] = [];
@@ -134,6 +134,44 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
     });
     return groups;
   }, [filteredOrders]);
+
+  // Today's assigned orders grouped by deliveryman for delivery sheets
+  const todaySheets = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Get assigned orders + any BJ orders for today (except Cocody)
+    const allRelevantOrders = orders.filter(o => {
+      const isBJToBroadcast = o.ref?.toUpperCase().startsWith("BJ") && !o.commune?.toLowerCase().includes("cocody");
+      const updated = new Date(o.updatedAt || o.createdAt);
+      const isToday = updated >= today;
+      return isToday && (o.deliverymanId || isBJToBroadcast);
+    });
+
+    const bjOrders = allRelevantOrders.filter(o => o.ref?.toUpperCase().startsWith("BJ") && !o.commune?.toLowerCase().includes("cocody"));
+    const assignedOrders = allRelevantOrders.filter(o => o.deliverymanId && !(o.ref?.toUpperCase().startsWith("BJ") && !o.commune?.toLowerCase().includes("cocody")));
+
+    // Find all drivers who have at least one order assigned today
+    const activeDriverIds = new Set(assignedOrders.map(o => o.deliverymanId));
+
+    const sheets: Record<string, { driver: any, orders: any[] }> = {};
+
+    // Initialize sheets for active drivers and add their specific orders
+    activeDriverIds.forEach(dId => {
+      const driver = deliverymen.find(d => d.id === dId);
+      sheets[dId] = {
+        driver: driver || { id: dId, name: 'Livreur Inconnu', phone: '' },
+        orders: assignedOrders.filter(o => o.deliverymanId === dId)
+      };
+    });
+
+    // Add all BJ orders to every active driver's sheet
+    Object.keys(sheets).forEach(dId => {
+      sheets[dId].orders = [...sheets[dId].orders, ...bjOrders];
+    });
+
+    return Object.values(sheets);
+  }, [orders, deliverymen]);
 
   return (
     <div className="content animate-fade-in">
@@ -185,7 +223,7 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
 
         <div className="filter-item">
           <Calendar size={16} className="filter-icon" />
-          <input 
+          <input
             type="date"
             className="field-input filter-date-input"
             value={filterDate}
@@ -195,8 +233,8 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
 
         <div className="filter-item">
           <Filter size={16} className="filter-icon" />
-          <select 
-            className="field-input filter-select" 
+          <select
+            className="field-input filter-select"
             value={filterDeliveryman}
             onChange={e => setFilterDeliveryman(e.target.value)}
           >
@@ -211,8 +249,8 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
 
         <div className="filter-item">
           <MapPin size={16} className="filter-icon" />
-          <select 
-            className="field-input filter-select" 
+          <select
+            className="field-input filter-select"
             value={filterCommune}
             onChange={e => setFilterCommune(e.target.value)}
           >
@@ -244,26 +282,33 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
         </div>
 
         <div className="view-toggle">
-          <button 
-            className={`toggle-btn ${viewMode === 'table' ? 'active' : ''}`} 
+          <button
+            className={`toggle-btn ${viewMode === 'table' ? 'active' : ''}`}
             onClick={() => setViewMode('table')}
             title="Vue liste"
           >
             <List size={18} />
           </button>
-          <button 
-            className={`toggle-btn ${viewMode === 'grid' ? 'active' : ''}`} 
+          <button
+            className={`toggle-btn ${viewMode === 'grid' ? 'active' : ''}`}
             onClick={() => setViewMode('grid')}
             title="Vue par livreur"
           >
             <LayoutGrid size={18} />
           </button>
-          <button 
-            className={`toggle-btn ${viewMode === 'history' ? 'active' : ''}`} 
+          <button
+            className={`toggle-btn ${viewMode === 'history' ? 'active' : ''}`}
             onClick={() => setViewMode('history')}
             title="Vue Archives"
           >
             <Archive size={18} />
+          </button>
+          <button
+            className={`toggle-btn ${viewMode === 'sheet' ? 'active' : ''}`}
+            onClick={() => setViewMode('sheet')}
+            title="Fiche de livraison"
+          >
+            <FileText size={18} />
           </button>
         </div>
       </div>
@@ -279,10 +324,10 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
                 <thead>
                   <tr>
                     <th style={{ width: 40 }}>
-                      <input 
-                        type="checkbox" 
-                        checked={selectedIds.size === filteredOrders.length && filteredOrders.length > 0} 
-                        onChange={() => toggleAll(filteredOrders)} 
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.size === filteredOrders.length && filteredOrders.length > 0}
+                        onChange={() => toggleAll(filteredOrders)}
                       />
                     </th>
                     <th>Réf.</th>
@@ -297,10 +342,10 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
                   {filteredOrders.map(order => (
                     <tr key={order.id} className={selectedIds.has(order.id) ? 'row-selected' : ''}>
                       <td>
-                        <input 
-                          type="checkbox" 
-                          checked={selectedIds.has(order.id)} 
-                          onChange={() => toggleSelect(order.id)} 
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(order.id)}
+                          onChange={() => toggleSelect(order.id)}
                         />
                       </td>
                       <td><span className="cell-mono">{order.ref}</span></td>
@@ -410,7 +455,7 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
 
             return (
               <div key={date} className={`history-date-block ${isExpanded ? 'expanded' : ''}`}>
-                <div 
+                <div
                   className="history-date-header"
                   onClick={() => setExpandedDate(isExpanded ? null : date)}
                 >
@@ -481,8 +526,131 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
           )}
         </div>
       )}
+      {/* DELIVERY SHEET VIEW */}
+      {viewMode === "sheet" && (
+        <div className="delivery-sheets-container">
+          <div className="sheet-toolbar no-print">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <FileText size={18} color="var(--orange)" />
+              <span style={{ fontWeight: 800, fontSize: 15 }}>Fiches de livraison du jour</span>
+              <span className="count-badge active">{todaySheets.reduce((s, g) => s + g.orders.length, 0)} commandes</span>
+            </div>
+            <button className="btn-orange" onClick={() => window.print()} style={{ gap: 8 }}>
+              <Printer size={14} /> Tout imprimer
+            </button>
+          </div>
 
-      
+          {todaySheets.length === 0 ? (
+            <EmptyState icon="🚛" title="Aucune commande attribuée aujourd'hui" description="Attribuez des commandes aux livreurs pour générer les fiches." />
+          ) : (
+            todaySheets.map(({ driver, orders: driverOrders }) => {
+              const totalAmount = driverOrders.reduce((s, o) => s + (o.total || 0) + (o.deliveryFee || 0) - (o.discount || 0), 0);
+              const totalProducts = driverOrders.reduce((s, o) => s + (o.total || 0) - (o.discount || 0), 0);
+              const totalDeliveryFee = driverOrders.reduce((s, o) => s + (o.deliveryFee || 0), 0);
+              const initials = driver.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
+
+              const byCommune: Record<string, any[]> = {};
+              driverOrders.forEach(o => {
+                const c = o.commune || 'Non défini';
+                if (!byCommune[c]) byCommune[c] = [];
+                byCommune[c].push(o);
+              });
+
+              let globalIdx = 0;
+
+              return (
+                <div key={driver.id} id={`sheet-${driver.id}`} className="delivery-sheet print-sheet">
+                  <div className="sheet-header">
+                    <div className="sheet-driver-info">
+                      <div className="sheet-driver-avatar">{initials}</div>
+                      <div>
+                        <div className="sheet-driver-name">{driver.name}</div>
+                        {driver.phone && <div className="sheet-driver-phone"><Phone size={11} /> {driver.phone}</div>}
+                      </div>
+                    </div>
+                    <div className="sheet-meta">
+                      <button className="btn-print-single no-print" onClick={() => {
+                        document.querySelectorAll('.delivery-sheet').forEach(el => el.classList.add('print-hidden'));
+                        document.getElementById(`sheet-${driver.id}`)?.classList.remove('print-hidden');
+                        window.print();
+                        document.querySelectorAll('.delivery-sheet').forEach(el => el.classList.remove('print-hidden'));
+                      }}>
+                        <Printer size={13} /> Imprimer
+                      </button>
+                      <div className="sheet-date">{new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div>
+                      <div className="sheet-stats-row">
+                        <span><strong>{driverOrders.length}</strong> colis</span>
+                        <span>•</span>
+                        <span><strong>{Object.keys(byCommune).length}</strong> zones</span>
+                        <span>•</span>
+                        <span style={{ fontWeight: 800 }}>{formatPrice(totalAmount)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {Object.entries(byCommune).map(([commune, communeOrders]) => (
+                    <div key={commune} className="sheet-commune-block">
+                      <div className="sheet-commune-header">
+                        <MapPin size={13} />
+                        <span>{commune}</span>
+                        <span className="commune-count">{communeOrders.length}</span>
+                      </div>
+                      <table className="sheet-table">
+                        <thead>
+                          <tr>
+                            <th className="col-n">N°</th>
+                            <th className="col-ref">Réf</th>
+                            <th>Client / Adresse</th>
+                            <th className="col-phone">Téléphone</th>
+                            <th className="col-date">Livr.</th>
+                            <th>Articles</th>
+                            <th className="col-total">Montant</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {communeOrders.map((o: any) => {
+                            globalIdx++;
+                            return (
+                              <tr key={o.id}>
+                                <td className="col-n">{globalIdx}</td>
+                                <td className="col-ref"><span className="cell-mono">{o.ref?.split('-').pop()}</span></td>
+                                <td>
+                                  <strong>{o.customerName}</strong>
+                                  {o.customerLocation && <div className="sheet-addr">{o.customerLocation}</div>}
+                                  {o.deliveryNote && <div className="sheet-note">Note: {o.deliveryNote}</div>}
+                                </td>
+                                <td className="col-phone">
+                                  <div>{o.customerPhone}</div>
+                                  {o.customerPhone2 && <div className="phone2">{o.customerPhone2}</div>}
+                                </td>
+                                <td className="col-date">{o.deliveryDate ? formatDate(o.deliveryDate) : '—'}</td>
+                                <td>
+                                  {o.items?.map((item: any, i: number) => (
+                                    <div key={i} className="sheet-item">{item.name} <span className="item-variant">{item.size}/{item.color}</span> ×{item.qty}</div>
+                                  ))}
+                                </td>
+                                <td className="col-total">
+                                  <div>{formatPrice((o.total || 0) - (o.discount || 0))}</div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  ))}
+
+                  <div className="sheet-footer">
+                    <div className="sheet-footer-item"><span className="label">Colis</span><span className="val">{driverOrders.length}</span></div>
+                    <div className="sheet-footer-item"><span className="label">Produits</span><span className="val">{formatPrice(totalProducts)}</span></div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
     </div>
   );
 }
@@ -519,7 +687,7 @@ function OrderMiniCard({ order, deliverymen, onAssign }: { order: any, deliverym
           ))}
         </select>
       </div>
-      
+
     </div>
   );
 }

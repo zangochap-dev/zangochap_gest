@@ -10,6 +10,7 @@ import { formatPrice, formatDay, formatDate, CATEGORIES, COMMUNES, STATUS_LABELS
 import { getImageUrl } from "@/lib/utils";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, Eye, Package, Trash2, Minus, Search, X, ChevronLeft, ChevronRight, RefreshCw, Copy, Edit3, Maximize, AlertTriangle, Phone, Save, Edit2, Download, MessageCircle, Printer, Truck, Check, ArrowLeftRight, Ban, Users, Calendar, CreditCard } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import Script from "next/script";
 import VariantSelectionModal from "@/components/VariantSelectionModal";
@@ -35,6 +36,7 @@ interface OrdersClientProps {
   totalCount: number;
   currentPage: number;
   pageSize: number;
+  statusCounts?: Record<string, number>;
 }
 
 export default function OrdersClient({
@@ -45,7 +47,8 @@ export default function OrdersClient({
   user,
   totalCount,
   currentPage: serverPage,
-  pageSize
+  pageSize,
+  statusCounts = {}
 }: OrdersClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -54,11 +57,95 @@ export default function OrdersClient({
   const [filter, setFilter] = useState(searchParams.get('status') || 'all');
   const [communeFilter, setCommuneFilter] = useState(searchParams.get('commune') || 'all');
   const [scope, setScope] = useState(searchParams.get('scope') || (user?.role === 'commercial' ? 'mine' : 'all'));
-  const [dateFrom, setDateFrom] = useState(searchParams.get('from') || '');
-  const [dateTo, setDateTo] = useState(searchParams.get('to') || '');
+  const todayStr = new Date().toISOString().split('T')[0];
+  const [dateFrom, setDateFrom] = useState(searchParams.get('from') === null ? todayStr : (searchParams.get('from') || ''));
+  const [dateTo, setDateTo] = useState(searchParams.get('to') === null ? todayStr : (searchParams.get('to') || ''));
   const [dateType, setDateType] = useState(searchParams.get('dateType') || 'created');
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
+
+  const queryClient = useQueryClient();
+  const page = parseInt(searchParams.get('page') || '1');
+
+  const queryKey = useMemo(() => ['orders', { filter, communeFilter, scope, dateFrom, dateTo, dateType, debouncedSearch, page }], [filter, communeFilter, scope, dateFrom, dateTo, dateType, debouncedSearch, page]);
+
+  // React Query for Orders
+  const { data: queryData, isLoading: queryLoading, isFetching: queryFetching } = useQuery({
+    queryKey,
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        status: filter,
+        commune: communeFilter,
+        scope,
+        from: dateFrom,
+        to: dateTo,
+        dateType,
+        q: debouncedSearch
+      });
+      const res = await fetch(`/api/orders?${params.toString()}`);
+      if (!res.ok) throw new Error('Erreur de chargement');
+      return res.json();
+    },
+    initialData: { orders: initialOrders, totalCount },
+    refetchInterval: 10000, // 10s auto-refresh for near real-time
+    staleTime: 0,
+  });
+
+  const orders = useMemo(() => queryData?.orders || initialOrders, [queryData, initialOrders]);
+  const currentTotalCount = queryData?.totalCount || totalCount;
+
+  // Mutations
+  const statusMutation = useMutation({
+    mutationFn: ({ orderId, status }: { orderId: string, status: string }) => updateOrderStatus(orderId, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      showToast('Statut mis à jour ✓', 'success');
+    },
+    onError: (e: any) => showToast(e.message || 'Erreur', 'error')
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (orderId: string) => deleteOrder(orderId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      showToast('Commande supprimée ✓', 'success');
+      setSelectedOrder(null);
+    },
+    onError: (e: any) => showToast(e.message || 'Erreur', 'error')
+  });
+
+  const updateDetailsMutation = useMutation({
+    mutationFn: ({ orderId, data }: { orderId: string, data: any }) => updateOrderDetails(orderId, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      showToast('Détails mis à jour ✓', 'success');
+      if (selectedOrder?.id === variables.orderId) {
+        setSelectedOrder({ ...selectedOrder, ...variables.data });
+      }
+    },
+    onError: (e: any) => showToast(e.message || 'Erreur', 'error')
+  });
+
+  const assignMutation = useMutation({
+    mutationFn: ({ orderId, deliverymanId }: { orderId: string, deliverymanId: string }) => assignOrderToDeliveryman(orderId, deliverymanId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      showToast('Livreur assigné ✓', 'success');
+      setSelectedOrder(null);
+    },
+    onError: (e: any) => showToast(e.message || 'Erreur', 'error')
+  });
+
+  const reprogramMutation = useMutation({
+    mutationFn: ({ orderId, deliveryDate }: { orderId: string, deliveryDate: string }) => reprogramOrder(orderId, deliveryDate),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      showToast('Commande reprogrammée ✓', 'success');
+      setSelectedOrder(null);
+    },
+    onError: (e: any) => showToast(e.message || 'Erreur', 'error')
+  });
 
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -89,8 +176,8 @@ export default function OrdersClient({
     if (filter !== 'all') params.set('status', filter); else params.delete('status');
     if (communeFilter !== 'all') params.set('commune', communeFilter); else params.delete('commune');
     if (scope !== (user?.role === 'commercial' ? 'mine' : 'all')) params.set('scope', scope); else params.delete('scope');
-    if (dateFrom) params.set('from', dateFrom); else params.delete('from');
-    if (dateTo) params.set('to', dateTo); else params.delete('to');
+    if (dateFrom !== null && searchParams.get('from') !== dateFrom) params.set('from', dateFrom);
+    if (dateTo !== null && searchParams.get('to') !== dateTo) params.set('to', dateTo);
     if (dateType !== 'created') params.set('dateType', dateType); else params.delete('dateType');
     if (debouncedSearch) params.set('q', debouncedSearch); else params.delete('q');
 
@@ -99,6 +186,21 @@ export default function OrdersClient({
 
     router.push(`?${params.toString()}`);
   }, [filter, communeFilter, scope, dateFrom, dateTo, debouncedSearch, router]);
+
+  // Handle auto-print from URL
+  useEffect(() => {
+    const printId = searchParams.get('print');
+    if (printId && orders.length > 0) {
+      const order = orders.find((o: any) => o.id === printId);
+      if (order) {
+        setReceiptOrder(order);
+        // Remove print from URL without full reload to clean up
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete('print');
+        window.history.replaceState(null, '', `?${params.toString()}`);
+      }
+    }
+  }, [searchParams, orders]);
 
   // Handle page change specifically
   const goToPage = (page: number) => {
@@ -139,39 +241,17 @@ export default function OrdersClient({
     setDateTo(to);
   };
 
-  const paginatedOrders = initialOrders;
-  const totalPages = Math.ceil(totalCount / pageSize);
+  const paginatedOrders = orders;
+  const totalPages = Math.ceil(currentTotalCount / pageSize);
   const currentPage = serverPage;
 
   const handleStatusChange = useCallback((orderId: string, status: string) => {
-    startTransition(async () => {
-      try {
-        await updateOrderStatus(orderId, status);
-        showToast('Statut mis à jour ✓', 'success');
-        router.refresh();
-        setSelectedOrder(null);
-      } catch (e: any) {
-        showToast(e.message || 'Erreur', 'error');
-      }
-    });
-  }, [showToast, router]);
+    statusMutation.mutate({ orderId, status });
+  }, [statusMutation]);
 
   const handleReprogram = useCallback((orderId: string, deliveryDate: string) => {
-    if (!deliveryDate) {
-      showToast("Veuillez choisir une date", "error");
-      return;
-    }
-    startTransition(async () => {
-      try {
-        await reprogramOrder(orderId, deliveryDate);
-        showToast("Commande reprogrammée ✓", "success");
-        setSelectedOrder(null);
-        router.refresh();
-      } catch (e: any) {
-        showToast(e.message || "Erreur", "error");
-      }
-    });
-  }, [showToast, router]);
+    reprogramMutation.mutate({ orderId, deliveryDate });
+  }, [reprogramMutation]);
 
   const handleDuplicate = useCallback((orderId: string, data: any) => {
     startTransition(async () => {
@@ -179,54 +259,25 @@ export default function OrdersClient({
         await duplicateOrder(orderId, data);
         showToast('Commande dupliquée ✓', 'success');
         setOrderToDuplicate(null);
-        router.refresh();
+        queryClient.invalidateQueries({ queryKey: ['orders'] });
       } catch (e: any) {
         showToast(e.message || 'Erreur', 'error');
       }
     });
-  }, [showToast, router]);
+  }, [showToast, queryClient]);
 
   const handleUpdateDetails = useCallback((orderId: string, data: any) => {
-    startTransition(async () => {
-      try {
-        await updateOrderDetails(orderId, data);
-        showToast("Détails mis à jour", "success");
-        if (selectedOrder?.id === orderId) {
-          setSelectedOrder({ ...selectedOrder, ...data });
-        }
-        router.refresh();
-      } catch (e: any) {
-        showToast(e.message || "Erreur", "error");
-      }
-    });
-  }, [showToast, router, selectedOrder]);
+    updateDetailsMutation.mutate({ orderId, data });
+  }, [updateDetailsMutation]);
 
   const handleDelete = useCallback((orderId: string) => {
     if (!confirm('Supprimer cette commande ?')) return;
-    startTransition(async () => {
-      try {
-        await deleteOrder(orderId);
-        showToast('Commande supprimée', 'success');
-        router.refresh();
-        setSelectedOrder(null);
-      } catch (e: any) {
-        showToast(e.message || 'Erreur', 'error');
-      }
-    });
-  }, [showToast, router]);
+    deleteMutation.mutate(orderId);
+  }, [deleteMutation]);
 
   const handleAssign = useCallback((orderId: string, deliverymanId: string) => {
-    startTransition(async () => {
-      try {
-        await assignOrderToDeliveryman(orderId, deliverymanId);
-        showToast('Commande attribuée ✓', 'success');
-        router.refresh();
-        setSelectedOrder(null);
-      } catch (e: any) {
-        showToast(e.message || 'Erreur', 'error');
-      }
-    });
-  }, [showToast, router]);
+    assignMutation.mutate({ orderId, deliverymanId });
+  }, [assignMutation]);
 
   const handleWhatsApp = useCallback((order: any) => {
     if (!order.customerPhone) {
@@ -649,13 +700,36 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
   }, [user, showToast]);
 
   const filters = [
-    { key: 'all', label: 'Toutes' },
-    { key: 'pending', label: 'En attente' },
-    { key: 'confirmed', label: 'Confirmées' },
-    { key: 'packed', label: 'Emballées' },
-    { key: 'delivered', label: 'Livrées' },
-    { key: 'cancelled', label: 'Annulées' },
+    { key: 'all', label: 'Toutes', count: statusCounts.all || 0 },
+    { key: 'pending', label: 'En attente', count: statusCounts.pending || 0 },
+    { key: 'confirmed', label: 'Confirmées', count: statusCounts.confirmed || 0 },
+    { key: 'packed', label: 'Emballées', count: statusCounts.packed || 0 },
+    { key: 'delivered', label: 'Livrées', count: statusCounts.delivered || 0 },
+    { key: 'cancelled', label: 'Annulées', count: statusCounts.cancelled || 0 },
   ];
+
+  const activeRange = useMemo(() => {
+    if (!dateFrom && !dateTo) return 'all';
+    const today = new Date().toISOString().split('T')[0];
+    if (dateFrom === today && (dateTo === today || !dateTo)) return 'today';
+
+    const y = new Date();
+    y.setDate(y.getDate() - 1);
+    const yesterday = y.toISOString().split('T')[0];
+    if (dateFrom === yesterday && (dateTo === yesterday || !dateTo)) return 'yesterday';
+
+    const w = new Date();
+    w.setDate(w.getDate() - 7);
+    const week = w.toISOString().split('T')[0];
+    if (dateFrom === week && (dateTo === today || !dateTo)) return 'week';
+
+    const m = new Date();
+    m.setDate(1);
+    const month = m.toISOString().split('T')[0];
+    if (dateFrom === month && (dateTo === today || !dateTo)) return 'month';
+
+    return null;
+  }, [dateFrom, dateTo]);
 
   return (
     <div className="content animate-fade-in">
@@ -689,6 +763,7 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
             onClick={() => setFilter(f.key)}
           >
             {f.label}
+            {f.count > 0 && <span className="chip-count">{f.count}</span>}
           </button>
         ))}
         <select className="filter-select" value={communeFilter} onChange={e => setCommuneFilter(e.target.value)}>
@@ -703,11 +778,11 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
         )}
         <div className="filter-spacer" />
         <div className="dashboard-actions" style={{ background: 'var(--cream)', padding: '2px 6px', borderRadius: 10, border: '1px solid var(--line)', alignItems: 'center' }}>
-          <button className={`shortcut-btn ${!dateFrom && !dateTo ? 'active' : ''}`} onClick={() => setQuickDate('all')}>Tout</button>
-          <button className="shortcut-btn" onClick={() => setQuickDate('today')}>Aujourd'hui</button>
-          <button className="shortcut-btn" onClick={() => setQuickDate('yesterday')}>Hier</button>
-          <button className="shortcut-btn" onClick={() => setQuickDate('week')}>7 jours</button>
-          <button className="shortcut-btn" onClick={() => setQuickDate('month')}>Ce mois</button>
+          <button className={`shortcut-btn ${activeRange === 'all' ? 'active' : ''}`} onClick={() => setQuickDate('all')}>Tout</button>
+          <button className={`shortcut-btn ${activeRange === 'today' ? 'active' : ''}`} onClick={() => setQuickDate('today')}>Aujourd'hui</button>
+          <button className={`shortcut-btn ${activeRange === 'yesterday' ? 'active' : ''}`} onClick={() => setQuickDate('yesterday')}>Hier</button>
+          <button className={`shortcut-btn ${activeRange === 'week' ? 'active' : ''}`} onClick={() => setQuickDate('week')}>7 jours</button>
+          <button className={`shortcut-btn ${activeRange === 'month' ? 'active' : ''}`} onClick={() => setQuickDate('month')}>Ce mois</button>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <select className="filter-select" value={dateType} onChange={e => setDateType(e.target.value)} style={{ width: 110, fontSize: 11 }}>
@@ -717,9 +792,18 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
           <input type="date" className="filter-date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
           <input type="date" className="filter-date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
         </div>
-        <button className="btn-secondary" onClick={() => router.refresh()} title="Actualiser" style={{ padding: '8px 10px' }}>
-          <RefreshCw size={14} />
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {(queryFetching || queryLoading) && <RefreshCw size={14} className="animate-spin text-orange" />}
+          <button
+            className="btn-secondary"
+            onClick={() => queryClient.invalidateQueries({ queryKey: ['orders'] })}
+            title="Actualiser"
+            style={{ padding: '8px 10px' }}
+            disabled={queryFetching}
+          >
+            <RefreshCw size={14} className={queryFetching ? 'animate-spin' : ''} />
+          </button>
+        </div>
         <Link href="/zangochap-manager/orders/new" className="btn-orange">
           <Plus size={14} /> Nouvelle commande
         </Link>
@@ -747,7 +831,7 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
                 </tr>
               </thead>
               <tbody>
-                {paginatedOrders.map(order => {
+                {paginatedOrders.map((order: any) => {
                   const firstItem = order.items?.[0];
                   return (
                     <tr key={order.id}>

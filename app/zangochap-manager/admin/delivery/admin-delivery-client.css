@@ -141,3 +141,145 @@
 .driver-name-text { font-weight: 700; font-size: 13px; }
 .driver-time-text { font-size: 9px; opacity: 0.6; }
 .driver-phone-text { font-size: 10px; opacity: 0.6; }
+
+/* DELIVERY SHEET VIEW */
+.delivery-sheets-container { display: flex; flex-direction: column; gap: 24px; }
+.sheet-toolbar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 20px; background: white; border-radius: 14px;
+  border: 1px solid var(--line);
+}
+
+.delivery-sheet {
+  background: white; border-radius: 14px; border: 1px solid var(--line);
+  overflow: hidden;
+}
+.sheet-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 16px 20px; border-bottom: 2px solid var(--line);
+  background: var(--cream-2);
+}
+.sheet-driver-info { display: flex; align-items: center; gap: 12px; }
+.sheet-driver-avatar {
+  width: 40px; height: 40px; background: var(--orange); color: white;
+  border-radius: 10px; display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 900;
+}
+.sheet-driver-name { font-size: 16px; font-weight: 900; color: #111; }
+.sheet-driver-phone { font-size: 11px; color: var(--brown-soft); display: flex; align-items: center; gap: 5px; margin-top: 2px; }
+.sheet-meta { text-align: right; }
+.sheet-date { font-size: 11px; color: var(--brown-soft); font-weight: 600; text-transform: capitalize; }
+.sheet-stats-row { display: flex; gap: 8px; align-items: center; font-size: 12px; font-weight: 600; margin-top: 3px; color: var(--brown); }
+
+.sheet-commune-block { border-bottom: 1px solid var(--line-light); }
+.sheet-commune-header {
+  display: flex; align-items: center; gap: 8px; padding: 8px 20px;
+  background: var(--cream-3); font-weight: 800; font-size: 12px; color: var(--brown);
+  border-bottom: 1px solid var(--line-light);
+}
+.commune-count {
+  background: var(--orange); color: white; font-size: 10px; font-weight: 800;
+  padding: 1px 7px; border-radius: 10px; margin-left: auto;
+}
+
+.sheet-table { width: 100%; border-collapse: collapse; }
+.sheet-table th {
+  text-align: left; padding: 6px 8px; font-size: 9px; font-weight: 800;
+  color: var(--brown-soft); text-transform: uppercase; letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--line); background: var(--cream-2);
+}
+.sheet-table td { padding: 7px 8px; border-bottom: 1px solid var(--line-light); font-size: 11px; vertical-align: top; }
+.sheet-table tr:last-child td { border-bottom: none; }
+.sheet-table tbody tr:nth-child(even) { background: var(--cream-3); }
+
+.col-n { width: 28px; text-align: center; font-weight: 800; color: var(--brown-soft); }
+.col-ref { width: 55px; }
+.col-phone { width: 100px; font-family: var(--font-mono); font-size: 11px !important; }
+.col-date { width: 70px; font-size: 10px !important; white-space: nowrap; }
+.col-total { width: 70px; font-weight: 800; white-space: nowrap; }
+.col-check { width: 36px; text-align: center; }
+
+.sheet-addr { font-size: 10px; color: var(--brown-soft); margin-top: 1px; }
+.sheet-note { font-size: 10px; color: var(--orange); font-weight: 600; margin-top: 2px; }
+.sheet-item { font-size: 10px; white-space: nowrap; }
+.item-variant { color: var(--brown-soft); }
+.phone2 { font-size: 10px; color: var(--brown-soft); }
+.sheet-fee { font-size: 9px; color: var(--blue); font-weight: 600; margin-top: 1px; }
+
+.check-box {
+  width: 18px; height: 18px; border: 1.5px solid var(--line);
+  border-radius: 3px; margin: 0 auto;
+}
+
+.sheet-footer {
+  display: flex; justify-content: flex-end; gap: 20px; padding: 12px 20px;
+  background: var(--cream-2); border-top: 2px solid var(--line);
+}
+.sheet-footer-item { display: flex; flex-direction: column; align-items: flex-end; }
+.sheet-footer-item .label { font-size: 8px; font-weight: 700; color: var(--brown-soft); text-transform: uppercase; letter-spacing: 0.05em; }
+.sheet-footer-item .val { font-size: 14px; font-weight: 700; color: var(--brown); }
+.sheet-footer-item.total .val { font-size: 16px; font-weight: 900; color: #111; }
+.sheet-footer-item.total { border-left: 2px solid var(--line); padding-left: 20px; }
+
+.btn-print-single {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 12px; border-radius: 6px; border: 1px solid var(--line);
+  background: white; color: var(--brown); font-size: 11px; font-weight: 700;
+  cursor: pointer; transition: 0.2s; margin-bottom: 4px;
+}
+.btn-print-single:hover { background: var(--cream); border-color: var(--orange); color: var(--orange); }
+
+/* ========== PRINT ========== */
+@media print {
+  @page { margin: 8mm 6mm; size: A4 landscape; }
+
+  .no-print, .stats-grid, .filter-container, .toolbar, .bulk-bar,
+  nav, aside, header, .topbar, .lg\:hidden { display: none !important; }
+
+  /* Unlock ALL scroll containers */
+  html, body {
+    height: auto !important; overflow: visible !important;
+    margin: 0 !important; padding: 0 !important;
+  }
+  .app-container {
+    display: block !important; height: auto !important;
+    overflow: visible !important;
+  }
+  .main-content, .main-scroll-area, .content {
+    padding: 0 !important; margin: 0 !important;
+    overflow: visible !important; max-height: none !important;
+    height: auto !important; width: 100% !important;
+    position: static !important;
+  }
+  .delivery-sheets-container { gap: 0 !important; }
+
+  .delivery-sheet {
+    border: none !important; border-radius: 0 !important;
+    box-shadow: none !important; margin: 0 !important;
+    overflow: visible !important;
+  }
+  .delivery-sheet.print-hidden { display: none !important; }
+
+  .sheet-header {
+    background: none !important; padding: 10px 12px !important;
+    border-bottom: 2px solid #000 !important;
+  }
+  .sheet-driver-avatar { background: none !important; color: #000 !important; border: 2px solid #000; font-weight: 900; }
+  .sheet-driver-name { font-size: 14px !important; }
+  .sheet-commune-header {
+    background: none !important; padding: 5px 12px !important;
+    border-bottom: 1px solid #000 !important; border-top: 1px solid #000 !important;
+  }
+  .commune-count { background: none !important; color: #000 !important; border: 1px solid #000; }
+
+  .sheet-table { font-size: 10px !important; }
+  .sheet-table th { font-size: 8px !important; padding: 4px 6px !important; background: none !important; border-bottom: 2px solid #000 !important; }
+  .sheet-table td { padding: 5px 6px !important; border-bottom: 1px solid #ccc !important; }
+  .sheet-table tbody tr:nth-child(even) { background: none !important; }
+
+  .sheet-footer {
+    background: none !important; padding: 8px 12px !important;
+    border-top: 2px solid #000 !important;
+  }
+  .sheet-footer-item.total { border-left: 2px solid #000 !important; }
+}

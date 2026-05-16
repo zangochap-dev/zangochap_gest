@@ -17,13 +17,18 @@ export async function assignOrderToDeliveryman(orderId: string, deliverymanId: s
     throw new Error("Accès refusé");
   }
 
-  const driver = await prisma.user.findUnique({ where: { id: deliverymanId } });
-  if (!driver) throw new Error("Livreur introuvable");
+  const isUnassigning = !deliverymanId || deliverymanId === "unassigned";
+  let driver = null;
+  
+  if (!isUnassigning) {
+    driver = await prisma.user.findUnique({ where: { id: deliverymanId } });
+    if (!driver) throw new Error("Livreur introuvable");
+  }
 
   const history = Array.isArray(order.history) ? [...(order.history as any[])] : [];
   history.push({
     at: new Date().toISOString(),
-    action: `Livreur attribué : ${driver.name}`,
+    action: isUnassigning ? "Commande désattribuée (remise en attente)" : `Livreur attribué : ${driver?.name}`,
     by: session.email,
     byName: session.name,
   });
@@ -31,8 +36,8 @@ export async function assignOrderToDeliveryman(orderId: string, deliverymanId: s
   await prisma.order.update({
     where: { id: orderId },
     data: {
-      deliverymanId,
-      deliverymanName: driver.name,
+      deliverymanId: isUnassigning ? null : deliverymanId,
+      deliverymanName: isUnassigning ? null : driver?.name,
       history,
     },
   });
@@ -49,8 +54,13 @@ export async function bulkAssignOrders(orderIds: string[], deliverymanId: string
   const session = await getSession();
   if (!session || !isRole(session, 'admin')) throw new Error("Accès refusé");
 
-  const driver = await prisma.user.findUnique({ where: { id: deliverymanId } });
-  if (!driver) throw new Error("Livreur introuvable");
+  const isUnassigning = !deliverymanId || deliverymanId === "unassigned";
+  let driver = null;
+
+  if (!isUnassigning) {
+    driver = await prisma.user.findUnique({ where: { id: deliverymanId } });
+    if (!driver) throw new Error("Livreur introuvable");
+  }
 
   const orders = await prisma.order.findMany({
     where: { id: { in: orderIds } }
@@ -60,7 +70,7 @@ export async function bulkAssignOrders(orderIds: string[], deliverymanId: string
     const history = Array.isArray(order.history) ? [...(order.history as any[])] : [];
     history.push({
       at: new Date().toISOString(),
-      action: `Attribution groupée au livreur : ${driver.name}`,
+      action: isUnassigning ? "Désattribution groupée" : `Attribution groupée au livreur : ${driver?.name}`,
       by: session.email,
       byName: session.name,
     });
@@ -68,8 +78,8 @@ export async function bulkAssignOrders(orderIds: string[], deliverymanId: string
     return prisma.order.update({
       where: { id: order.id },
       data: {
-        deliverymanId: driver.id,
-        deliverymanName: driver.name,
+        deliverymanId: isUnassigning ? null : deliverymanId,
+        deliverymanName: isUnassigning ? null : driver?.name,
         history,
       }
     });

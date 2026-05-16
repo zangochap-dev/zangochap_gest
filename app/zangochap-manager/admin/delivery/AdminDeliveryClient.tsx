@@ -29,15 +29,21 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
   const { showToast } = useToast();
 
   const handleAssign = (orderId: string, dId: string) => {
+    const isUnassigning = dId === "unassigned" || dId === "";
     const driver = deliverymen.find(d => d.id === dId);
-    if (!driver) return;
+    
+    if (!isUnassigning && !driver) return;
 
-    if (!confirm(`Attribuer la commande au livreur ${driver.name} ?`)) return;
+    const confirmMsg = isUnassigning 
+      ? "Désattribuer cette commande et la remettre en attente ?"
+      : `Attribuer la commande au livreur ${driver?.name} ?`;
+
+    if (!confirm(confirmMsg)) return;
 
     startTransition(async () => {
       try {
         await assignOrderToDeliveryman(orderId, dId);
-        showToast('Commande attribuée ✓', 'success');
+        showToast(isUnassigning ? 'Commande désattribuée' : 'Commande attribuée ✓', 'success');
         router.refresh();
       } catch (e: any) {
         showToast(e.message || 'Erreur', 'error');
@@ -47,15 +53,21 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
 
   const handleBulkAssign = (dId: string) => {
     if (selectedIds.size === 0) return;
+    const isUnassigning = dId === "unassigned" || dId === "";
     const driver = deliverymen.find(d => d.id === dId);
-    if (!driver) return;
+    
+    if (!isUnassigning && !driver) return;
 
-    if (!confirm(`Attribuer ${selectedIds.size} commandes à ${driver.name} ?`)) return;
+    const confirmMsg = isUnassigning
+      ? `Désattribuer les ${selectedIds.size} commandes sélectionnées ?`
+      : `Attribuer ${selectedIds.size} commandes à ${driver?.name} ?`;
+
+    if (!confirm(confirmMsg)) return;
 
     startTransition(async () => {
       try {
         await bulkAssignOrders(Array.from(selectedIds), dId);
-        showToast(`${selectedIds.size} commandes attribuées ✓`, 'success');
+        showToast(`${selectedIds.size} commandes ${isUnassigning ? 'désattribuées' : 'attribuées ✓'}`, 'success');
         setSelectedIds(new Set());
         router.refresh();
       } catch (e: any) {
@@ -100,12 +112,23 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
 
   const stats = useMemo(() => {
     return {
-      total: orders.length,
-      unassigned: orders.filter(o => !o.deliverymanId).length,
-      onDelivery: orders.filter(o => o.status === 'ON_DELIVERY').length,
+      total: filteredOrders.length,
+      unassigned: filteredOrders.filter(o => !o.deliverymanId).length,
+      onDelivery: filteredOrders.filter(o => o.status === 'ON_DELIVERY').length,
       deliverymen: deliverymen.length
     };
-  }, [orders, deliverymen]);
+  }, [filteredOrders, deliverymen]);
+
+  // Live count of orders per deliveryman (to keep UI sync after assignment)
+  const riderLiveCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    orders.forEach(o => {
+      if (o.deliverymanId) {
+        counts[o.deliverymanId] = (counts[o.deliverymanId] || 0) + 1;
+      }
+    });
+    return counts;
+  }, [orders]);
 
   // Group by deliveryman for the "grid" view (Rider Load)
   const groupedByDriver = useMemo(() => {
@@ -197,9 +220,11 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
               value=""
             >
               <option value="" disabled>Attribuer la sélection à...</option>
+              <option value="unassigned" style={{ color: 'var(--red)', fontWeight: 'bold' }}>❌ Désattribuer (Remettre en attente)</option>
+              <hr />
               {deliverymen.map(d => (
                 <option key={d.id} value={d.id}>
-                  {d.name} ({d._count?.orders || 0} en cours)
+                  {d.name} ({riderLiveCounts[d.id] || 0} en cours)
                 </option>
               ))}
             </select>
@@ -241,7 +266,7 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
             <option value="ALL">Tous les livreurs</option>
             {deliverymen.map(d => (
               <option key={d.id} value={d.id}>
-                {d.name} ({d._count?.orders || 0})
+                {d.name} ({riderLiveCounts[d.id] || 0})
               </option>
             ))}
           </select>
@@ -351,7 +376,15 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
                       <td><span className="cell-mono">{order.ref}</span></td>
                       <td>
                         <div className="cell-strong">{order.customerName}</div>
-                        <div className="cell-muted">{order.commune}</div>
+                        <div className="cell-commune">
+                          <MapPin size={10} style={{ marginRight: 4, display: 'inline' }} />
+                          {order.commune || "N/A"}
+                        </div>
+                        {order.customerLocation && (
+                          <div className="cell-location" title={order.customerLocation}>
+                            {order.customerLocation}
+                          </div>
+                        )}
                       </td>
                       <td>
                         <div className="cell-date">
@@ -381,9 +414,10 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
                           disabled={isPending}
                         >
                           <option value="" disabled>Attribuer à...</option>
+                          <option value="unassigned" style={{ color: 'var(--red)' }}>❌ Désattribuer</option>
                           {deliverymen.map(d => (
                             <option key={d.id} value={d.id}>
-                              {d.name} ({d._count?.orders || 0})
+                              {d.name} ({riderLiveCounts[d.id] || 0})
                             </option>
                           ))}
                         </select>
@@ -428,7 +462,7 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
                     <span className="driver-phone-text">{driver.phone}</span>
                   </div>
                 </div>
-                <span className="count-badge active">{groupedByDriver[driver.id]?.length || 0}</span>
+                <span className="count-badge active">{riderLiveCounts[driver.id] || 0}</span>
               </div>
               <div className="order-cards-list">
                 {groupedByDriver[driver.id]?.map(order => (
@@ -602,7 +636,7 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
                             <th className="col-ref">Réf</th>
                             <th>Client / Adresse</th>
                             <th className="col-phone">Téléphone</th>
-                            <th className="col-date">Livr.</th>
+
                             <th>Articles</th>
                             <th className="col-total">Montant</th>
                           </tr>
@@ -623,14 +657,14 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
                                   <div>{o.customerPhone}</div>
                                   {o.customerPhone2 && <div className="phone2">{o.customerPhone2}</div>}
                                 </td>
-                                <td className="col-date">{o.deliveryDate ? formatDate(o.deliveryDate) : '—'}</td>
+
                                 <td>
                                   {o.items?.map((item: any, i: number) => (
                                     <div key={i} className="sheet-item">{item.name} <span className="item-variant">{item.size}/{item.color}</span> ×{item.qty}</div>
                                   ))}
                                 </td>
                                 <td className="col-total">
-                                  <div>{formatPrice((o.total || 0) - (o.discount || 0))}</div>
+                                  <div style={{ fontWeight: 900 }}>{formatPrice((o.total || 0) - (o.discount || 0) + (o.deliveryFee || 0))}</div>
                                 </td>
                               </tr>
                             );
@@ -642,7 +676,9 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
 
                   <div className="sheet-footer">
                     <div className="sheet-footer-item"><span className="label">Colis</span><span className="val">{driverOrders.length}</span></div>
-                    <div className="sheet-footer-item"><span className="label">Produits</span><span className="val">{formatPrice(totalProducts)}</span></div>
+                    <div className="sheet-footer-item"><span className="label">Total Produits</span><span className="val">{formatPrice(totalProducts)}</span></div>
+                    <div className="sheet-footer-item"><span className="label">Total Livraison</span><span className="val">{formatPrice(totalDeliveryFee)}</span></div>
+                    <div className="sheet-footer-item total"><span className="label">TOTAL À ENCAISSER</span><span className="val">{formatPrice(totalAmount)}</span></div>
                   </div>
                 </div>
               );
@@ -666,8 +702,15 @@ function OrderMiniCard({ order, deliverymen, onAssign }: { order: any, deliverym
         <div className="customer-name">{order.customerName}</div>
         <div className="commune-info">
           <MapPin size={12} />
-          {order.commune}
+          <span className="font-bold">{order.commune}</span>
         </div>
+        {order.customerLocation && (
+          <div className="location-info">
+            <span className="text-[10px] text-zinc-500 leading-tight block mt-1 italic">
+              {order.customerLocation}
+            </span>
+          </div>
+        )}
         {order.deliveryDate && (
           <div className="date-info">
             <Calendar size={12} />
@@ -682,8 +725,9 @@ function OrderMiniCard({ order, deliverymen, onAssign }: { order: any, deliverym
           onChange={(e) => onAssign(order.id, e.target.value)}
         >
           <option value="" disabled>Attribuer à...</option>
+          <option value="unassigned">❌ Désattribuer</option>
           {deliverymen.map((d: any) => (
-            <option key={d.id} value={d.id}>{d.name}</option>
+            <option key={d.id} value={d.id}>{d.name} ({riderLiveCounts[d.id] || 0})</option>
           ))}
         </select>
       </div>

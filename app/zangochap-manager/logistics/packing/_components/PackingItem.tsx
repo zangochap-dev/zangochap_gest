@@ -80,7 +80,16 @@ export default function PackingItem({
               }}
             >
               {o.items[0]?.image ? (
-                <img src={o.items[0].image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                <img 
+                  src={o.items[0].image} 
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                  alt="" 
+                  onError={(e: any) => {
+                    e.target.onerror = null;
+                    e.target.style.display = 'none';
+                    e.target.parentElement.innerHTML = '<div style="display:flex;align-items:center;justify-center;height:100%;font-size:32px;">📦</div>';
+                  }}
+                />
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 32 }}>{o.items[0]?.emoji || '📦'}</div>
               )}
@@ -201,6 +210,13 @@ export default function PackingItem({
                   alt=""
                   style={{ width: 22, height: 22, borderRadius: 4, objectFit: 'cover', cursor: 'zoom-in' }}
                   onClick={() => onPreviewImage(i.image)}
+                  onError={(e: any) => {
+                    e.target.onerror = null;
+                    e.target.style.display = 'none';
+                    const span = document.createElement('span');
+                    span.innerText = i.emoji || '📦';
+                    e.target.parentElement.appendChild(span);
+                  }}
                 />
               ) : (
                 <span>{i.emoji || '📦'}</span>

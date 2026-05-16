@@ -27,10 +27,15 @@ export default function PackingClient({ initialOrders, products, user }: { initi
   const [search, setSearch] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   
-  // Date filter: default to empty (all pending) to avoid missing old orders
-  const todayStr = new Date().toISOString().split('T')[0];
-  const [dateFrom, setDateFrom] = useState(todayStr);
-  const [dateTo, setDateTo] = useState(todayStr);
+  // Date filter: initialize empty and set on mount to avoid hydration mismatch (#418)
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  
+  useEffect(() => {
+    const today = new Date().toISOString().split('T')[0];
+    setDateFrom(today);
+    setDateTo(today);
+  }, []);
   
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [packingNote, setPackingNote] = useState('');

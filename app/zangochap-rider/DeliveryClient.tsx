@@ -72,7 +72,7 @@ export default function DeliveryClient({
       if (document.visibilityState === 'visible') {
         router.refresh();
       }
-    }, 30000);
+    }, 10000);
     return () => clearInterval(interval);
   }, [router]);
 

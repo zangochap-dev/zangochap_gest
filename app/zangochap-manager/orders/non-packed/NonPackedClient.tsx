@@ -26,13 +26,13 @@ export default function NonPackedClient({ notPacked, withAlternatives, user }: N
   const router = useRouter();
   const isMobile = useIsMobile();
 
-  // Auto-refresh logic
+  // Auto-refresh every 10s — real-time sync for call center
   useEffect(() => {
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible') {
         router.refresh();
       }
-    }, 30000);
+    }, 10000);
     return () => clearInterval(interval);
   }, [router]);
 

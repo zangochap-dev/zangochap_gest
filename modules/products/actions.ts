@@ -6,7 +6,7 @@ import { getSession } from "@/modules/auth/actions";
 import { ensureAuth } from "@/lib/auth";
 import { uploadImage, deleteImageFromR2 } from "@/lib/upload";
 import { Prisma } from "@prisma/client";
-import { getOrCreateDefaultWarehouse } from "@/modules/orders/actions";
+import { getOrCreateDefaultWarehouse } from "@/modules/orders/helpers";
 import { syncProductStock } from "@/lib/stock-sync";
 import { getBestAutomaticDiscount, CartItem } from "@/lib/promo-engine";
 

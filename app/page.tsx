@@ -74,7 +74,14 @@ export const metadata: Metadata = {
 
 export default async function HomePage() {
   const products = await prisma.product.findMany({
-    where: { status: 'PUBLISHED' },
+    where: { 
+      status: 'PUBLISHED',
+      category: {
+        name: {
+          notIn: ['Entrepôts', 'cadeau', 'Cadeau', 'Gift']
+        }
+      }
+    },
     include: { images: true, category: true },
     orderBy: { createdAt: 'desc' },
     take: 40

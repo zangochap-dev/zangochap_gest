@@ -14,8 +14,10 @@ export function checkOrderAccess(order: any, session: any) {
   const role = session.role?.toUpperCase();
 
   if (role === 'ADMIN') return true;
-
-  if (role === 'COMMERCIAL') return true;
+  
+  if (role === 'COMMERCIAL') {
+    return order.commercialId === session.id;
+  }
 
   if (role === 'LIVREUR') {
     return order.deliverymanId === session.id;
@@ -30,8 +32,15 @@ export function checkOrderAccess(order: any, session: any) {
 export async function generateUniqueRef(commune?: string, typePrefix?: string) {
   const communePrefix = (commune && COMMUNES[commune]) || 'BJ';
 
+  // Better normalization: NFD + strip non-alphanumeric
+  const normalize = (text: string) => text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Z0-9]/gi, "")
+    .toUpperCase();
+
   const basePrefix = typePrefix && typePrefix !== 'Standard'
-    ? `${typePrefix.toUpperCase().replace(/É/g, 'E')}${communePrefix}`
+    ? `${normalize(typePrefix)}${communePrefix}`
     : communePrefix;
 
   // Find the highest existing sequence GLOBALLY to ensure numeric uniqueness across prefixes
@@ -88,42 +97,38 @@ export async function generateUniqueRef(commune?: string, typePrefix?: string) {
 export async function upsertCustomerFromOrder(data: {
   name: string; phone: string; phone2?: string; location?: string; commune?: string; orderAmount: number;
 }) {
-  const existing = await prisma.customer.findUnique({ where: { phone: data.phone } });
-  if (existing) {
-    return prisma.customer.update({
-      where: { id: existing.id },
-      data: {
-        name: data.name,
-        phone2: data.phone2 || existing.phone2,
-        location: data.location || existing.location,
-        commune: data.commune || existing.commune,
-        totalOrders: { increment: 1 },
-        totalSpent: { increment: data.orderAmount },
-        lastOrderAt: new Date(),
-      },
-    });
-  }
-  return prisma.customer.create({
-    data: {
-      name: data.name, phone: data.phone, phone2: data.phone2, location: data.location, commune: data.commune,
-      totalOrders: 1, totalSpent: data.orderAmount, lastOrderAt: new Date(),
+  return prisma.customer.upsert({
+    where: { phone: data.phone },
+    update: {
+      name: data.name,
+      phone2: data.phone2,
+      location: data.location,
+      commune: data.commune,
+      totalOrders: { increment: 1 },
+      totalSpent: { increment: data.orderAmount },
+      lastOrderAt: new Date(),
+    },
+    create: {
+      name: data.name,
+      phone: data.phone,
+      phone2: data.phone2,
+      location: data.location,
+      commune: data.commune,
+      totalOrders: 1,
+      totalSpent: data.orderAmount,
+      lastOrderAt: new Date(),
     },
   });
 }
 
 // ============ WAREHOUSE HELPER ============
 export async function getOrCreateDefaultWarehouse() {
-  let warehouse = await prisma.warehouse.findFirst({
-    where: { name: "Entrepôt Principal" }
+  return prisma.warehouse.upsert({
+    where: { name: "Entrepôt Principal" },
+    update: {},
+    create: {
+      name: "Entrepôt Principal",
+      location: "Siège Zangochap"
+    }
   });
-
-  if (!warehouse) {
-    warehouse = await prisma.warehouse.create({
-      data: {
-        name: "Entrepôt Principal",
-        location: "Siège Zangochap"
-      }
-    });
-  }
-  return warehouse;
 }

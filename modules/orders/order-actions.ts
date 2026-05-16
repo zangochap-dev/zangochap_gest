@@ -73,7 +73,6 @@ export async function createOrder(data: {
     });
   }
 
-  const ref = await generateUniqueRef(data.commune || undefined, data.type);
   const calculatedTotal = processedItems.reduce((sum, item) => sum + Number(item.price) * Number(item.qty), 0);
   const finalTotal = data.total !== undefined ? Number(data.total) : calculatedTotal;
 
@@ -86,55 +85,75 @@ export async function createOrder(data: {
     orderAmount: finalTotal + (data.deliveryFee || 0),
   });
 
-  const order = await prisma.order.create({
-    data: {
-      ref,
-      customerId: customer.id,
-      customerName: data.customerName,
-      customerPhone: data.customerPhone,
-      customerPhone2: data.customerPhone2,
-      customerLocation: data.customerLocation,
-      commune: data.commune,
-      total: finalTotal,
-      deliveryFee: Number(data.deliveryFee || 0),
-      deliveryNote: data.deliveryNote,
-      paymentMethod: data.paymentMethod,
-      status: (data.status as any) || (session ? 'CONFIRMED' : 'TO_PROCESS'),
-      commercialId: session?.id || null,
-      commercialName: session?.name || "Site Web",
-      deliveryDate: data.deliveryDate ? new Date(data.deliveryDate) : null,
-      promoCode: data.promoCode,
-      discount: Number(data.discount || 0),
-      notes: data.notes,
-      type: data.type,
-      confirmedAt: new Date(),
-      confirmedByName: session ? session.name : "Client Web",
-      items: {
-        create: processedItems.map(item => ({
-          name: item.name,
-          size: item.size,
-          color: item.color,
-          qty: Number(item.qty),
-          price: Number(item.price),
-          emoji: item.emoji || '📦',
-          image: item.image || null,
-          productId: item.productId,
-          isCustom: item.isCustom || false,
-          isGift: item.isGift || false,
-          notes: item.notes || item.desc || null,
-        })),
-      },
-      history: [
-        {
-          at: new Date().toISOString(),
-          action: session ? "Commande créée par commercial" : "Commande passée sur le site web",
-          by: session ? session.email : "public",
-          byName: session ? session.name : "Client Web",
+  // ATOMIC RETRY LOOP: handles concurrency collisions on 'ref'
+  let order;
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const ref = await generateUniqueRef(data.commune || undefined, data.type);
+    try {
+      order = await prisma.order.create({
+        data: {
+          ref,
+          customerId: customer.id,
+          customerName: data.customerName,
+          customerPhone: data.customerPhone,
+          customerPhone2: data.customerPhone2,
+          customerLocation: data.customerLocation,
+          commune: data.commune,
+          total: finalTotal,
+          deliveryFee: Number(data.deliveryFee || 0),
+          deliveryNote: data.deliveryNote,
+          paymentMethod: data.paymentMethod,
+          status: (data.status as any) || (session ? 'CONFIRMED' : 'TO_PROCESS'),
+          commercialId: session?.id || null,
+          commercialName: session?.name || "Site Web",
+          deliveryDate: data.deliveryDate ? new Date(data.deliveryDate) : null,
+          promoCode: data.promoCode,
+          discount: Number(data.discount || 0),
+          notes: data.notes,
+          type: data.type,
+          confirmedAt: new Date(),
+          confirmedByName: session ? session.name : "Client Web",
+          items: {
+            create: processedItems.map(item => ({
+              name: item.name,
+              size: item.size,
+              color: item.color,
+              qty: Number(item.qty),
+              price: Number(item.price),
+              emoji: item.emoji || '📦',
+              image: item.image || null,
+              productId: item.productId,
+              isCustom: item.isCustom || false,
+              isGift: item.isGift || false,
+              notes: item.notes || item.desc || null,
+            })),
+          },
+          history: [
+            {
+              at: new Date().toISOString(),
+              action: session ? "Commande créée par commercial" : "Commande passée sur le site web",
+              by: session ? session.email : "public",
+              byName: session ? session.name : "Client Web",
+            },
+          ],
         },
-      ],
-    },
-    include: { items: true },
-  });
+        include: { items: true },
+      });
+      
+      // Success! Break the loop
+      break;
+    } catch (e: any) {
+      // P2002 is Prisma code for Unique constraint violation
+      const isRefCollision = e.code === 'P2002' && e.meta?.target?.includes('ref');
+      if (isRefCollision && attempt < 9) {
+        console.log(`Ref collision detected on ${ref}, retrying... (attempt ${attempt + 1})`);
+        continue;
+      }
+      throw e;
+    }
+  }
+
+  if (!order) throw new Error("Échec de création de la commande après plusieurs tentatives.");
 
   // Record promo usage if applicable
   if (data.promoCode) {

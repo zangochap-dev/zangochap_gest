@@ -152,6 +152,7 @@ export default function OrdersClient({
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [orderToDuplicate, setOrderToDuplicate] = useState<any>(null);
+  const [orderToEdit, setOrderToEdit] = useState<any>(null);
   const [receiptOrder, setReceiptOrder] = useState<any>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
@@ -883,10 +884,10 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
                           {/* Commercials can only edit/dup/delete their own orders */}
                           {(user?.role === 'admin' || (user?.role === 'commercial' && (order.commercialId === user.id || order.commercialName === user.name))) && (
                             <>
-                              <button className="action-btn" title="Modifier" onClick={() => { setSelectedOrder(order); setIsEditing(true); }}>
+                              <button className="action-btn" title="Modifier" onClick={() => setOrderToEdit(order)}>
                                 <Edit3 size={14} />
                               </button>
-                              <button className="action-btn" title="Dupliquer & Modifier" onClick={() => setOrderToDuplicate(order)}>
+                              <button className="action-btn" title="Dupliquer" onClick={() => setOrderToDuplicate(order)}>
                                 <Copy size={14} />
                               </button>
                               <button className="action-btn" title="Supprimer" onClick={() => handleDelete(order.id)} style={{ color: 'var(--red)' }}>
@@ -987,16 +988,31 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
           setIsEditing={setIsEditing}
           onPrintReceipt={setReceiptOrder} onPreviewImage={setPreviewImage}
           products={products}
+          onEdit={() => { setSelectedOrder(null); setOrderToEdit(selectedOrder); }}
         />
       )}
 
       {orderToDuplicate && (
-        <DuplicateOrderModal
+        <OrderFormModal
+          mode="duplicate"
           order={orderToDuplicate}
-          products={products}
           onClose={() => setOrderToDuplicate(null)}
           onConfirm={(data) => handleDuplicate(orderToDuplicate.id, data)}
           isPending={isPending}
+          onPreviewImage={setPreviewImage}
+        />
+      )}
+
+      {orderToEdit && (
+        <OrderFormModal
+          mode="edit"
+          order={orderToEdit}
+          onClose={() => setOrderToEdit(null)}
+          onConfirm={(data) => {
+            handleUpdateDetails(orderToEdit.id, data);
+            setOrderToEdit(null);
+          }}
+          isPending={updateDetailsMutation.isPending}
           onPreviewImage={setPreviewImage}
         />
       )}
@@ -1091,7 +1107,7 @@ const TypeBadge = ({ type, compact = false }: { type: string; compact?: boolean 
 // ORDER DETAIL MODAL
 // ============================================
 function OrderDetailModal({
-  order, user, onClose, onStatusChange, onUpdateDetails, onDelete, onAssign, onWhatsApp, onReprogram, deliverymen, staffUsers, isPending, isEditing, setIsEditing, onPrintReceipt, onPreviewImage, products
+  order, user, onClose, onStatusChange, onUpdateDetails, onDelete, onAssign, onWhatsApp, onReprogram, deliverymen, staffUsers, isPending, isEditing, setIsEditing, onPrintReceipt, onPreviewImage, products, onEdit
 }: {
   order: any; user: any; onClose: () => void; onStatusChange: (id: string, status: string) => void;
   onUpdateDetails: (id: string, data: any) => void;
@@ -1106,6 +1122,7 @@ function OrderDetailModal({
   onPrintReceipt: (order: any) => void;
   onPreviewImage: (url: string | null) => void;
   products: any[];
+  onEdit: () => void;
 }) {
   const [editData, setEditData] = useState({
     customerName: order.customerName,
@@ -1165,8 +1182,8 @@ function OrderDetailModal({
               <span style={{ fontSize: 16 }}>Commande · {order.ref}</span>
               <div style={{ marginTop: 2 }}><TypeBadge type={order.type} /></div>
             </div>
-            {canEdit && !isEditing && order.status !== 'CANCELLED' && (
-              <button className="action-btn-sm" onClick={() => setIsEditing(true)} title="Modifier">
+            {canEdit && order.status !== 'CANCELLED' && (
+              <button className="action-btn-sm" onClick={onEdit} title="Modifier">
                 <Edit2 size={12} />
               </button>
             )}
@@ -1572,7 +1589,7 @@ function StaffRow({ label, value, phone, icon }: { label: string; value?: string
   );
 }
 
-function DuplicateOrderModal({ order, products: _products, onClose, onConfirm, isPending, onPreviewImage }: { order: any; products: any[]; onClose: () => void; onConfirm: (data: any) => void; isPending: boolean; onPreviewImage: (url: string | null) => void }) {
+function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPending, onPreviewImage }: { order: any; mode?: 'duplicate' | 'edit'; onClose: () => void; onConfirm: (data: any) => void; isPending: boolean; onPreviewImage: (url: string | null) => void }) {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const getDefaultDeliveryDate = () => {
     const now = new Date();
@@ -1701,17 +1718,7 @@ function DuplicateOrderModal({ order, products: _products, onClose, onConfirm, i
     <Modal
       isOpen={true}
       onClose={onClose}
-      title={
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--orange-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--orange)' }}>
-            <Copy size={18} />
-          </div>
-          <div>
-            <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-display)', color: 'var(--ink)' }}>Dupliquer la commande</div>
-            <div style={{ fontSize: 10, color: 'var(--brown-soft)', fontFamily: 'var(--font-mono)' }}>SOURCE: {order.ref}</div>
-          </div>
-        </div>
-      }
+      title={mode === 'duplicate' ? "Dupliquer la commande" : "Modifier la commande"}
       full
       footer={
         <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', padding: '4px 0' }}>
@@ -1726,9 +1733,9 @@ function DuplicateOrderModal({ order, products: _products, onClose, onConfirm, i
             className="btn-orange"
             style={{ height: 42, borderRadius: 10, padding: '0 32px', boxShadow: '0 4px 12px rgba(212, 84, 28, 0.2)', fontSize: 13, fontWeight: 800 }}
             onClick={() => onConfirm(formData)}
-            disabled={isPending}
+            disabled={isPending || formData.items.length === 0}
           >
-            {isPending ? <div className="animate-spin" /> : <><Check size={18} /> Créer la commande</>}
+            {isPending ? <div className="animate-spin" /> : <><Check size={18} /> {mode === 'duplicate' ? 'Dupliquer' : 'Enregistrer'}</>}
           </button>
         </div>
       }

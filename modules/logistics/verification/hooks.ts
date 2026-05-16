@@ -16,7 +16,7 @@ export function useVerificationData(date: string) {
   const { data: orders = [], isLoading } = useQuery<OrderWithItems[]>({
     queryKey: [QUERY_KEY, date],
     queryFn: async () => {
-      const res = await fetch(`/api/delivery-sheet?date=${date}`);
+      const res = await fetch(`/api/delivery-sheet?date=${date}&type=created`);
       if (!res.ok) throw new Error("Erreur lors du chargement des données");
       return res.json();
     },

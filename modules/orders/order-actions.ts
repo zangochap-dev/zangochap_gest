@@ -174,22 +174,49 @@ export async function deleteOrder(orderId: string) {
 export async function updateOrderDetails(orderId: string, data: any) {
   const session = await getSession();
   if (!session) throw new Error("Non authentifié");
-  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  const order = await prisma.order.findUnique({ where: { id: orderId }, include: { items: true } });
   if (!order || !checkOrderAccess(order, session)) throw new Error("Accès refusé");
 
   // SECURITY: whitelist only editable fields
-  const ALLOWED_FIELDS = ['customerName', 'customerPhone', 'customerPhone2', 'customerLocation', 'commune', 'deliveryFee', 'deliveryNote', 'notes'] as const;
+  const ALLOWED_FIELDS = ['customerName', 'customerPhone', 'customerPhone2', 'customerLocation', 'commune', 'deliveryFee', 'deliveryNote', 'notes', 'total'] as const;
   const sanitized: Record<string, any> = {};
   for (const key of ALLOWED_FIELDS) {
     if (data[key] !== undefined) {
-      sanitized[key] = key === 'deliveryFee' ? Number(data[key]) || 0 : String(data[key]);
+      sanitized[key] = (key === 'deliveryFee' || key === 'total') ? Number(data[key]) || 0 : String(data[key]);
     }
   }
 
   const history = Array.isArray(order.history) ? [...(order.history as any[])] : [];
   history.push({ at: new Date().toISOString(), action: "Détails modifiés", by: session.email, byName: session.name });
-  await prisma.order.update({ where: { id: orderId }, data: { ...sanitized, history } });
-  revalidatePath("/zangochap-manager/orders");
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.order.update({ where: { id: orderId }, data: { ...sanitized, history } });
+
+      // Handle Items update if provided
+      if (data.items && Array.isArray(data.items)) {
+        await tx.orderItem.deleteMany({ where: { orderId: order.id } });
+        
+        const newItems = data.items.map((item: any) => ({
+          orderId: order.id,
+          productId: item.productId || null,
+          name: item.name,
+          size: item.size || '-',
+          color: item.color || '-',
+          qty: parseInt(item.qty) || 1,
+          price: parseInt(item.price) || 0,
+          emoji: item.emoji,
+          image: item.image,
+        }));
+        
+        await tx.orderItem.createMany({ data: newItems });
+      }
+    });
+    revalidatePath("/zangochap-manager/orders");
+  } catch (e: any) {
+    console.error("Order Details Update Error:", e);
+    throw new Error(e.message || "Erreur lors de la mise à jour des détails");
+  }
 }
 
 // ============ ADD HISTORY ENTRY ============

@@ -125,9 +125,9 @@ export default function VerificationClient() {
         {orders.length > 0 && (
           <button
             className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 text-white hover:bg-gray-800 rounded-md text-sm font-bold transition-colors cursor-pointer"
-            onClick={() => window.print()}
+            onClick={() => window.open(`/zangochap-manager/logistics/verification/print?date=${date}&type=created&autoprint=true`, '_blank')}
           >
-            <Printer size={15} /> Imprimer
+            <Printer size={15} /> Imprimer Fiche
           </button>
         )}
       </div>

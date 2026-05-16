@@ -12,6 +12,7 @@ export function useVerificationData(date: string) {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const [verifyingOrderId, setVerifyingOrderId] = useState<string | null>(null);
+  const [verifyingItemIds, setVerifyingItemIds] = useState<Set<string>>(new Set());
 
   const { data: orders = [], isLoading } = useQuery<OrderWithItems[]>({
     queryKey: [QUERY_KEY, date],
@@ -26,6 +27,7 @@ export function useVerificationData(date: string) {
   });
 
   const toggleItem = async (itemId: string, currentStatus: boolean) => {
+    // Optimistic UI update
     queryClient.setQueryData([QUERY_KEY, date], (old: OrderWithItems[] | undefined) => {
       if (!old) return old;
       return old.map(o => ({
@@ -34,6 +36,9 @@ export function useVerificationData(date: string) {
       }));
     });
 
+    // Tracking saving state
+    setVerifyingItemIds(prev => new Set(prev).add(itemId));
+
     try {
       await toggleItemVerification(itemId, !currentStatus);
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, date] });
@@ -41,6 +46,12 @@ export function useVerificationData(date: string) {
     } catch (e: any) {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, date] });
       showToast(e.message || "Erreur lors de la vérification", "error");
+    } finally {
+      setVerifyingItemIds(prev => {
+        const next = new Set(prev);
+        next.delete(itemId);
+        return next;
+      });
     }
   };
 
@@ -49,6 +60,12 @@ export function useVerificationData(date: string) {
     if (itemsToToggle.length === 0) return;
 
     setVerifyingOrderId(order.id);
+    const ids = itemsToToggle.map(i => i.id);
+    setVerifyingItemIds(prev => {
+      const next = new Set(prev);
+      ids.forEach(id => next.add(id));
+      return next;
+    });
 
     queryClient.setQueryData([QUERY_KEY, date], (old: OrderWithItems[] | undefined) => {
       if (!old) return old;
@@ -72,8 +89,13 @@ export function useVerificationData(date: string) {
       showToast(e.message || "Erreur lors de la vérification de la commande", "error");
     } finally {
       setVerifyingOrderId(null);
+      setVerifyingItemIds(prev => {
+        const next = new Set(prev);
+        ids.forEach(id => next.delete(id));
+        return next;
+      });
     }
   };
 
-  return { orders, isLoading, verifyingOrderId, toggleItem, toggleAllOrderItems };
+  return { orders, isLoading, verifyingOrderId, verifyingItemIds, toggleItem, toggleAllOrderItems };
 }

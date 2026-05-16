@@ -16,7 +16,7 @@ export default function VerificationClient() {
   const [verificationFilter, setVerificationFilter] = useState("all");
   const [orderStatusFilter, setOrderStatusFilter] = useState("all");
 
-  const { orders, isLoading, verifyingOrderId, toggleItem, toggleAllOrderItems } =
+  const { orders, isLoading, verifyingOrderId, verifyingItemIds, toggleItem, toggleAllOrderItems } =
     useVerificationData(date);
 
   // ── Date shortcuts ──
@@ -179,6 +179,7 @@ export default function VerificationClient() {
               key={order.id}
               order={order}
               verifyingOrderId={verifyingOrderId}
+              verifyingItemIds={verifyingItemIds}
               onToggleItem={toggleItem}
               onToggleAll={toggleAllOrderItems}
               onPreview={setPreviewItem}

@@ -7,6 +7,7 @@ import type { OrderWithItems, PreviewItemData } from "./types";
 interface OrderCardProps {
   order: OrderWithItems;
   verifyingOrderId: string | null;
+  verifyingItemIds: Set<string>;
   onToggleItem: (itemId: string, currentStatus: boolean) => void;
   onToggleAll: (order: OrderWithItems, targetStatus: boolean) => void;
   onPreview: (data: PreviewItemData) => void;
@@ -15,6 +16,7 @@ interface OrderCardProps {
 export default function OrderCard({
   order,
   verifyingOrderId,
+  verifyingItemIds,
   onToggleItem,
   onToggleAll,
   onPreview,
@@ -78,6 +80,7 @@ export default function OrderCard({
           <tbody className="divide-y divide-gray-100">
             {orderItems.map(item => {
               const isChecked = !!item.isVerified;
+              const isVerifying = verifyingItemIds.has(item.id);
               const rawImageUrl = item.image || item.product?.images?.[0]?.url || "";
               const imageUrl = rawImageUrl.includes(";") ? rawImageUrl.split(";")[0] : rawImageUrl || undefined;
 
@@ -89,13 +92,20 @@ export default function OrderCard({
                   <td className="py-2.5 px-3 text-center align-middle">
                     <button
                       className={`w-6 h-6 rounded border flex items-center justify-center transition-all cursor-pointer print:w-4 print:h-4 print:rounded-xs print:border ${
-                        isChecked
+                        isVerifying
+                          ? "bg-orange-50 border-orange-500 text-orange-500"
+                          : isChecked
                           ? "bg-emerald-500 border-emerald-500 text-white print:bg-transparent print:border-black print:text-black"
                           : "bg-white border-gray-200 hover:border-emerald-500 hover:bg-emerald-50 text-emerald-500 print:border-gray-400"
                       }`}
                       onClick={() => onToggleItem(item.id, isChecked)}
+                      disabled={isVerifying}
                     >
-                      {isChecked && <CheckCircle2 size={15} className="print:w-3.5 print:h-3.5" />}
+                      {isVerifying ? (
+                        <Loader2 size={13} className="animate-spin" />
+                      ) : (
+                        isChecked && <CheckCircle2 size={15} className="print:w-3.5 print:h-3.5" />
+                      )}
                     </button>
                   </td>
                   <td className="py-2.5 px-3 align-middle">

@@ -19,7 +19,7 @@ interface PackingOrderModalProps {
   onProposeAlternative: (orderId: string, itemName: string) => void;
   onEditStock: (product: ProductWithVariants) => void;
   onToggleCheckItem: (orderId: string, item: PackingOrderItem) => void;
-  onPreviewImage: (url: string) => void;
+  onPreviewImage: (url: string, name: string, size?: string | null, color?: string | null) => void;
   savingChecks?: Set<string>;
 }
 
@@ -122,7 +122,7 @@ export default function PackingOrderModal({
                       <img
                         src={item.image}
                         style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: isChecked ? 0.3 : 1 }}
-                        onClick={(e) => { e.stopPropagation(); onPreviewImage(item.image); }}
+                        onClick={(e) => { e.stopPropagation(); onPreviewImage(item.image!, item.name, item.size, item.color); }}
                         alt=""
                       />
                     ) : (
@@ -301,7 +301,7 @@ export default function PackingOrderModal({
                 }
               </div>
               <div style={{ width: 60, height: 60, background: 'var(--cream-2)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, flexShrink: 0, overflow: 'hidden', border: '1px solid var(--line)' }}>
-                {item.image ? <img src={item.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onClick={(e) => { e.stopPropagation(); onPreviewImage(item.image); }} /> : (item.emoji || '📦')}
+                {item.image ? <img src={item.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onClick={(e) => { e.stopPropagation(); onPreviewImage(item.image!, item.name, item.size, item.color); }} /> : (item.emoji || '📦')}
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>

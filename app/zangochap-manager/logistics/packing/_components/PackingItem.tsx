@@ -3,7 +3,7 @@
 import React from "react";
 import { StatusBadge } from "@/components/UI";
 import { formatDay } from "@/lib/constants";
-import { Check, Edit2, Eye, Warehouse, ArrowLeftRight } from "lucide-react";
+import { Check, Edit2, Eye, Warehouse, ArrowLeftRight, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 
 import { PackingOrder, PackingOrderItem, ProductWithVariants } from "../PackingClient";
@@ -17,8 +17,9 @@ interface PackingItemProps {
   onSelect: (order: PackingOrder) => void;
   onEditStock: (product: ProductWithVariants) => void;
   onMarkPacking: (orderId: string, status: string) => void;
-  onPreviewImage: (url: string) => void;
+  onPreviewImage: (url: string, name: string, size?: string | null, color?: string | null) => void;
   onToggleCheckItem: (orderId: string, item: PackingOrderItem) => void;
+  savingChecks?: Set<string>;
   idx?: number;
 }
 
@@ -33,6 +34,7 @@ const PackingItem = React.memo(({
   onMarkPacking,
   onPreviewImage,
   onToggleCheckItem,
+  savingChecks = new Set(),
   idx = 0
 }: PackingItemProps) => {
   
@@ -65,7 +67,7 @@ const PackingItem = React.memo(({
                 const img = o.items[0]?.image;
                 if (img) {
                   e.stopPropagation();
-                  onPreviewImage(img);
+                  onPreviewImage(img, o.items[0].name, o.items[0].size, o.items[0].color);
                 }
               }}
               style={{
@@ -148,7 +150,10 @@ const PackingItem = React.memo(({
             <div style={{ background: '#F2F2F7', padding: '8px', borderRadius: 8 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, fontWeight: 800, color: '#8E8E93', marginBottom: 4 }}>
                 <span>PROGRESSION</span>
-                <span style={{ color: progress === 100 ? '#34C759' : '#1C1C1E' }}>{checkedCount}/{totalItems}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  {o.items.some(i => savingChecks.has(i.id)) && <Loader2 size={10} className="animate-spin" color="var(--orange)" />}
+                  <span style={{ color: progress === 100 ? '#34C759' : '#1C1C1E' }}>{checkedCount}/{totalItems}</span>
+                </div>
               </div>
               <div className="progress-bar-bg" style={{ height: 4 }}>
                 <div className="progress-bar-fill" style={{ width: `${progress}%`, background: progress === 100 ? '#34C759' : '#FF6B2C' }} />
@@ -199,20 +204,26 @@ const PackingItem = React.memo(({
         {o.items.map((i: PackingOrderItem, idx: number) => {
           const isChecked = i.isVerified;
           const imageUrl = i.image;
+          const isSaving = savingChecks.has(i.id);
+          
           return (
-            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, margin: '2px 0', opacity: isChecked ? 0.4 : 1, transition: 'opacity 0.2s' }}>
+            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, margin: '2px 0', opacity: isChecked ? 0.4 : 1, transition: 'opacity 0.2s', pointerEvents: isSaving ? 'none' : 'auto' }}>
               <div
                 onClick={(e) => { e.stopPropagation(); onToggleCheckItem(o.id, i); }}
                 style={{ width: 16, height: 16, borderRadius: 4, border: '1px solid var(--line)', background: isChecked ? 'var(--green)' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
               >
-                {isChecked && <Check size={10} color="white" />}
+                {isSaving ? (
+                  <Loader2 size={10} className="animate-spin" color={isChecked ? "white" : "var(--orange)"} />
+                ) : (
+                  isChecked && <Check size={10} color="white" />
+                )}
               </div>
               {imageUrl ? (
                 <img
                   src={imageUrl}
                   alt=""
                   style={{ width: 22, height: 22, borderRadius: 4, objectFit: 'cover', cursor: 'zoom-in' }}
-                  onClick={() => onPreviewImage(imageUrl)}
+                  onClick={(e) => { e.stopPropagation(); onPreviewImage(imageUrl, i.name, i.size, i.color); }}
                   onError={(e: any) => {
                     e.target.onerror = null;
                     e.target.style.display = 'none';

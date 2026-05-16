@@ -13,8 +13,9 @@ export function getImageUrl(url: string | null | undefined): string {
   if (!url) return "/placeholder.png";
 
   // Handle multiple URLs in a single string (common in Wix exports)
+  // But DO NOT split if it's a DataURL (base64)
   let cleanUrl = url;
-  if (url.includes(';')) {
+  if (url.includes(';') && !url.startsWith('data:')) {
     cleanUrl = url.split(';')[0].trim();
   }
 

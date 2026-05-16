@@ -250,6 +250,7 @@ model StockLevel {
 model Order {
   id               String      @id @default(cuid())
   ref              String      @unique
+  deletedAt        DateTime?
   customerName     String
   customerPhone    String
   customerPhone2   String?

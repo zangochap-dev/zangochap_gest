@@ -5,7 +5,6 @@ import { revalidatePath } from "next/cache";
 import { getSession } from "@/modules/auth/actions";
 import { syncProductStock } from "@/lib/stock-sync";
 import { getOrCreateDefaultWarehouse } from "@/modules/orders/helpers";
-import { updateOrderStatus } from "@/modules/orders/status-actions";
 
 // ============ COLLECTION RECORDS ============
 export async function getCollectionRecords(filters?: { byName?: string }) {
@@ -36,7 +35,15 @@ export async function markCollection(orderId: string, productId: string, status:
   // Add to order history
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (order) {
-    const product = await prisma.product.findUnique({ where: { id: productId } });
+    let productName = productId;
+    if (productId === 'CUSTOM' && orderItemId) {
+      const item = await prisma.orderItem.findUnique({ where: { id: orderItemId } });
+      productName = item?.name || 'Produit personnalisé';
+    } else {
+      const product = await prisma.product.findUnique({ where: { id: productId } });
+      productName = product?.name || productId;
+    }
+
     const labelMap: Record<string, string> = {
       collected: 'collecté',
       unavailable: 'marqué indisponible chez fournisseur',
@@ -45,7 +52,7 @@ export async function markCollection(orderId: string, productId: string, status:
     const history = Array.isArray(order.history) ? [...(order.history as any[])] : [];
     history.push({
       at: new Date().toISOString(),
-      action: `${session.name} a ${labelMap[status]} : ${product?.name || productId}`,
+      action: `${session.name} a ${labelMap[status]} [ITEM_ID:${orderItemId}] : ${productName}`,
       by: session.email,
       byName: session.name,
     });

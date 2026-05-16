@@ -1,4 +1,4 @@
-"use client";
+"use client"; // Refresh v1
 
 import React, { useTransition, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
@@ -79,8 +79,11 @@ export default function CollectionClient({ toCollect, user, categories = [], war
       const h = Array.isArray(tc.order.history) ? tc.order.history : [];
       const relevantLogs = h.filter((log: any) => {
         const action = (log.action || '').toLowerCase();
+        const hasIdTag = action.includes(`[item_id:${tc.item.id.toLowerCase()}]`);
+        const hasNameMatch = action.includes((tc.item.name || '').toLowerCase());
+        
         return (action.includes('collecté') || action.includes('indisponible') || action.includes('alternative')) &&
-          action.includes((tc.item.name || '').toLowerCase());
+          (hasIdTag || hasNameMatch);
       }).sort((a: any, b: any) => new Date(b.at).getTime() - new Date(a.at).getTime());
 
       const latestLog = relevantLogs[0];
@@ -212,8 +215,11 @@ export default function CollectionClient({ toCollect, user, categories = [], war
                   const h = Array.isArray(tc.order.history) ? tc.order.history : [];
                   const lastLog = h.filter((l: any) => {
                     const act = (l.action || '').toLowerCase();
+                    const hasIdTag = act.includes(`[item_id:${tc.item.id.toLowerCase()}]`);
+                    const hasNameMatch = act.includes((tc.item.name || '').toLowerCase());
+                    
                     return (act.includes('collecté') || act.includes('indisponible') || act.includes('alternative')) &&
-                      act.includes((tc.item.name || '').toLowerCase());
+                      (hasIdTag || hasNameMatch);
                   }).sort((a: any, b: any) => new Date(b.at).getTime() - new Date(a.at).getTime())[0];
                   
                   const currentStatus = (lastLog?.action || '').toLowerCase();
@@ -294,24 +300,26 @@ export default function CollectionClient({ toCollect, user, categories = [], war
 
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div style={{ fontSize: 10, color: '#8E8E93', fontWeight: 600 }}>{tc.order.customerName}</div>
-                            <button 
-                              onClick={(e) => { e.stopPropagation(); setEditingVariants({ product: tc.product, variants: tc.product.variants }); }}
-                              style={{ 
-                                background: 'var(--orange-soft)', 
-                                border: 'none', 
-                                borderRadius: 10, 
-                                padding: '6px 12px', 
-                                fontSize: 12, 
-                                fontWeight: 800, 
-                                color: 'var(--orange)', 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                gap: 6,
-                                boxShadow: '0 2px 8px rgba(255, 107, 44, 0.15)'
-                              }}
-                            >
-                              <Edit2 size={14} /> Stock
-                            </button>
+                            {tc.product.id !== 'CUSTOM' && (
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); setEditingVariants({ product: tc.product, variants: tc.product.variants }); }}
+                                style={{ 
+                                  background: 'var(--orange-soft)', 
+                                  border: 'none', 
+                                  borderRadius: 10, 
+                                  padding: '6px 12px', 
+                                  fontSize: 12, 
+                                  fontWeight: 800, 
+                                  color: 'var(--orange)', 
+                                  display: 'flex', 
+                                  alignItems: 'center', 
+                                  gap: 6,
+                                  boxShadow: '0 2px 8px rgba(255, 107, 44, 0.15)'
+                                }}
+                              >
+                                <Edit2 size={14} /> Stock
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -469,8 +477,11 @@ function CollectionRow({ order, item, product, isPending, onMark, onPreview, onE
   const h = Array.isArray(order.history) ? order.history : [];
   const collector = h.filter((l: any) => {
     const act = (l.action || '').toLowerCase();
+    const hasIdTag = act.includes(`[item_id:${item.id.toLowerCase()}]`);
+    const hasNameMatch = act.includes((item.name || '').toLowerCase());
+    
     return (act.includes('collecté') || act.includes('indisponible') || act.includes('alternative')) &&
-      act.includes((item.name || '').toLowerCase());
+      (hasIdTag || hasNameMatch);
   }).sort((a: any, b: any) => new Date(b.at).getTime() - new Date(a.at).getTime())[0];
 
   return (
@@ -506,7 +517,9 @@ function CollectionRow({ order, item, product, isPending, onMark, onPreview, onE
           <button className="action-btn" onClick={() => onMark(order.id, product.id, 'collected', item.id)} style={{ background: 'var(--green-soft)', color: 'var(--green)' }} title="Collecté"><Check size={16} /></button>
           <button className="action-btn" onClick={() => { const note = window.prompt(`Alternative pour "${item.name}" :`); if (note) onMark(order.id, product.id, 'alternative', item.id, note); }} style={{ background: 'var(--orange-soft)', color: 'var(--orange)' }} title="Alternative"><ArrowLeftRight size={16} /></button>
           <button className="action-btn" onClick={() => onMark(order.id, product.id, 'unavailable', item.id)} style={{ background: 'var(--red-soft)', color: 'var(--red)' }} title="Indisponible"><X size={16} /></button>
-          <button className="action-btn" onClick={onEditStock} style={{ background: 'var(--cream)', color: 'var(--brown-soft)' }} title="Modifier Stock"><Edit2 size={16} /></button>
+          {product.id !== 'CUSTOM' && (
+            <button className="action-btn" onClick={onEditStock} style={{ background: 'var(--cream)', color: 'var(--brown-soft)' }} title="Modifier Stock"><Edit2 size={16} /></button>
+          )}
         </div>
       </td>
     </tr>

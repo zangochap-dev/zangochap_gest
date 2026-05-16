@@ -178,14 +178,41 @@ export async function createOrder(data: {
   return { order: JSON.parse(JSON.stringify(order)) };
 }
 
-// ============ DELETE ORDER ============
+// ============ DELETE ORDER (SOFT DELETE) ============
 export async function deleteOrder(orderId: string) {
   const session = await getSession();
   if (!session || !['admin', 'commercial'].includes(session.role?.toLowerCase())) throw new Error("Accès refusé");
+  
   const order = await prisma.order.findUnique({ where: { id: orderId }, include: { items: true } });
-  if (order?.stockDecremented) await restoreStockForOrder(order, session, 'ADJUSTMENT');
-  await prisma.order.delete({ where: { id: orderId } });
+  if (!order) throw new Error("Commande introuvable");
+
+  // Restore stock if it was already decremented
+  if (order.stockDecremented) {
+    await restoreStockForOrder(order, session, 'ADJUSTMENT');
+  }
+
+  const history = Array.isArray(order.history) ? [...(order.history as any[])] : [];
+  history.push({ 
+    at: new Date().toISOString(), 
+    action: "Commande SUPPRIMÉE (Soft Delete)", 
+    by: session.email, 
+    byName: session.name 
+  });
+
+  // Soft delete: Update status to CANCELLED and mark the ref
+  await prisma.order.update({ 
+    where: { id: orderId }, 
+    data: { 
+      status: 'CANCELLED',
+      deletedAt: new Date(),
+      ref: order.ref.startsWith('[SUPPRIMÉ]') ? order.ref : `[SUPPRIMÉ] ${order.ref}`,
+      history,
+      stockDecremented: false // Ensure it stays false after restoration
+    } 
+  });
+
   revalidatePath("/zangochap-manager/orders");
+  revalidatePath("/zangochap-manager/dashboard");
   return { success: true };
 }
 

@@ -31,7 +31,9 @@ export default async function OrdersPage({ searchParams }: PageProps) {
   const scope = params.scope || (user?.role === 'commercial' ? 'mine' : 'all');
 
   // Build filters
-  const where: any = {};
+  const where: any = {
+    deletedAt: null
+  };
 
   if (params.status && params.status !== 'all') {
     where.status = params.status.toUpperCase() as OrderStatus;

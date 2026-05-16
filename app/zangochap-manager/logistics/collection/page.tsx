@@ -1,4 +1,4 @@
-import React from "react";
+import React from "react"; // Refresh v1
 import prisma from "@/lib/prisma";
 import Topbar from "@/components/Topbar";
 import CollectionClient from "./CollectionClient";
@@ -14,7 +14,7 @@ export default async function CollectionPage() {
 
   const orders = await prisma.order.findMany({
     where: {
-      status: { in: ['CONFIRMED', 'TO_PROCESS', 'PENDING', 'PACKED', 'PARTIAL'] }
+      status: { in: ['CONFIRMED', 'TO_PROCESS', 'PENDING', 'PARTIAL'] }
     },
     include: { items: true },
     orderBy: { createdAt: 'desc' },
@@ -34,7 +34,22 @@ export default async function CollectionPage() {
 
   for (const order of orders) {
     for (const item of order.items) {
-      if (!item.productId) continue;
+      if (!item.productId) {
+        // Handle custom/personalized products
+        toCollect.push({
+          order,
+          item,
+          product: {
+            id: 'CUSTOM',
+            name: item.name,
+            images: [],
+            variants: [],
+            stock: 0, // Custom items are always considered out of stock for collection
+            isCustom: true
+          },
+        });
+        continue;
+      }
 
       const product = productMap.get(item.productId);
       if (!product) continue;

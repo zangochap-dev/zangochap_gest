@@ -44,7 +44,7 @@ export async function generateUniqueRef(commune?: string, typePrefix?: string) {
 
   let maxSequence = 0;
   for (const o of lastOrders) {
-    const match = o.ref.match(/(\d+)$/);
+    const match = o.ref.match(/(\d{4})$/);
     if (match) {
       const num = parseInt(match[1], 10);
       if (num > maxSequence) {

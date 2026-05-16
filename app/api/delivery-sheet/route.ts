@@ -8,14 +8,18 @@ export async function GET(req: NextRequest) {
   const date = req.nextUrl.searchParams.get('date');
   if (!date) return NextResponse.json([]);
 
+  const type = req.nextUrl.searchParams.get('type');
+
   const startOfDay = new Date(date);
   startOfDay.setHours(0, 0, 0, 0);
   const endOfDay = new Date(date);
   endOfDay.setHours(23, 59, 59, 999);
 
-  const orders = await prisma.order.findMany({
-    where: {
-      status: { notIn: ['CANCELLED', 'PENDING', 'TO_PROCESS'] },
+  let dateFilter: any;
+  if (type === 'created') {
+    dateFilter = { createdAt: { gte: startOfDay, lte: endOfDay } };
+  } else {
+    dateFilter = {
       OR: [
         { deliveryDate: { gte: startOfDay, lte: endOfDay } },
         { 
@@ -25,6 +29,13 @@ export async function GET(req: NextRequest) {
           ]
         }
       ]
+    };
+  }
+
+  const orders = await prisma.order.findMany({
+    where: {
+      status: { notIn: ['CANCELLED', 'PENDING', 'TO_PROCESS'] },
+      ...dateFilter
     },
     include: { 
       items: {

@@ -1,14 +1,13 @@
 "use client";
 
-import React, { useState, useMemo, useTransition, useEffect, useRef } from "react";
+import React, { useState, useMemo, useTransition, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { TableCard, StatusBadge, EmptyState, DetailCard, SectionLabel, LocationBadge } from "@/components/UI";
-import Modal from "@/components/Modal";
 import { useToast } from "@/components/Toast";
 import { addOrderHistoryEntry, updateOrderStatus } from "@/modules/orders/actions";
-import { formatPrice, formatDay, STATUS_LABELS } from "@/lib/constants";
+import { formatDay } from "@/lib/constants";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Eye, Package, Check, ArrowLeftRight, Warehouse, X, Search, ChevronRight, ClipboardList, Edit2, RefreshCw } from "lucide-react";
+import { Package, Check, ArrowLeftRight, X, Search, Edit2 } from "lucide-react";
 import { updateProductVariants } from "@/modules/products/actions";
 import { toggleItemVerification } from "@/modules/logistics/actions";
 import { useIsMobile } from "@/lib/hooks";
@@ -17,89 +16,212 @@ import { motion, AnimatePresence } from "framer-motion";
 import PackingOrderModal from "./_components/PackingOrderModal";
 import VariantsEditorModal from "./_components/VariantsEditorModal";
 import PackingItem from "./_components/PackingItem";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-export default function PackingClient({ initialOrders, products, user }: { initialOrders: any[]; products: any[]; user: any }) {
-  const searchParams = useSearchParams();
-  const queryClient = useQueryClient();
-  
+// --- TYPES ---
+export interface PackingOrderItem {
+  id: string;
+  productId: string | null;
+  name: string;
+  size: string | null;
+  color: string | null;
+  image: string | null;
+  emoji: string | null;
+  isVerified: boolean;
+  isGift?: boolean;
+}
+
+export interface PackingOrder {
+  id: string;
+  ref: string;
+  status: string;
+  customerName: string;
+  commune: string | null;
+  commercialName: string | null;
+  packedByName: string | null;
+  createdAt: string;
+  items: PackingOrderItem[];
+  history: any[];
+}
+
+export interface ProductWithVariants {
+  id: string;
+  name: string;
+  variants: any[];
+}
+
+export interface PackingUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
+
+// --- HOOKS ---
+
+/**
+ * Hook pour la gestion du polling stabilisé
+ */
+function usePackingPolling(initialOrders: PackingOrder[], savingCount: number) {
+  const [orders, setOrders] = useState<PackingOrder[]>(initialOrders);
+  const savingCountRef = useRef(savingCount);
+
+  useEffect(() => {
+    savingCountRef.current = savingCount;
+  }, [savingCount]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    
+    const poll = async () => {
+      try {
+        // Ne pas rafraîchir si on est en train de sauvegarder
+        if (savingCountRef.current > 0) return;
+
+        const res = await fetch('/api/orders/packing', { signal: controller.signal });
+        if (res.ok) {
+          const json = await res.json();
+          setOrders(json.orders);
+        }
+      } catch (e: any) {
+        if (e.name !== 'AbortError') console.error("Polling error", e);
+      }
+    };
+
+    const interval = setInterval(poll, 20000);
+    return () => {
+      clearInterval(interval);
+      controller.abort();
+    };
+  }, []);
+
+  return { orders, setOrders };
+}
+
+/**
+ * Hook pour la gestion des filtres et du tri performant
+ */
+function usePackingFilters(orders: PackingOrder[], products: ProductWithVariants[], searchParams: URLSearchParams) {
   const [filter, setFilter] = useState(searchParams.get('status') || 'CONFIRMED');
   const [search, setSearch] = useState('');
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  
-  // Date filter: initialize empty and set on mount to avoid hydration mismatch (#418)
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  
+  const [warehouseFilter, setWarehouseFilter] = useState('all');
+
+  // Indexation des variantes pour lookup O(1)
+  const variantWarehouseMap = useMemo(() => {
+    const map = new Map<string, string[]>();
+    products.forEach((p) => {
+      p.variants?.forEach((v) => {
+        const key = `${p.id}_${v.size}_${v.color}`;
+        map.set(key, v.stockLevels?.map((sl: any) => sl.warehouse?.name) || []);
+      });
+    });
+    return map;
+  }, [products]);
+
+  // Pré-parsing des dates pour éviter new Date() dans le loop
+  const timeRange = useMemo(() => {
+    return {
+      from: dateFrom ? new Date(dateFrom).getTime() : null,
+      to: dateTo ? new Date(dateTo + 'T23:59:59').getTime() : null
+    };
+  }, [dateFrom, dateTo]);
+
+  const filtered = useMemo(() => {
+    const s = search.toLowerCase();
+    
+    return orders
+      .filter((o) => {
+        // Filtre Statut / Alternative
+        if (filter === 'ALTERNATIVE') {
+          if (!o.history?.some(h => h.action.includes('Alternative proposée'))) return false;
+        } else if (filter !== 'all' && o.status !== filter) return false;
+
+        // Filtre Recherche
+        if (search && !o.ref.toLowerCase().includes(s) && !o.customerName.toLowerCase().includes(s)) return false;
+
+        // Filtre Date
+        const created = new Date(o.createdAt).getTime();
+        if (timeRange.from && created < timeRange.from) return false;
+        if (timeRange.to && created > timeRange.to) return false;
+
+        // Filtre Entrepôt (Lookup performant)
+        if (warehouseFilter !== 'all') {
+          const hasWarehouse = o.items.some(item => {
+            const key = `${item.productId}_${item.size}_${item.color}`;
+            const warehouses = variantWarehouseMap.get(key);
+            return warehouses?.includes(warehouseFilter);
+          });
+          if (!hasWarehouse) return false;
+        }
+
+        return true;
+      })
+      .sort((a, b) => {
+        // Priorité aux alternatives, puis LIFO
+        const aAlt = a.history?.some(h => h.action.includes('Alternative proposée'));
+        const bAlt = b.history?.some(h => h.action.includes('Alternative proposée'));
+        if (aAlt && !bAlt) return -1;
+        if (!aAlt && bAlt) return 1;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+  }, [orders, filter, search, timeRange, warehouseFilter, variantWarehouseMap]);
+
+  return { 
+    filter, setFilter, 
+    search, setSearch, 
+    dateFrom, setDateFrom, 
+    dateTo, setDateTo, 
+    warehouseFilter, setWarehouseFilter,
+    filtered 
+  };
+}
+
+export default function PackingClient({ initialOrders, products, user }: { initialOrders: PackingOrder[], products: ProductWithVariants[], user: PackingUser }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const isMobile = useIsMobile();
+  const { showToast } = useToast();
+  const [mounted, setMounted] = useState(false);
+
+  // --- STATE ---
+  const [savingChecks, setSavingChecks] = useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [packingNote, setPackingNote] = useState('');
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [editingVariants, setEditingVariants] = useState<{ product: ProductWithVariants, variants: any[] } | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  // --- CUSTOM HOOKS ---
+  const { orders, setOrders } = usePackingPolling(initialOrders, savingChecks.size);
+  const { 
+    filter, setFilter, search, setSearch, dateFrom, setDateFrom, dateTo, setDateTo, warehouseFilter, setWarehouseFilter, filtered 
+  } = usePackingFilters(orders, products, searchParams);
+
+  // Security for Hydration
+  useEffect(() => { setMounted(true); }, []);
+
+  // Initialize dates
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
     setDateFrom(today);
     setDateTo(today);
   }, []);
-  
-  const [selectedOrder, setSelectedOrder] = useState<any>(null);
-  const [packingNote, setPackingNote] = useState('');
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
-  const [warehouseFilter, setWarehouseFilter] = useState('all');
-  const [isPending, startTransition] = useTransition();
-  const { showToast } = useToast();
-  const router = useRouter();
-  const isMobile = useIsMobile();
-  const [editingVariants, setEditingVariants] = useState<any>(null);
-  const [savingChecks, setSavingChecks] = useState<Set<string>>(new Set());
 
-  const pendingRef = useRef<Record<string, { status: boolean, time: number }>>({});
+  const selectedOrder = useMemo(() => orders.find(o => o.id === selectedOrderId), [orders, selectedOrderId]);
 
-  // REACT QUERY: Smooth background polling (No UI lag)
-  const { data: queryData } = useQuery({
-    queryKey: ['packing-orders'],
-    queryFn: async () => {
-      const res = await fetch('/api/orders/packing');
-      if (!res.ok) throw new Error('Erreur de synchro');
-      const json = await res.json();
-      
-      // MERGE LOGIC: Apply pending local updates that happened less than 10s ago
-      const now = Date.now();
-      const mergedOrders = json.orders.map((o: any) => ({
-        ...o,
-        items: o.items.map((i: any) => {
-          const pending = pendingRef.current[i.id];
-          if (pending && (now - pending.time) < 10000) {
-            return { ...i, isVerified: pending.status };
-          }
-          // Clean up old pending states
-          if (pending && (now - pending.time) >= 10000) delete pendingRef.current[i.id];
-          return i;
-        })
-      }));
-      
-      return { ...json, orders: mergedOrders };
-    },
-    initialData: { orders: initialOrders },
-    refetchInterval: 15000,
-    staleTime: 5000,
-  });
-
-  const orders = useMemo(() => queryData?.orders || initialOrders, [queryData, initialOrders]);
-
-  // Sync selectedOrder with latest data from polling
-  useEffect(() => {
-    if (selectedOrder) {
-      const updated = orders.find((o: any) => o.id === selectedOrder.id);
-      if (updated) setSelectedOrder(updated);
-    }
-  }, [orders, selectedOrder?.id]);
-
+  // Indexation simple des produits pour le modal
   const productMap = useMemo(() => {
-    const map = new Map();
-    products.forEach((p: any) => map.set(p.id, p));
+    const map = new Map<string, ProductWithVariants>();
+    products.forEach((p) => map.set(p.id, p));
     return map;
   }, [products]);
 
   const warehouses = useMemo(() => {
     const set = new Set<string>();
-    products.forEach((p: any) => {
-      p.variants?.forEach((v: any) => {
+    products.forEach((p) => {
+      p.variants?.forEach((v) => {
         v.stockLevels?.forEach((sl: any) => {
           if (sl.warehouse?.name) set.add(sl.warehouse.name);
         });
@@ -108,204 +230,133 @@ export default function PackingClient({ initialOrders, products, user }: { initi
     return Array.from(set).sort();
   }, [products]);
 
-  const filtered = useMemo(() => {
-    let result = [...orders]; // Create a copy to avoid mutating original
-    
-    // 1. Basic Status Filter
-    if (filter === 'ALTERNATIVE') {
-      result = result.filter((o: any) => o.history?.some((h: any) => h.action.includes('Alternative proposée')));
-    } else if (filter !== 'all') {
-      result = result.filter((o: any) => o.status === filter);
-    }
-
-    // 2. Search
-    if (search) {
-      const s = search.toLowerCase();
-      result = result.filter((o: any) => 
-        o.ref.toLowerCase().includes(s) || 
-        o.customerName.toLowerCase().includes(s)
-      );
-    }
-
-    // 3. Dates (if set)
-    if (dateFrom) result = result.filter((o: any) => new Date(o.createdAt) >= new Date(dateFrom));
-    if (dateTo) result = result.filter((o: any) => new Date(o.createdAt) <= new Date(dateTo + 'T23:59:59'));
-
-    // 4. Warehouse (Optimized)
-    if (warehouseFilter !== 'all') {
-      result = result.filter((o: any) => {
-        return o.items.some((item: any) => {
-          const p = productMap.get(item.productId);
-          if (!p) return false;
-          const v = p.variants?.find((vv: any) => vv.size === item.size && vv.color === item.color);
-          return v?.stockLevels?.some((sl: any) => sl.warehouse?.name === warehouseFilter);
-        });
-      });
-    }
-
-    // 5. SMART SORTING
-    return result.sort((a: any, b: any) => {
-      // Priority 1: Alternatives proposed first
-      const aAlt = a.history?.some((h: any) => h.action.includes('Alternative proposée'));
-      const bAlt = b.history?.some((h: any) => h.action.includes('Alternative proposée'));
-      if (aAlt && !bAlt) return -1;
-      if (!aAlt && bAlt) return 1;
-
-      // Priority 2: Newest first (Latest at the top)
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  // --- HANDLERS (useCallback to avoid prop drill re-renders) ---
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
     });
-  }, [orders, filter, search, dateFrom, dateTo, warehouseFilter, productMap]);
+  }, []);
 
-  const toggleSelect = (id: string) => {
-    const next = new Set(selectedIds);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setSelectedIds(next);
-  };
+  const toggleAll = useCallback(() => {
+    setSelectedIds(prev => {
+      if (prev.size === filtered.length) return new Set();
+      return new Set(filtered.map(o => o.id));
+    });
+  }, [filtered]);
 
-  const toggleAll = () => {
-    if (selectedIds.size === filtered.length) setSelectedIds(new Set());
-    else setSelectedIds(new Set(filtered.map(o => o.id)));
-  };
+  const toggleCheckItem = useCallback((orderId: string, item: PackingOrderItem) => {
+    const newStatus = !item.isVerified;
 
-  const handleBulkMark = (status: string) => {
-    if (selectedIds.size === 0) return;
-    if (!confirm(`Marquer ${selectedIds.size} commandes comme "${status}" ?`)) return;
-
-    // Optimistic Update
-    const previousData = queryClient.getQueryData(['packing-orders']);
-    queryClient.setQueryData(['packing-orders'], (old: any) => {
-      if (!old) return old;
+    setOrders(prev => prev.map(o => {
+      if (o.id !== orderId) return o;
       return {
-        ...old,
-        orders: old.orders.map((o: any) => 
-          selectedIds.has(o.id) ? { ...o, status } : o
-        )
+        ...o,
+        items: o.items.map(i => i.id === item.id ? { ...i, isVerified: newStatus } : i)
       };
+    }));
+
+    setSavingChecks(prev => {
+      const next = new Set(prev);
+      next.add(item.id);
+      return next;
     });
 
-    startTransition(async () => {
-      try {
-        await Promise.all(Array.from(selectedIds).map(id => updateOrderStatus(id, status)));
-        showToast(`${selectedIds.size} commandes mises à jour ✓`, 'success');
-        setSelectedIds(new Set());
-      } catch (e: any) {
-        // Rollback
-        queryClient.setQueryData(['packing-orders'], previousData);
-        showToast(e?.message || 'Erreur lors du traitement groupé', 'error');
-      } finally {
-        queryClient.invalidateQueries({ queryKey: ['packing-orders'] });
-      }
-    });
-  };
-
-  const toggleCheckItem = (orderId: string, item: any) => {
-    // 1. Get current cache state
-    const previousData: any = queryClient.getQueryData(['packing-orders']);
-    const currentStatus = item.isVerified;
-    const newStatus = !currentStatus;
-
-    // 1.5 Track in pendingRef for the "Freshness Lock" (10s)
-    pendingRef.current[item.id] = { status: newStatus, time: Date.now() };
-
-    // 2. Update cache INSTANTLY (Global update)
-    queryClient.setQueryData(['packing-orders'], (old: any) => {
-      if (!old) return old;
-      return {
-        ...old,
-        orders: old.orders.map((o: any) => {
+    toggleItemVerification(item.id, newStatus)
+      .catch(() => {
+        showToast("Erreur de sauvegarde", "error");
+        setOrders(prev => prev.map(o => {
           if (o.id !== orderId) return o;
           return {
             ...o,
-            items: o.items.map((i: any) => 
-              i.id === item.id ? { ...i, isVerified: newStatus } : i
-            )
+            items: o.items.map(i => i.id === item.id ? { ...i, isVerified: !newStatus } : i)
           };
-        })
-      };
-    });
-
-    // 3. Persist to DB
-    setSavingChecks(prev => new Set(prev).add(item.id));
-    toggleItemVerification(item.id, newStatus)
-      .then(() => {
-        setSavingChecks(prev => {
-          const next = new Set(prev);
-          next.delete(item.id);
-          return next;
-        });
+        }));
       })
-      .catch((err) => {
-        // Rollback on failure
-        queryClient.setQueryData(['packing-orders'], previousData);
+      .finally(() => {
         setSavingChecks(prev => {
           const next = new Set(prev);
           next.delete(item.id);
           return next;
         });
-        showToast("Erreur de sauvegarde", "error");
       });
-  };
+  }, [showToast]);
 
-  const handleMarkPacking = (orderId: string, status: string) => {
-    const order = orders.find((o: any) => o.id === orderId) || selectedOrder;
-    if (status === 'PACKED' && order) {
-      const unverifiedCount = order.items.filter((i: any) => !i.isVerified).length;
-      if (unverifiedCount > 0) {
-        if (!confirm(`Attention : ${unverifiedCount} article(s) n'ont pas été vérifiés. Voulez-vous quand même marquer la commande comme emballée ?`)) {
-          return;
-        }
-      }
+  const handleMarkPacking = useCallback((orderId: string, status: string) => {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return;
+
+    if (status === 'PACKED') {
+      const unverifiedCount = order.items.filter(i => !i.isVerified).length;
+      if (unverifiedCount > 0 && !confirm(`Attention : ${unverifiedCount} article(s) n'ont pas été vérifiés.`)) return;
     }
-
-    // Optimistic
-    const previousData = queryClient.getQueryData(['packing-orders']);
-    queryClient.setQueryData(['packing-orders'], (old: any) => {
-      if (!old) return old;
-      return {
-        ...old,
-        orders: old.orders.map((o: any) => o.id === orderId ? { ...o, status } : o)
-      };
-    });
 
     startTransition(async () => {
       try {
         await updateOrderStatus(orderId, status, packingNote || undefined);
         showToast('Statut mis à jour ✓', 'success');
-        setSelectedOrder(null);
+        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
+        setSelectedOrderId(null);
         setPackingNote('');
       } catch (e: any) {
-        queryClient.setQueryData(['packing-orders'], previousData);
-        showToast(e?.message || 'Erreur lors du marquage', 'error');
-      } finally {
-        queryClient.invalidateQueries({ queryKey: ['packing-orders'] });
+        showToast('Erreur lors du marquage', 'error');
       }
     });
-  };
+  }, [orders, packingNote, showToast]);
 
-  const handleProposeAlternative = (orderId: string, itemName: string) => {
-    const alt = prompt(`Quelle alternative proposer pour "${itemName}" ? (ex: Taille 41 au lieu de 40)`);
+  const handleBulkMark = useCallback((status: string) => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Marquer ${selectedIds.size} commandes comme "${status}" ?`)) return;
+
+    startTransition(async () => {
+      try {
+        await Promise.all(Array.from(selectedIds).map(id => updateOrderStatus(id, status)));
+        showToast(`${selectedIds.size} commandes mises à jour ✓`, 'success');
+        setOrders(prev => prev.map(o => selectedIds.has(o.id) ? { ...o, status } : o));
+        setSelectedIds(new Set());
+      } catch (e: any) {
+        showToast('Erreur lors du traitement groupé', 'error');
+      }
+    });
+  }, [selectedIds, showToast]);
+
+  const handleProposeAlternative = useCallback((orderId: string, itemName: string) => {
+    const alt = prompt(`Alternative pour "${itemName}" ?`);
     if (!alt) return;
 
     startTransition(async () => {
       try {
         await addOrderHistoryEntry(orderId, `Alternative proposée pour "${itemName}" : ${alt}`);
         showToast('Alternative enregistrée ✓', 'success');
-        router.refresh();
+        setOrders(prev => prev.map(o => {
+          if (o.id !== orderId) return o;
+          const history = Array.isArray(o.history) ? [...o.history] : [];
+          history.push({ 
+            at: new Date().toISOString(), 
+            action: `Alternative proposée pour "${itemName}" : ${alt}`,
+            byName: "Système"
+          });
+          return { ...o, history };
+        }));
       } catch (e: any) {
         showToast('Erreur lors de l\'enregistrement', 'error');
       }
     });
-  };
+  }, [showToast]);
 
-  const filters = [
-    { key: 'CONFIRMED', label: 'Confirmées' },
-    { key: 'PREPARING', label: 'Suivies' },
-    { key: 'ALTERNATIVE', label: 'Alternatives' },
-    { key: 'PACKED', label: 'Emballées' },
-    { key: 'PARTIAL', label: 'Partielles' },
-    { key: 'all', label: 'Toutes' },
-  ];
+  const handleEditStock = useCallback((product: ProductWithVariants) => {
+    setEditingVariants({ product, variants: product.variants });
+  }, []);
+
+  // --- RENDER ---
+  const commonProps = {
+    productMap,
+    onEditStock: handleEditStock,
+    onPreviewImage: setPreviewImage,
+    onToggleCheckItem: toggleCheckItem,
+  };
 
   if (isMobile) {
     return (
@@ -315,7 +366,7 @@ export default function PackingClient({ initialOrders, products, user }: { initi
           <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
             <h1 style={{ fontSize: 20, fontWeight: 800 }}>Emballage</h1>
             <div style={{ position: 'absolute', right: 0, fontSize: 12, fontWeight: 700, color: 'var(--orange)', background: 'var(--orange-soft)', padding: '4px 10px', borderRadius: 20 }}>
-              {filtered.length} commandes
+              {filtered.length}
             </div>
           </div>
 
@@ -331,60 +382,41 @@ export default function PackingClient({ initialOrders, products, user }: { initi
           </div>
 
           <div className="mobile-status-tabs">
-            {filters.map(f => (
-              <button
-                key={f.key}
-                className={`status-tab ${filter === f.key ? 'active' : ''}`}
-                onClick={() => setFilter(f.key)}
-              >
+            {[
+              { key: 'CONFIRMED', label: 'Confirmées' },
+              { key: 'PREPARING', label: 'Suivies' },
+              { key: 'ALTERNATIVE', label: 'Alternatives' },
+              { key: 'PACKED', label: 'Emballées' },
+              { key: 'all', label: 'Toutes' },
+            ].map(f => (
+              <button key={f.key} className={`status-tab ${filter === f.key ? 'active' : ''}`} onClick={() => setFilter(f.key)}>
                 {f.label}
               </button>
             ))}
           </div>
 
-          <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-            <select
-              className="filter-select"
-              style={{ flex: 1, height: 36, borderRadius: 10, background: '#F2F2F7', border: 'none', fontWeight: 600, color: warehouseFilter !== 'all' ? 'var(--orange)' : 'inherit' }}
-              value={warehouseFilter}
-              onChange={e => setWarehouseFilter(e.target.value)}
-            >
-              <option value="all">🏢 Tous Entrepôts</option>
-              {warehouses.map(w => <option key={w} value={w}>{w}</option>)}
-            </select>
-          </div>
           <div style={{ display: 'flex', gap: 4, background: '#F2F2F7', padding: '2px', borderRadius: 10, marginBottom: 12 }}>
             {[
-              { label: 'Auj.', val: 'today' },
-              { label: 'Hier', val: 'yesterday' },
-              { label: '3J', val: '3days' },
+              { label: 'Auj.', val: 'today' }, 
+              { label: 'Hier', val: 'yesterday' }, 
+              { label: '3J', val: '3days' }, 
               { label: 'Tout', val: 'all' }
             ].map(d => (
               <button
                 key={d.val}
                 onClick={() => {
-                  const now = new Date();
-                  const today = now.toISOString().split('T')[0];
-                  if (d.val === 'today') { setDateFrom(today); setDateTo(today); }
-                  else if (d.val === 'yesterday') {
-                    const yest = new Date(now.setDate(now.getDate() - 1)).toISOString().split('T')[0];
-                    setDateFrom(yest); setDateTo(yest);
-                  }
-                  else if (d.val === '3days') {
-                    const three = new Date(now.setDate(now.getDate() - 2)).toISOString().split('T')[0];
-                    setDateFrom(three); setDateTo(today);
-                  }
-                  else { setDateFrom(''); setDateTo(''); }
+                  const dDate = new Date();
+                  if (d.val === 'yesterday') dDate.setDate(dDate.getDate() - 1);
+                  if (d.val === '3days') dDate.setDate(dDate.getDate() - 2);
+                  const str = dDate.toISOString().split('T')[0];
+                  
+                  if (d.val === 'all') { setDateFrom(''); setDateTo(''); }
+                  else { setDateFrom(str); setDateTo(new Date().toISOString().split('T')[0]); }
                 }}
-                style={{
-                  flex: 1,
-                  fontSize: 10,
-                  fontWeight: 800,
-                  padding: '6px 0',
-                  borderRadius: 8,
-                  border: 'none',
-                  background: (d.val === 'today' && dateFrom === new Date().toISOString().split('T')[0]) || (d.val === 'all' && !dateFrom) ? 'white' : 'transparent',
-                  boxShadow: (d.val === 'today' && dateFrom === new Date().toISOString().split('T')[0]) || (d.val === 'all' && !dateFrom) ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
+                style={{ 
+                  flex: 1, fontSize: 10, fontWeight: 800, padding: '6px 0', borderRadius: 8, border: 'none',
+                  background: (dateFrom && d.val !== 'all') || (!dateFrom && d.val === 'all') ? 'white' : 'transparent',
+                  boxShadow: 'none'
                 }}
               >
                 {d.label}
@@ -396,134 +428,40 @@ export default function PackingClient({ initialOrders, products, user }: { initi
         <div className="logistics-mobile-content">
           <AnimatePresence mode="popLayout">
             {filtered.length === 0 ? (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                style={{ padding: '40px 0', textAlign: 'center' }}
-              >
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ padding: '40px 0', textAlign: 'center' }}>
                 <Package size={48} style={{ margin: '0 auto 12px', opacity: 0.2 }} />
-                <p style={{ color: '#8E8E93', fontSize: 14 }}>Aucune commande trouvée</p>
+                <p style={{ color: '#8E8E93', fontSize: 14 }}>Aucune commande</p>
               </motion.div>
             ) : (
-              filtered.map((o: any, idx: number) => (
+              filtered.map((o, idx) => (
                 <PackingItem
                   key={o.id}
                   order={o}
                   isMobile={true}
                   idx={idx}
-                  productMap={productMap}
                   isSelected={selectedIds.has(o.id)}
                   onToggleSelect={toggleSelect}
-                  onSelect={(order) => { setSelectedOrder(order); setPackingNote(''); }}
-                  onEditStock={(p) => setEditingVariants({ product: p, variants: p.variants })}
+                  onSelect={(order) => { setSelectedOrderId(order.id); setPackingNote(''); }}
                   onMarkPacking={handleMarkPacking}
-                  onPreviewImage={setPreviewImage}
-                  onToggleCheckItem={toggleCheckItem}
+                  {...commonProps}
                 />
               ))
             )}
           </AnimatePresence>
         </div>
 
-        {selectedIds.size > 0 && (
-          <div className="animate-slide-up" style={{ position: 'fixed', bottom: 20, left: 16, right: 16, background: '#1C1C1E', color: 'white', padding: '12px 16px', borderRadius: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', zIndex: 300 }}>
-            <div style={{ fontSize: 13, fontWeight: 700 }}>{selectedIds.size} sél.</div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => handleBulkMark('PREPARING')} style={{ background: '#3A3A3C', color: 'white', border: 'none', padding: '8px 12px', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>Suivie</button>
-              <button onClick={() => handleBulkMark('PACKED')} style={{ background: '#FF6B2C', color: 'white', border: 'none', padding: '8px 12px', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>Emballé</button>
-            </div>
-          </div>
-        )}
-
-        {/* PACKING DETAIL MODAL */}
         <PackingOrderModal
           order={selectedOrder}
-          isMobile={isMobile}
+          isMobile={true}
           isPending={isPending}
-          productMap={productMap}
           packingNote={packingNote}
           setPackingNote={setPackingNote}
-          onClose={() => setSelectedOrder(null)}
+          onClose={() => setSelectedOrderId(null)}
           onMarkPacking={handleMarkPacking}
           onProposeAlternative={handleProposeAlternative}
-          onEditStock={(p) => setEditingVariants({ product: p, variants: p.variants })}
-          onToggleCheckItem={toggleCheckItem}
-          onPreviewImage={setPreviewImage}
           savingChecks={savingChecks}
+          {...commonProps}
         />
-
-        {/* LIGHTBOX PORTAL */}
-        {previewImage && typeof document !== 'undefined' && createPortal(
-          <div
-            className="lightbox-overlay"
-            onClick={() => setPreviewImage(null)}
-            style={{
-              position: 'fixed',
-              inset: 0,
-              zIndex: 99999,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'rgba(0,0,0,0.92)',
-              backdropFilter: 'blur(8px)'
-            }}
-          >
-            <div className="lightbox-content animate-zoom-in" onClick={e => e.stopPropagation()} style={{ position: 'relative', maxWidth: '95%', maxHeight: '95%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <img
-                src={previewImage}
-                alt="Preview"
-                style={{
-                  maxWidth: '100%',
-                  maxHeight: '100%',
-                  objectFit: 'contain',
-                  borderRadius: 16,
-                  boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
-                }}
-              />
-              <button
-                onClick={() => setPreviewImage(null)}
-                style={{
-                  position: 'absolute',
-                  top: 20,
-                  right: 20,
-                  background: 'rgba(255,255,255,0.2)',
-                  border: 'none',
-                  color: 'white',
-                  borderRadius: '50%',
-                  width: 44,
-                  height: 44,
-                  backdropFilter: 'blur(4px)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-              >
-                <X size={28} />
-              </button>
-            </div>
-          </div>,
-          document.body
-        )}
-
-        {editingVariants && (
-          <VariantsEditorModal
-            product={editingVariants.product}
-            variants={editingVariants.variants}
-            onClose={() => setEditingVariants(null)}
-            onSave={(vars: any[]) => {
-              startTransition(async () => {
-                try {
-                  await updateProductVariants(editingVariants.product.id, vars);
-                  showToast('Variantes mises à jour ✓', 'success');
-                  router.refresh();
-                  setEditingVariants(null);
-                } catch (e: any) {
-                  showToast('Erreur', 'error');
-                }
-              });
-            }}
-          />
-        )}
       </div>
     );
   }
@@ -532,192 +470,93 @@ export default function PackingClient({ initialOrders, products, user }: { initi
     <div className="content animate-fade-in">
       <div className="filters-bar" style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', background: 'white', padding: '12px 16px', borderRadius: 12, marginBottom: 20, border: '1px solid var(--line)' }}>
         <div style={{ display: 'flex', gap: 4 }}>
-          {filters.map(f => (
+          {[
+            { key: 'CONFIRMED', label: 'Confirmées' },
+            { key: 'PREPARING', label: 'Suivies' },
+            { key: 'ALTERNATIVE', label: 'Alternatives' },
+            { key: 'PACKED', label: 'Emballées' },
+            { key: 'all', label: 'Toutes' },
+          ].map(f => (
             <button key={f.key} className={`filter-chip ${filter === f.key ? 'active' : ''}`} onClick={() => setFilter(f.key)}>
               {f.label}
             </button>
           ))}
         </div>
-
         <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
-          <input
-            type="text"
-            placeholder="Rechercher une réf ou un client..."
-            className="field-input"
-            style={{ paddingLeft: 36, height: 36, fontSize: 13 }}
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-          <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }}><Eye size={16} /></span>
+          <input type="text" placeholder="Rechercher..." className="field-input" style={{ paddingLeft: 36, height: 36, fontSize: 13 }} value={search} onChange={e => setSearch(e.target.value)} />
+          <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }}><Search size={16} /></span>
         </div>
-
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ display: 'flex', gap: 4, marginRight: 8, padding: '2px', background: '#F2F2F7', borderRadius: 8 }}>
-            {[
-              { label: 'Aujourd\'hui', val: 'today' },
-              { label: 'Hier', val: 'yesterday' },
-              { label: '3J', val: '3days' },
-              { label: 'Tout', val: 'all' }
-            ].map(d => (
-              <button
-                key={d.val}
-                onClick={() => {
-                  const now = new Date();
-                  const today = now.toISOString().split('T')[0];
-                  if (d.val === 'today') { setDateFrom(today); setDateTo(today); }
-                  else if (d.val === 'yesterday') {
-                    const yest = new Date(now.setDate(now.getDate() - 1)).toISOString().split('T')[0];
-                    setDateFrom(yest); setDateTo(yest);
-                  }
-                  else if (d.val === '3days') {
-                    const three = new Date(now.setDate(now.getDate() - 2)).toISOString().split('T')[0];
-                    setDateFrom(three); setDateTo(today);
-                  }
-                  else { setDateFrom(''); setDateTo(''); }
-                }}
-                style={{
-                  fontSize: 10,
-                  fontWeight: 800,
-                  padding: '4px 8px',
-                  borderRadius: 6,
-                  border: 'none',
-                  background: (d.val === 'today' && dateFrom === new Date().toISOString().split('T')[0] && dateTo === new Date().toISOString().split('T')[0]) || (d.val === 'all' && !dateFrom) ? 'white' : 'transparent',
-                  boxShadow: (d.val === 'today' && dateFrom === new Date().toISOString().split('T')[0]) || (d.val === 'all' && !dateFrom) ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
-                  cursor: 'pointer'
-                }}
-              >
-                {d.label}
-              </button>
-            ))}
-          </div>
-          <select
-            className="filter-date"
-            style={{ width: 140, fontWeight: 600, color: warehouseFilter !== 'all' ? 'var(--orange)' : 'inherit' }}
-            value={warehouseFilter}
-            onChange={e => setWarehouseFilter(e.target.value)}
-          >
+          <select className="filter-date" value={warehouseFilter} onChange={e => setWarehouseFilter(e.target.value)}>
             <option value="all">Tous les entrepôts</option>
             {warehouses.map(w => <option key={w} value={w}>{w}</option>)}
           </select>
           <input type="date" className="filter-date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-          <span style={{ opacity: 0.3 }}>→</span>
           <input type="date" className="filter-date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
         </div>
       </div>
 
-      {selectedIds.size > 0 && (
-        <div className="animate-slide-up" style={{ background: '#221F1D', color: 'white', padding: '12px 20px', borderRadius: 12, marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 8px 30px rgba(0,0,0,0.2)' }}>
-          <div style={{ fontWeight: 700, fontSize: 14 }}>{selectedIds.size} commande(s) sélectionnée(s)</div>
-          <div style={{ display: 'flex', gap: 12 }}>
-            <button onClick={() => setSelectedIds(new Set())} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: 'white', padding: '6px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>Annuler</button>
-            <button onClick={() => handleBulkMark('PREPARING')} disabled={isPending} style={{ background: 'white', color: '#221F1D', border: 'none', padding: '6px 16px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Marquer comme Suivie</button>
-            <button onClick={() => handleBulkMark('PACKED')} disabled={isPending} className="btn-orange" style={{ padding: '6px 16px', fontSize: 12 }}>Marquer comme Emballé</button>
-          </div>
-        </div>
-      )}
-
       <TableCard title={`${filtered.length} commande(s)`}>
-        {filtered.length === 0 ? (
-          <EmptyState icon="📦" title="Rien à emballer" description="Aucune commande avec ce filtre." />
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th style={{ width: 40 }}><input type="checkbox" checked={selectedIds.size === filtered.length && filtered.length > 0} onChange={toggleAll} /></th>
-                <th>Référence</th><th>Articles</th><th>Emplacements</th><th>Validé par</th><th>Statut</th><th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((o: any) => (
-                <PackingItem
-                  key={o.id}
-                  order={o}
-                  isMobile={false}
-                  productMap={productMap}
-                  isSelected={selectedIds.has(o.id)}
-                  onToggleSelect={toggleSelect}
-                  onSelect={(order) => { setSelectedOrder(order); setPackingNote(''); }}
-                  onEditStock={(p) => setEditingVariants({ product: p, variants: p.variants })}
-                  onMarkPacking={handleMarkPacking}
-                  onPreviewImage={setPreviewImage}
-                  onToggleCheckItem={toggleCheckItem}
-                />
-              ))}
-            </tbody>
-          </table>
-        )}
+        <table>
+          <thead>
+            <tr>
+              <th style={{ width: 40 }}><input type="checkbox" checked={selectedIds.size === filtered.length && filtered.length > 0} onChange={toggleAll} /></th>
+              <th>Référence</th><th>Articles</th><th>Entrepôts</th><th>Statut</th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((o) => (
+              <PackingItem
+                key={o.id}
+                order={o}
+                isMobile={false}
+                isSelected={selectedIds.has(o.id)}
+                onToggleSelect={toggleSelect}
+                onSelect={(order) => { setSelectedOrderId(order.id); setPackingNote(''); }}
+                onMarkPacking={handleMarkPacking}
+                {...commonProps}
+              />
+            ))}
+          </tbody>
+        </table>
       </TableCard>
 
-      {/* PACKING DETAIL MODAL (DESKTOP) */}
-      {!isMobile && (
-        <PackingOrderModal
-          order={selectedOrder}
-          isMobile={false}
-          isPending={isPending}
-          productMap={productMap}
-          packingNote={packingNote}
-          setPackingNote={setPackingNote}
-          onClose={() => setSelectedOrder(null)}
-          onMarkPacking={handleMarkPacking}
-          onProposeAlternative={handleProposeAlternative}
-          onEditStock={(p) => setEditingVariants({ product: p, variants: p.variants })}
-          onToggleCheckItem={toggleCheckItem}
-          onPreviewImage={setPreviewImage}
-          savingChecks={savingChecks}
-        />
-      )}
+      <PackingOrderModal
+        order={selectedOrder}
+        isMobile={false}
+        isPending={isPending}
+        packingNote={packingNote}
+        setPackingNote={setPackingNote}
+        onClose={() => setSelectedOrderId(null)}
+        onMarkPacking={handleMarkPacking}
+        onProposeAlternative={handleProposeAlternative}
+        savingChecks={savingChecks}
+        {...commonProps}
+      />
 
-      {/* LIGHTBOX PORTAL (DESKTOP) */}
-      {previewImage && typeof document !== 'undefined' && createPortal(
-        <div
-          className="lightbox-overlay"
-          onClick={() => setPreviewImage(null)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 99999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'rgba(0,0,0,0.9)',
-            backdropFilter: 'blur(5px)',
-            cursor: 'zoom-out'
-          }}
-        >
-          <img
-            src={previewImage}
-            style={{
-              maxWidth: '90%',
-              maxHeight: '90%',
-              objectFit: 'contain',
-              borderRadius: 12,
-              boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
-            }}
-            alt="Zoomed"
-          />
+      {mounted && previewImage && createPortal(
+        <div className="lightbox-overlay" onClick={() => setPreviewImage(null)} style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <img src={previewImage} style={{ maxWidth: '90%', maxHeight: '90%', borderRadius: 12 }} alt="Preview" />
         </div>,
         document.body
       )}
+      
       {editingVariants && (
         <VariantsEditorModal
           product={editingVariants.product}
           variants={editingVariants.variants}
           onClose={() => setEditingVariants(null)}
-          onSave={(vars: any[]) => {
-            startTransition(async () => {
-              try {
-                await updateProductVariants(editingVariants.product.id, vars);
-                showToast('Variantes mises à jour ✓', 'success');
-                router.refresh();
-                setEditingVariants(null);
-              } catch (e: any) {
-                showToast('Erreur lors de la mise à jour', 'error');
-              }
-            });
+          onSave={async (vars) => {
+            try {
+              await updateProductVariants(editingVariants.product.id, vars);
+              showToast('Variantes mises à jour ✓', 'success');
+              setEditingVariants(null);
+              // Optimistically update products if needed, or refresh
+              router.refresh();
+            } catch (e) { showToast('Erreur', 'error'); }
           }}
         />
       )}
     </div>
   );
 }
-

@@ -5,18 +5,20 @@ import Modal from "@/components/Modal";
 import { SectionLabel, DetailCard } from "@/components/UI";
 import { Check, ArrowLeftRight, Warehouse, Edit2, Loader2 } from "lucide-react";
 
+import { PackingOrder, PackingOrderItem, ProductWithVariants } from "../PackingClient";
+
 interface PackingOrderModalProps {
-  order: any;
+  order: PackingOrder | null | undefined;
   isMobile: boolean;
   isPending: boolean;
-  productMap: Map<string, any>;
+  productMap: Map<string, ProductWithVariants>;
   packingNote: string;
   setPackingNote: (note: string) => void;
   onClose: () => void;
   onMarkPacking: (orderId: string, status: string) => void;
   onProposeAlternative: (orderId: string, itemName: string) => void;
-  onEditStock: (product: any) => void;
-  onToggleCheckItem: (orderId: string, item: any) => void;
+  onEditStock: (product: ProductWithVariants) => void;
+  onToggleCheckItem: (orderId: string, item: PackingOrderItem) => void;
   onPreviewImage: (url: string) => void;
   savingChecks?: Set<string>;
 }

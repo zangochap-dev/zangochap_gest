@@ -6,21 +6,23 @@ import { formatDay } from "@/lib/constants";
 import { Check, Edit2, Eye, Warehouse, ArrowLeftRight } from "lucide-react";
 import { motion } from "framer-motion";
 
+import { PackingOrder, PackingOrderItem, ProductWithVariants } from "../PackingClient";
+
 interface PackingItemProps {
-  order: any;
+  order: PackingOrder;
   isMobile: boolean;
-  productMap: Map<string, any>;
+  productMap: Map<string, ProductWithVariants>;
   isSelected: boolean;
   onToggleSelect: (id: string) => void;
-  onSelect: (order: any) => void;
-  onEditStock: (product: any) => void;
+  onSelect: (order: PackingOrder) => void;
+  onEditStock: (product: ProductWithVariants) => void;
   onMarkPacking: (orderId: string, status: string) => void;
   onPreviewImage: (url: string) => void;
-  onToggleCheckItem: (orderId: string, item: any) => void;
+  onToggleCheckItem: (orderId: string, item: PackingOrderItem) => void;
   idx?: number;
 }
 
-export default function PackingItem({
+const PackingItem = React.memo(({
   order: o,
   isMobile,
   productMap,
@@ -32,10 +34,10 @@ export default function PackingItem({
   onPreviewImage,
   onToggleCheckItem,
   idx = 0
-}: PackingItemProps) {
+}: PackingItemProps) => {
   
   const totalItems = o.items.length;
-  const checkedCount = o.items.filter((i: any) => i.isVerified).length;
+  const checkedCount = o.items.filter((i: PackingOrderItem) => i.isVerified).length;
   const progress = (checkedCount / totalItems) * 100;
 
   if (isMobile) {
@@ -60,9 +62,10 @@ export default function PackingItem({
           <div style={{ position: 'relative', flexShrink: 0 }}>
             <div
               onClick={(e) => {
-                if (o.items[0]?.image) {
+                const img = o.items[0]?.image;
+                if (img) {
                   e.stopPropagation();
-                  onPreviewImage(o.items[0].image);
+                  onPreviewImage(img);
                 }
               }}
               style={{
@@ -108,7 +111,7 @@ export default function PackingItem({
               <div>
                 <div style={{ fontSize: 12, fontWeight: 700, color: '#1C1C1E', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
                   {o.customerName}
-                  {o.items.some((i: any) => i.isGift) && <span style={{ fontSize: 8, background: 'var(--orange-soft)', color: 'var(--orange)', padding: '1px 5px', borderRadius: 4, fontWeight: 800 }}>CADEAU</span>}
+                  {o.items.some((i: PackingOrderItem) => i.isGift) && <span style={{ fontSize: 8, background: 'var(--orange-soft)', color: 'var(--orange)', padding: '1px 5px', borderRadius: 4, fontWeight: 800 }}>CADEAU</span>}
                 </div>
                 <div style={{ fontSize: 10, color: '#8E8E93', fontWeight: 600 }}>{o.commune || 'Abidjan'} • {formatDay(o.createdAt)}</div>
                 <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
@@ -119,8 +122,11 @@ export default function PackingItem({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  const p = productMap.get(o.items[0]?.productId);
-                  if (p) onEditStock(p);
+                  const productId = o.items[0]?.productId;
+                  if (productId) {
+                    const p = productMap.get(productId);
+                    if (p) onEditStock(p);
+                  }
                 }}
                 style={{
                   background: 'var(--cream)',
@@ -190,8 +196,9 @@ export default function PackingItem({
         <div className="cell-muted">{formatDay(o.createdAt)}</div>
       </td>
       <td>
-        {o.items.map((i: any, idx: number) => {
+        {o.items.map((i: PackingOrderItem, idx: number) => {
           const isChecked = i.isVerified;
+          const imageUrl = i.image;
           return (
             <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, margin: '2px 0', opacity: isChecked ? 0.4 : 1, transition: 'opacity 0.2s' }}>
               <div
@@ -200,12 +207,12 @@ export default function PackingItem({
               >
                 {isChecked && <Check size={10} color="white" />}
               </div>
-              {i.image ? (
+              {imageUrl ? (
                 <img
-                  src={i.image}
+                  src={imageUrl}
                   alt=""
                   style={{ width: 22, height: 22, borderRadius: 4, objectFit: 'cover', cursor: 'zoom-in' }}
-                  onClick={() => onPreviewImage(i.image)}
+                  onClick={() => onPreviewImage(imageUrl)}
                   onError={(e: any) => {
                     e.target.onerror = null;
                     e.target.style.display = 'none';
@@ -235,8 +242,10 @@ export default function PackingItem({
       </td>
       <td>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {o.items.map((item: any, idx: number) => {
-            const p = productMap.get(item.productId);
+          {o.items.map((item: PackingOrderItem, idx: number) => {
+            const productId = item.productId;
+            if (!productId) return null;
+            const p = productMap.get(productId);
             if (!p) return null;
             const variant = p.variants.find((v: any) => v.size === item.size && v.color === item.color);
             return (
@@ -275,4 +284,6 @@ export default function PackingItem({
       </td>
     </tr>
   );
-}
+});
+
+export default PackingItem;

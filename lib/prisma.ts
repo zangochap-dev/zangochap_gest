@@ -11,7 +11,7 @@ const prismaClientSingleton = () => {
   console.log("Initializing Prisma Client with Pool...");
   const pool = new Pool({
     connectionString,
-    max: 30, // Increased for concurrent refresh cycles
+    max: 10, // Neon free-tier supports ~20 connections; keep headroom
     idleTimeoutMillis: 60000,
     connectionTimeoutMillis: 60000,
     statement_timeout: 60000, // Prevent hanging queries

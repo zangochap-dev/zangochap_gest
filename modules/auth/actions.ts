@@ -120,7 +120,7 @@ export async function createAccount(data: {
 
   const initials = data.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
   const hashedPassword = await bcrypt.hash(data.password, 10);
-  
+
   await prisma.user.create({
     data: {
       email: data.email.toLowerCase(),

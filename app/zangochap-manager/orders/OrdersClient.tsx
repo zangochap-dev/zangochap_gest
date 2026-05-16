@@ -37,6 +37,7 @@ interface OrdersClientProps {
   currentPage: number;
   pageSize: number;
   statusCounts?: Record<string, number>;
+  todayStr?: string;
 }
 
 export default function OrdersClient({
@@ -48,7 +49,8 @@ export default function OrdersClient({
   totalCount,
   currentPage: serverPage,
   pageSize,
-  statusCounts = {}
+  statusCounts = {},
+  todayStr: serverTodayStr
 }: OrdersClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -57,7 +59,7 @@ export default function OrdersClient({
   const [filter, setFilter] = useState(searchParams.get('status') || 'all');
   const [communeFilter, setCommuneFilter] = useState(searchParams.get('commune') || 'all');
   const [scope, setScope] = useState(searchParams.get('scope') || (user?.role === 'commercial' ? 'mine' : 'all'));
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = serverTodayStr || new Date().toISOString().split('T')[0];
   const [dateFrom, setDateFrom] = useState(searchParams.get('from') === null ? todayStr : (searchParams.get('from') || ''));
   const [dateTo, setDateTo] = useState(searchParams.get('to') === null ? todayStr : (searchParams.get('to') || ''));
   const [dateType, setDateType] = useState(searchParams.get('dateType') || 'created');

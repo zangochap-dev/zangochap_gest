@@ -104,6 +104,8 @@ export default async function OrdersPage({ searchParams }: PageProps) {
     user
   }));
 
+  const todayStr = new Date().toISOString().split('T')[0];
+
   return (
     <>
       <Topbar title="Gestion des" subtitle="commandes" />
@@ -116,6 +118,7 @@ export default async function OrdersPage({ searchParams }: PageProps) {
         user={data.user} 
         currentPage={page}
         pageSize={limit}
+        todayStr={todayStr}
       />
     </>
   );

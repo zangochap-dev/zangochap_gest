@@ -227,33 +227,53 @@ export async function updateProductVariants(productId: string, variants: Array<{
   location?: string;
 }>) {
   await ensureAuth(["admin", "stock", "packing", "collection", "commercial"]);
-  // Delete existing variants and their stock levels (Cascade will handle StockLevel)
-  await prisma.productVariant.deleteMany({ where: { productId } });
   
-  const defaultWarehouse = await getOrCreateDefaultWarehouse();
-
-  // Create new variants
-  for (const v of variants) {
-    const newVariant = await prisma.productVariant.create({
-      data: {
-        productId,
-        size: v.size,
-        color: v.color,
-        stock: v.stock,
-        location: v.location || '',
-      }
+  await prisma.$transaction(async (tx) => {
+    let defaultWarehouse = await tx.warehouse.findFirst({
+      where: { name: "Magasin Principal" }
     });
+    if (!defaultWarehouse) {
+      defaultWarehouse = await tx.warehouse.create({ data: { name: "Magasin Principal" } });
+    }
 
-    // Create stock level in default warehouse
-    await prisma.stockLevel.create({
-      data: {
-        variantId: newVariant.id,
-        warehouseId: defaultWarehouse.id,
-        quantity: v.stock,
-        position: v.location || null
+    const existingVariants = await tx.productVariant.findMany({ where: { productId } });
+    const existingIds = existingVariants.map(v => v.id);
+    const incomingIds = variants.map(v => v.id).filter(Boolean);
+
+    // Delete removed variants
+    const toDelete = existingIds.filter(id => !incomingIds.includes(id));
+    if (toDelete.length > 0) {
+      await tx.productVariant.deleteMany({ where: { id: { in: toDelete } } });
+    }
+
+    for (const v of variants) {
+      if (v.id && existingIds.includes(v.id)) {
+         await tx.productVariant.update({
+            where: { id: v.id },
+            data: { size: v.size, color: v.color, stock: v.stock, location: v.location || '' }
+         });
+         
+         const stockLvl = await tx.stockLevel.findFirst({ where: { variantId: v.id, warehouseId: defaultWarehouse.id }});
+         if (stockLvl) {
+            await tx.stockLevel.update({
+               where: { id: stockLvl.id },
+               data: { quantity: v.stock, position: v.location || null }
+            });
+         } else {
+            await tx.stockLevel.create({
+               data: { variantId: v.id, warehouseId: defaultWarehouse.id, quantity: v.stock, position: v.location || null }
+            });
+         }
+      } else {
+         const newVariant = await tx.productVariant.create({
+            data: { productId, size: v.size, color: v.color, stock: v.stock, location: v.location || '' }
+         });
+         await tx.stockLevel.create({
+            data: { variantId: newVariant.id, warehouseId: defaultWarehouse.id, quantity: v.stock, position: v.location || null }
+         });
       }
-    });
-  }
+    }
+  });
 
   // Synchronize stock totals
   await syncProductStock(productId);

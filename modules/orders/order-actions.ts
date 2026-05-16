@@ -33,6 +33,7 @@ export async function createOrder(data: {
   deliveryNote?: string;
   items: Array<{
     productId?: string;
+    variantId?: string;
     name: string;
     size: string;
     color: string;
@@ -66,10 +67,12 @@ export async function createOrder(data: {
 
     // Custom items: no product creation — stored directly as OrderItem
     const productId = item.isCustom ? null : (item.productId || null);
+    const variantId = item.isCustom ? null : (item.variantId || null);
 
     processedItems.push({
       ...item,
-      productId
+      productId,
+      variantId
     });
   }
 
@@ -123,6 +126,7 @@ export async function createOrder(data: {
               emoji: item.emoji || '📦',
               image: item.image || null,
               productId: item.productId,
+              variantId: item.variantId,
               isCustom: item.isCustom || false,
               isGift: item.isGift || false,
               notes: item.notes || item.desc || null,
@@ -241,21 +245,52 @@ export async function updateOrderDetails(orderId: string, data: any) {
 
       // Handle Items update if provided
       if (data.items && Array.isArray(data.items)) {
-        await tx.orderItem.deleteMany({ where: { orderId: order.id } });
-        
-        const newItems = data.items.map((item: any) => ({
-          orderId: order.id,
-          productId: item.productId || null,
-          name: item.name,
-          size: item.size || '-',
-          color: item.color || '-',
-          qty: parseInt(item.qty) || 1,
-          price: parseInt(item.price) || 0,
-          emoji: item.emoji,
-          image: item.image,
-        }));
-        
-        await tx.orderItem.createMany({ data: newItems });
+        const existingItems = await tx.orderItem.findMany({ where: { orderId: order.id } });
+        const existingIds = existingItems.map(i => i.id);
+        const incomingIds = data.items.map((i: any) => i.id).filter(Boolean);
+
+        // Delete items that were removed
+        const toDelete = existingIds.filter(id => !incomingIds.includes(id));
+        if (toDelete.length > 0) {
+          await tx.orderItem.deleteMany({ where: { id: { in: toDelete } } });
+        }
+
+        // Process images for new items and Upsert
+        for (const item of data.items) {
+          let imageUrl = item.image;
+          if (imageUrl && imageUrl.startsWith('data:image')) {
+            imageUrl = await uploadImage(imageUrl, `order-item-${Date.now()}`);
+          }
+
+          const isExisting = item.id && existingIds.includes(item.id);
+          const itemData = {
+            productId: item.productId || null,
+            variantId: item.variantId || null,
+            name: item.name,
+            size: item.size || '-',
+            color: item.color || '-',
+            qty: parseInt(item.qty) || 1,
+            price: parseInt(item.price) || 0,
+            emoji: item.emoji,
+            image: imageUrl,
+            isCustom: item.isCustom || false,
+            isGift: item.isGift || false,
+          };
+
+          if (isExisting) {
+            await tx.orderItem.update({
+              where: { id: item.id },
+              data: itemData
+            });
+          } else {
+            await tx.orderItem.create({
+              data: {
+                ...itemData,
+                orderId: order.id
+              }
+            });
+          }
+        }
       }
     });
     revalidatePath("/zangochap-manager/orders");

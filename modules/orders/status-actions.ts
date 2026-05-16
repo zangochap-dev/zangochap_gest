@@ -59,27 +59,29 @@ export async function updateOrderStatus(orderId: string, newStatus: string, note
     history,
   };
 
-  if (newStatus.toUpperCase() === 'PACKED') {
-    updateData.packedBy = session.email;
-    updateData.packedByName = session.name;
-    updateData.packedAt = new Date();
-    await decrementStockForOrder(order, session);
-  }
+  await prisma.$transaction(async (tx) => {
+    if (newStatus.toUpperCase() === 'PACKED') {
+      updateData.packedBy = session.email;
+      updateData.packedByName = session.name;
+      updateData.packedAt = new Date();
+      await decrementStockForOrder(order, session, tx);
+    }
 
-  // Restore stock for non-shipping statuses
-  const shippingStatuses = ['PACKED', 'ON_DELIVERY', 'DELIVERED', 'PARTIALLY_DELIVERED'];
-  if (!shippingStatuses.includes(newStatus.toUpperCase()) && order.stockDecremented) {
-    const type = newStatus.toUpperCase() === 'EXCHANGED' ? 'EXCHANGE' : 'RETURN';
-    await restoreStockForOrder(order, session, type);
-    updateData.stockDecremented = false;
-  }
+    // Restore stock for non-shipping statuses
+    const shippingStatuses = ['PACKED', 'ON_DELIVERY', 'DELIVERED', 'PARTIALLY_DELIVERED'];
+    if (!shippingStatuses.includes(newStatus.toUpperCase()) && order.stockDecremented) {
+      const type = newStatus.toUpperCase() === 'EXCHANGED' ? 'EXCHANGE' : 'RETURN';
+      await restoreStockForOrder(order, session, type, tx);
+      updateData.stockDecremented = false;
+    }
 
-  await prisma.order.update({
-    where: { id: orderId },
-    data: {
-      ...updateData,
-      returnReason: (newStatus.toUpperCase() === 'RETURNED' || newStatus.toUpperCase() === 'CANCELLED') ? note : undefined
-    },
+    await tx.order.update({
+      where: { id: orderId },
+      data: {
+        ...updateData,
+        returnReason: (newStatus.toUpperCase() === 'RETURNED' || newStatus.toUpperCase() === 'CANCELLED') ? note : undefined
+      },
+    });
   });
 
   revalidatePath("/zangochap-manager/orders");

@@ -12,8 +12,8 @@ export async function recordStockMovement(data: {
   reason?: string;
   orderId?: string;
   session: any;
-}) {
-  await prisma.stockMovement.create({
+}, tx: any = prisma) {
+  await tx.stockMovement.create({
     data: {
       variantId: data.variantId,
       warehouseId: data.warehouseId,
@@ -28,19 +28,19 @@ export async function recordStockMovement(data: {
 }
 
 // ============ DECREMENT STOCK (on packing) ============
-export async function decrementStockForOrder(order: any, session: any) {
+export async function decrementStockForOrder(order: any, session: any, tx: any = prisma) {
   if (order.stockDecremented) return;
 
   for (const item of order.items) {
     if (item.isCustom || item.isGift || !item.productId) continue;
 
-    const variant = await prisma.productVariant.findFirst({
+    const variant = item.variantId ? await tx.productVariant.findUnique({ where: { id: item.variantId } }) : await tx.productVariant.findFirst({
       where: { productId: item.productId, size: item.size, color: item.color },
     });
 
     if (variant) {
       // Find a warehouse that has enough stock for this variant
-      const existingStock = await prisma.stockLevel.findFirst({
+      const existingStock = await tx.stockLevel.findFirst({
         where: { variantId: variant.id, quantity: { gte: item.qty } },
         orderBy: { quantity: 'desc' }
       });
@@ -48,7 +48,7 @@ export async function decrementStockForOrder(order: any, session: any) {
       const targetWarehouseId = existingStock?.warehouseId || (await getOrCreateDefaultWarehouse()).id;
 
       // Update or create stock level for this warehouse
-      await prisma.stockLevel.upsert({
+      await tx.stockLevel.upsert({
         where: {
           variantId_warehouseId: {
             variantId: variant.id,
@@ -64,7 +64,7 @@ export async function decrementStockForOrder(order: any, session: any) {
       });
 
       // Also update global variant stock for backward compatibility
-      await prisma.productVariant.update({
+      await tx.productVariant.update({
         where: { id: variant.id },
         data: { stock: { decrement: item.qty } },
       });
@@ -76,7 +76,7 @@ export async function decrementStockForOrder(order: any, session: any) {
         quantity: -item.qty,
         orderId: order.id,
         session,
-      });
+      }, tx);
     }
   }
 
@@ -85,19 +85,19 @@ export async function decrementStockForOrder(order: any, session: any) {
     await syncProductStock(pid as string);
   }
 
-  await prisma.order.update({ where: { id: order.id }, data: { stockDecremented: true } });
+  await tx.order.update({ where: { id: order.id }, data: { stockDecremented: true } });
 }
 
 // ============ RESTORE STOCK (on cancel/return) ============
-export async function restoreStockForOrder(order: any, session: any, type: 'RETURN' | 'EXCHANGE' | 'ADJUSTMENT' = 'RETURN') {
+export async function restoreStockForOrder(order: any, session: any, type: 'RETURN' | 'EXCHANGE' | 'ADJUSTMENT' = 'RETURN', tx: any = prisma) {
   for (const item of order.items) {
     if (item.isCustom || item.isGift || !item.productId) continue;
-    const variant = await prisma.productVariant.findFirst({
+    const variant = item.variantId ? await tx.productVariant.findUnique({ where: { id: item.variantId } }) : await tx.productVariant.findFirst({
       where: { productId: item.productId, size: item.size, color: item.color },
     });
     if (variant) {
       // Find where this item was pulled from (to restore to the same warehouse)
-      const lastMovement = await prisma.stockMovement.findFirst({
+      const lastMovement = await tx.stockMovement.findFirst({
         where: { orderId: order.id, variantId: variant.id, type: 'SALE' },
         orderBy: { createdAt: 'desc' }
       });
@@ -105,13 +105,13 @@ export async function restoreStockForOrder(order: any, session: any, type: 'RETU
       const targetWarehouseId = lastMovement?.warehouseId || (await getOrCreateDefaultWarehouse()).id;
 
       // Update global variant stock
-      await prisma.productVariant.update({
+      await tx.productVariant.update({
         where: { id: variant.id },
         data: { stock: { increment: item.qty } }
       });
 
       // Update warehouse stock level
-      await prisma.stockLevel.upsert({
+      await tx.stockLevel.upsert({
         where: { variantId_warehouseId: { variantId: variant.id, warehouseId: targetWarehouseId } },
         update: { quantity: { increment: item.qty } },
         create: { variantId: variant.id, warehouseId: targetWarehouseId, quantity: item.qty }
@@ -124,7 +124,7 @@ export async function restoreStockForOrder(order: any, session: any, type: 'RETU
         quantity: item.qty,
         orderId: order.id,
         session
-      });
+      }, tx);
     }
   }
   const pIds = [...new Set(order.items.filter((i: any) => i.productId).map((i: any) => i.productId))];

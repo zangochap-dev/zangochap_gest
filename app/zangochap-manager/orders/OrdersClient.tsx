@@ -1699,8 +1699,9 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
   const [formData, setFormData] = useState(() => {
     // Pre-load original order items into cart
     const initialItems = (order.items || []).map((item: any, idx: number) => ({
-      id: `dup-${idx}-${Date.now()}`,
+      id: mode === 'edit' ? item.id : `dup-${idx}-${Date.now()}`,
       productId: item.productId,
+      variantId: item.variantId,
       name: item.name,
       size: item.size,
       color: item.color,
@@ -1779,6 +1780,7 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
     const newItem = {
       id: Math.random().toString(),
       productId: selectedProductForVariant.id,
+      variantId: selectedVariant.id,
       name: selectedProductForVariant.name,
       size: selectedVariant.size,
       color: selectedVariant.color,

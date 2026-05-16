@@ -9,8 +9,12 @@ import { syncProductStock } from "@/lib/stock-sync";
 import { uploadImage } from "@/lib/upload";
 import { COMMUNES } from "@/lib/constants";
 
-// ============ ACCESS HELPER ============
-// Triggering recompilation for new schema fields... (v1)
+// ============ ROLE HELPER ============
+function isRole(session: any, ...roles: string[]) {
+  if (!session?.role) return false;
+  const r = session.role.toLowerCase();
+  return roles.some(role => role.toLowerCase() === r);
+}
 
 // ============ ACCESS HELPER ============
 function checkOrderAccess(order: any, session: any) {
@@ -34,47 +38,37 @@ function checkOrderAccess(order: any, session: any) {
 
 // ============ GENERATORS ============
 export async function generateUniqueRef(commune?: string, typePrefix?: string) {
-  const lastOrder = await prisma.order.findFirst({
-    orderBy: { createdAt: 'desc' }
-  });
-
-  const count = await prisma.order.count();
-  let nextSequence = count + 1;
-
-  if (lastOrder) {
-    // Extract trailing digits using regex
-    const match = lastOrder.ref.match(/(\d+)$/);
-    if (match) {
-      const lastSeq = parseInt(match[1], 10);
-      if (!isNaN(lastSeq) && lastSeq >= count) {
-        nextSequence = lastSeq + 1;
-      }
-    }
-  }
-
-  // Get prefix from COMMUNES or default to 'CD'
+  // Get prefix from COMMUNES or default to 'BJ'
   const communePrefix = (commune && COMMUNES[commune]) || 'BJ';
 
   const basePrefix = typePrefix && typePrefix !== 'Standard'
     ? `${typePrefix.toUpperCase().replace(/É/g, 'E')}${communePrefix}`
     : communePrefix;
 
-  let finalRef = '';
-  let isUnique = false;
-  let attempts = 0;
+  // Find the highest existing sequence for this prefix in a single query
+  const lastWithPrefix = await prisma.order.findFirst({
+    where: { ref: { startsWith: basePrefix } },
+    orderBy: { ref: 'desc' },
+    select: { ref: true }
+  });
 
-  while (!isUnique && attempts < 50) {
-    finalRef = `${basePrefix}${nextSequence.toString().padStart(4, '0')}`;
-    const existing = await prisma.order.findUnique({ where: { ref: finalRef } });
-    if (!existing) {
-      isUnique = true;
-    } else {
-      nextSequence++;
-      attempts++;
+  let nextSequence = 1;
+  if (lastWithPrefix) {
+    const match = lastWithPrefix.ref.match(/(\d+)$/);
+    if (match) {
+      nextSequence = parseInt(match[1], 10) + 1;
     }
   }
 
-  return isUnique ? finalRef : `${basePrefix}${Date.now().toString().slice(-5)}`;
+  // Try up to 5 times in case of near-concurrent inserts, then fallback to timestamp
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const candidate = `${basePrefix}${(nextSequence + attempt).toString().padStart(4, '0')}`;
+    const existing = await prisma.order.findUnique({ where: { ref: candidate }, select: { id: true } });
+    if (!existing) return candidate;
+  }
+
+  // Timestamp fallback — guaranteed unique
+  return `${basePrefix}${Date.now().toString().slice(-6)}`;
 }
 
 // ============ STOCK MOVEMENTS ============
@@ -428,9 +422,12 @@ export async function markPartialDelivery(orderId: string, deliveredQuantities: 
   if (!order) throw new Error("Commande introuvable");
 
   const history = Array.isArray(order.history) ? [...(order.history as any[])] : [];
+
+  // Log original quantities for audit trail before any modification
+  const originalQties = order.items.map((i: any) => `${i.name}(${i.size}/${i.color}): ${i.qty}`).join(', ');
   history.push({
     at: new Date().toISOString(),
-    action: `Livraison partielle effectuée. Frais de livraison: ${includeDeliveryFee ? 'Maintenus' : 'Annulés'}`,
+    action: `Livraison partielle effectuée. Qté originales: [${originalQties}]. Frais de livraison: ${includeDeliveryFee ? 'Maintenus' : 'Annulés'}`,
     by: session.email,
     byName: session.name,
   });
@@ -464,7 +461,11 @@ export async function markPartialDelivery(orderId: string, deliveredQuantities: 
     } else if (dQty > 0 && dQty < item.qty) {
       await prisma.orderItem.update({
         where: { id: item.id },
-        data: { qty: dQty, isDelivered: true }
+        data: {
+          qty: dQty,
+          isDelivered: true,
+          notes: `[Livré partiellement: ${dQty}/${item.qty} — original: ${item.qty}]${item.notes ? ' ' + item.notes : ''}`
+        }
       });
       newSubtotal += (item.price * dQty);
 
@@ -481,7 +482,8 @@ export async function markPartialDelivery(orderId: string, deliveredQuantities: 
           productId: item.productId,
           isCustom: item.isCustom,
           isGift: item.isGift,
-          isDelivered: false
+          isDelivered: false,
+          notes: `[Retour: ${returnedQty}/${item.qty} — original: ${item.qty}]`
         }
       });
     }
@@ -588,7 +590,7 @@ export async function assignOrderToDeliveryman(orderId: string, deliverymanId: s
 
 export async function bulkAssignOrders(orderIds: string[], deliverymanId: string) {
   const session = await getSession();
-  if (!session || session.role !== 'admin') throw new Error("Accès refusé");
+  if (!session || !isRole(session, 'admin')) throw new Error("Accès refusé");
 
   const driver = await prisma.user.findUnique({ where: { id: deliverymanId } });
   if (!driver) throw new Error("Livreur introuvable");
@@ -664,7 +666,7 @@ export async function getSettlementHistory() {
 
 export async function createSettlement(deliverymanId: string, orderIds: string[], amount: number, notes?: string) {
   const session = await getSession();
-  if (!session || session.role !== 'admin') throw new Error("Accès refusé");
+  if (!session || !isRole(session, 'admin')) throw new Error("Accès refusé");
 
   const orders = await prisma.order.findMany({
     where: { id: { in: orderIds } }
@@ -1095,7 +1097,7 @@ async function restoreStockForOrder(order: any, session: any, type: 'RETURN' | '
 // Additional missing exports
 export async function deleteOrder(orderId: string) {
   const session = await getSession();
-  if (!session || session.role !== 'admin') throw new Error("Accès refusé");
+  if (!session || !isRole(session, 'admin')) throw new Error("Accès refusé");
   const order = await prisma.order.findUnique({ where: { id: orderId }, include: { items: true } });
   if (order?.stockDecremented) await restoreStockForOrder(order, session, 'ADJUSTMENT');
   await prisma.order.delete({ where: { id: orderId } });
@@ -1118,9 +1120,19 @@ export async function updateOrderDetails(orderId: string, data: any) {
   if (!session) throw new Error("Non authentifié");
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order || !checkOrderAccess(order, session)) throw new Error("Accès refusé");
+
+  // SECURITY: whitelist only editable fields — never allow status, total, stockDecremented, etc.
+  const ALLOWED_FIELDS = ['customerName', 'customerPhone', 'customerPhone2', 'customerLocation', 'commune', 'deliveryFee', 'deliveryNote', 'notes'] as const;
+  const sanitized: Record<string, any> = {};
+  for (const key of ALLOWED_FIELDS) {
+    if (data[key] !== undefined) {
+      sanitized[key] = key === 'deliveryFee' ? Number(data[key]) || 0 : String(data[key]);
+    }
+  }
+
   const history = Array.isArray(order.history) ? [...(order.history as any[])] : [];
   history.push({ at: new Date().toISOString(), action: "Détails modifiés", by: session.email, byName: session.name });
-  await prisma.order.update({ where: { id: orderId }, data: { ...data, history } });
+  await prisma.order.update({ where: { id: orderId }, data: { ...sanitized, history } });
   revalidatePath("/zangochap-manager/orders");
 }
 
@@ -1178,7 +1190,7 @@ export async function reprogramOrder(orderId: string, deliveryDate: string) {
 // Refreshing stats logic for new schema fields (paymentMethod)...
 export async function getSettlementStats(from?: string, to?: string, commercialId?: string, method?: string) {
   const session = await getSession();
-  if (!session || session.role !== 'admin') throw new Error("Accès refusé");
+  if (!session || !isRole(session, 'admin')) throw new Error("Accès refusé");
 
   const where: any = {
     paymentMethod: method ? method : { not: null },
@@ -1233,7 +1245,7 @@ export async function getSettlementStats(from?: string, to?: string, commercialI
 
 export async function getRiderSettlementStats(from?: string, to?: string, riderId?: string) {
   const session = await getSession();
-  if (!session || session.role !== 'admin') throw new Error("Accès refusé");
+  if (!session || !isRole(session, 'admin')) throw new Error("Accès refusé");
 
   const where: any = {};
   if (riderId) {
@@ -1325,7 +1337,7 @@ export async function getRiderSettlementStats(from?: string, to?: string, riderI
 
 export async function toggleCommercialContacted(orderId: string, value: boolean) {
   const session = await getSession();
-  if (!session || (session.role !== 'admin' && session.role !== 'COMMERCIAL')) {
+  if (!session || !isRole(session, 'admin', 'commercial')) {
     throw new Error("Accès refusé");
   }
 

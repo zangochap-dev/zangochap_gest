@@ -10,7 +10,7 @@ import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { logoutAction } from "@/modules/auth/actions";
 import { ROLE_LABELS } from "@/lib/constants";
-import { useToast } from "@/components/Toast";
+
 import {
   LayoutDashboard, ShoppingBag, Package, Truck, Box, Users, BarChart3,
   Tag, Upload, FileText, LogOut, ClipboardList,
@@ -108,7 +108,6 @@ export default function Sidebar({ user, counts: initialCounts }: SidebarProps) {
   const [isOffline, setIsOffline] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [hasNewNotifications, setHasNewNotifications] = useState(false);
-  const { showToast } = useToast();
 
   const defaultCounts = { orders: 0, packing: 0, collection: 0, toProcess: 0, myDeliveries: 0 };
 
@@ -122,8 +121,6 @@ export default function Sidebar({ user, counts: initialCounts }: SidebarProps) {
     refetchOnWindowFocus: true,
   });
 
-  const prevCounts = useRef(counts);
-
   const roleKey = user.role?.toLowerCase() || 'admin';
   const sections = useMemo(() => (NAV_FOR_ROLE[roleKey] || NAV_FOR_ROLE.admin)(counts), [roleKey, counts]);
   const roleLabel = ROLE_LABELS[user.role] || user.role;
@@ -131,72 +128,33 @@ export default function Sidebar({ user, counts: initialCounts }: SidebarProps) {
   // Track Online/Offline Status
   useEffect(() => {
     setMounted(true);
-    const handleOnline = () => { setIsOffline(false); showToast("Connexion rétablie ! Synchronisation...", "success"); };
-    const handleOffline = () => { setIsOffline(true); showToast("Mode hors-ligne activé. 📡", "error"); };
+    setIsOffline(!navigator.onLine);
+
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-    setIsOffline(!navigator.onLine);
 
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [showToast]);
-
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  useEffect(() => {
-    if (typeof window !== "undefined" && !audioRef.current) {
-      audioRef.current = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
-      audioRef.current.volume = 0.5;
-    }
   }, []);
 
-  // Track New Orders / Packing Tasks
+  // Counts tracking (badge dot only, no toasts/sounds/notifications)
+  const prevCounts = useRef(counts);
   useEffect(() => {
-    if (!prevCounts.current || isOffline) {
-      prevCounts.current = counts;
-      return;
-    }
-
     const newPacking = (counts?.packing || 0) > (prevCounts.current?.packing || 0);
     const newOrders = (counts?.orders || 0) > (prevCounts.current?.orders || 0);
-
-    if (newPacking || newOrders) {
-      setHasNewNotifications(true);
-
-      const title = newPacking ? `Nouvelle commande à emballer 📦` : `Nouvelle commande reçue 🛍️`;
-      showToast(title, "success");
-
-      if ("Notification" in window && Notification.permission === "granted") {
-        new Notification("ZangoChap Manager", {
-          body: newPacking ? 'Nouvelle commande prête pour emballage' : 'Nouvelle commande validée',
-          icon: "/logo.png",
-          badge: "/logo.png",
-        });
-      }
-
-      if (audioRef.current) {
-        audioRef.current.currentTime = 0;
-        audioRef.current.play().catch(() => { });
-      }
-    }
-
+    if (newPacking || newOrders) setHasNewNotifications(true);
     prevCounts.current = counts;
-  }, [counts, showToast, isOffline]);
+  }, [counts]);
 
   useEffect(() => {
     setIsMobileOpen(false);
     setShowNotifications(false);
   }, [pathname]);
-
-  useEffect(() => {
-    if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission();
-    }
-  }, []);
-
 
   return (
     <>

@@ -1,12 +1,11 @@
 "use server";
 
 import prisma from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { getSession } from "../auth/actions";
 import { ensureAuth } from "@/lib/auth";
 import { uploadImage } from "@/lib/upload";
-import { checkOrderAccess, generateUniqueRef, getOrCreateDefaultWarehouse, upsertCustomerFromOrder } from "./helpers";
+import { checkOrderAccess, generateUniqueRef, upsertCustomerFromOrder } from "./helpers";
 import { restoreStockForOrder } from "./stock";
 
 // ============ GET ORDER ============
@@ -57,55 +56,16 @@ export async function createOrder(data: {
 }) {
   const session = await getSession();
 
-  // Process Images for custom items & Create private products for them
+  // Process images & resolve product IDs
   const processedItems = [];
-  let productCreatorId = session?.id;
-  if (!productCreatorId) {
-    const admin = await prisma.user.findFirst({ where: { role: 'ADMIN' } });
-    productCreatorId = admin?.id || 'system';
-  }
 
   for (const item of data.items) {
     if (item.image && item.image.startsWith('data:image')) {
       item.image = await uploadImage(item.image, `order-item-${Date.now()}`);
     }
 
-    let productId = item.productId;
-
-    if (item.isCustom) {
-      const warehouse = await getOrCreateDefaultWarehouse();
-      const newProduct = await prisma.product.create({
-        data: {
-          name: item.name,
-          price: new Prisma.Decimal(item.price),
-          emoji: item.emoji || '📦',
-          stock: 0,
-          status: 'DRAFT',
-          creatorId: productCreatorId,
-          variants: {
-            create: {
-              size: item.size || 'Standard',
-              color: item.color || 'Standard',
-              stock: 0,
-              stockLevels: {
-                create: {
-                  warehouseId: warehouse.id,
-                  quantity: 0
-                }
-              }
-            }
-          },
-          images: item.image ? {
-            create: {
-              name: item.name,
-              url: item.image
-            }
-          } : undefined
-        },
-        include: { variants: true }
-      });
-      productId = newProduct.id;
-    }
+    // Custom items: no product creation — stored directly as OrderItem
+    const productId = item.isCustom ? null : (item.productId || null);
 
     processedItems.push({
       ...item,

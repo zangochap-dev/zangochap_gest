@@ -53,11 +53,11 @@ export default async function VerificationPrintPage({
   const totalItems = orders.reduce((sum, o) => sum + o.items.length, 0);
 
   return (
-    <div className="bg-white min-h-screen text-black font-sans p-4 sm:p-8">
+    <div className="bg-white min-h-screen text-black font-sans p-2">
       {/* PRINT CSS */}
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
-          /* DEBLOQUER LE LAYOUT PARENT */
+          /* DEBLOQUER LE LAYOUT PARENT POUR AFFICHER TOUTES LES PAGES */
           html, body, .app-container, .main-content, .main-scroll-area {
             height: auto !important;
             min-height: 100% !important;
@@ -67,99 +67,85 @@ export default async function VerificationPrintPage({
           }
           
           /* CACHER LE SURPLUS DU MANAGER */
-          .sidebar, .topbar, aside, nav {
+          .sidebar, .topbar, aside, nav, .no-print {
             display: none !important;
           }
 
-          @page { margin: 1.5cm 1cm; size: A4; }
-          body { background: white; margin: 0; padding: 0; font-size: 11pt; color: black; }
-          .no-print { display: none !important; }
+          @page { margin: 0.5cm; size: A4; }
+          body { background: white; margin: 0; padding: 0; font-size: 10px; color: black; line-height: 1.1; }
           
           .order-container { 
             page-break-inside: avoid !important; 
             break-inside: avoid !important; 
-            border-bottom: 1px solid #000; 
-            margin-bottom: 15px; 
+            border: 1px solid #000; 
+            margin-bottom: 8px; 
+            padding: 2px;
             display: block !important;
           }
           
+          table { width: 100%; border-collapse: collapse; }
+          th, td { border: 1px solid #000; padding: 2px 4px; vertical-align: middle; }
           tr { page-break-inside: avoid; }
-          thead { display: table-header-group; }
         }
-        .checkbox-box { width: 16px; height: 16px; border: 1.5px solid #000; display: inline-block; vertical-align: middle; }
+        .checkbox-box { width: 14px; height: 14px; border: 1.2px solid #000; display: inline-block; vertical-align: middle; }
       `}} />
 
       {/* HEADER */}
-      <div className="flex justify-between items-end mb-4 border-b-2 border-black pb-4">
-        <div>
-          <h1 className="text-3xl font-black tracking-tighter">ZANGOCHAP</h1>
-          <p className="text-sm font-bold uppercase tracking-widest text-gray-700">Fiche de Vérification Logistique</p>
-          <p className="text-lg font-medium">{formatDay(date)}</p>
-        </div>
-        <div className="text-right">
-          <div className="text-2xl font-black">{orders.length}</div>
-          <div className="text-xs font-bold uppercase text-gray-500">Colis à vérifier</div>
-          <div className="text-sm font-bold mt-1">{totalItems} articles au total</div>
+      <div className="flex justify-between items-center mb-4 border-b border-black pb-2 px-2">
+        <h1 className="text-xl font-black tracking-tighter uppercase">ZANGOCHAP · Fiche de Vérification</h1>
+        <div className="text-right flex gap-4 items-center">
+          <span className="text-sm font-black">{formatDay(date)}</span>
+          <span className="text-xs border-l border-black pl-4"><b>{orders.length}</b> colis / <b>{totalItems}</b> articles</span>
         </div>
       </div>
 
-      {/* BUTTON TO TRIGGER PRINT (ONLY VISIBLE ON SCREEN) */}
+      {/* BUTTONS (HIDDEN ON PRINT) */}
       <PrintActions autoPrint={autoprint === 'true'} />
 
       {/* ORDERS LIST */}
-      <div className="space-y-4">
+      <div className="space-y-2">
         {orders.length === 0 ? (
-          <p className="text-center py-20 text-gray-400 font-bold italic">Aucune commande pour cette date.</p>
+          <p className="text-center py-10 text-gray-400">Aucune commande.</p>
         ) : (
           orders.map((order, idx) => (
-            <div key={order.id} className="order-container border-b border-black pb-2">
-              {/* Order Info Bar - Ultra Compact */}
-              <div className="flex justify-between items-center mb-1">
-                <div className="flex items-center gap-3">
-                  <span className="font-mono font-bold text-gray-400 text-sm">#{idx + 1}</span>
-                  <span className="font-mono bg-black text-white px-2 py-0.5 rounded text-lg font-black">{order.ref}</span>
-                  <span className="text-xs font-medium text-gray-500 truncate max-w-[150px]">{order.customerName}</span>
+            <div key={order.id} className="order-container">
+              {/* Ultra Compact Header */}
+              <div className="flex justify-between items-center mb-1 px-1 border-b border-black/10 pb-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-gray-400 text-[10px]">#{idx + 1}</span>
+                  <span className="font-mono font-black text-sm">{order.ref}</span>
                 </div>
-                <div className="flex items-center gap-3 text-[10px] font-bold uppercase text-gray-600">
-                  <span className="bg-gray-100 px-1.5 py-0.5 rounded">{order.commune}</span>
-                  <span>{order.customerPhone}</span>
+                <div className="text-[10px] font-black uppercase bg-gray-100 px-1 rounded">
+                  {order.commune}
                 </div>
               </div>
 
-              {/* Items Table - Simplified */}
-              <table className="w-full text-[11px] border-collapse">
-                <thead>
-                  <tr className="border-y border-black/10 text-left text-gray-400 uppercase text-[9px] tracking-wider">
-                    <th className="w-8 py-1 px-2 text-center">✓</th>
-                    <th className="py-1 px-2">Désignation / Variantes</th>
-                    <th className="w-12 py-1 px-2 text-center">Qté</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
+              {/* Items Table */}
+              <table className="w-full">
+                <tbody className="divide-y divide-black">
                   {order.items.map((item) => (
                     <tr key={item.id}>
-                      <td className="py-1.5 px-2 text-center">
-                        <div className="checkbox-box scale-90" />
+                      <td className="w-6 text-center">
+                        <div className="checkbox-box" />
                       </td>
-                      <td className="py-1.5 px-2">
-                        <span className="font-bold text-sm mr-2">{item.name}</span>
+                      <td className="py-0.5">
+                        <span className="font-bold">{item.name}</span>
                         {(item.size || item.color) && (
-                          <span className="text-gray-600 italic">
-                            ({[item.size, item.color].filter(Boolean).join(" / ")})
+                          <span className="ml-2 text-gray-600 text-[9px]">
+                             {[item.size, item.color].filter(Boolean).join(" / ")}
                           </span>
                         )}
                       </td>
-                      <td className="py-1.5 px-2 text-center font-black text-lg">{item.qty}</td>
+                      <td className="w-8 text-center font-black text-sm">{item.qty}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
 
-              {/* Notes - Compact */}
+              {/* Notes - Only if exists */}
               {(order.notes || order.deliveryNote) && (
-                <div className="mt-1 px-2 text-[9px] text-gray-500 leading-tight">
-                  <span className="font-bold mr-1">Note:</span>
-                  {order.notes} {order.deliveryNote && `| ${order.deliveryNote}`}
+                <div className="mt-0.5 px-1 text-[9px] text-gray-600 italic">
+                   <b>Note:</b> {order.notes} {order.deliveryNote}
                 </div>
               )}
             </div>

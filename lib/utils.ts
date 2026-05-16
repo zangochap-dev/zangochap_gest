@@ -12,16 +12,22 @@ export function cn(...inputs: ClassValue[]) {
 export function getImageUrl(url: string | null | undefined): string {
   if (!url) return "/placeholder.png";
 
-  // Si c'est déjà une URL absolue (http/https)
-  if (url.startsWith("http")) {
-    return url;
+  // Handle multiple URLs in a single string (common in Wix exports)
+  let cleanUrl = url;
+  if (url.includes(';')) {
+    cleanUrl = url.split(';')[0].trim();
   }
 
-  // Si c'est déjà un chemin relatif commençant par / ou une image en Base64 (data:)
-  if (url.startsWith("/") || url.startsWith("data:")) {
-    return url;
+  // If it's already an absolute URL (http/https)
+  if (cleanUrl.startsWith("http")) {
+    return cleanUrl;
   }
 
-  // Si c'est juste un nom de fichier, on ajoute /uploads/
-  return `/uploads/${url}`;
+  // If it's already a relative path starting with / or a Base64 image (data:)
+  if (cleanUrl.startsWith("/") || cleanUrl.startsWith("data:")) {
+    return cleanUrl;
+  }
+
+  // If it's just a filename, we add /uploads/
+  return `/uploads/${cleanUrl}`;
 }

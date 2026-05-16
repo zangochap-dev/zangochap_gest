@@ -16,13 +16,13 @@ export default function ToProcessClient({ orders }: ToProcessClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
-  // Auto-refresh every 30s — non-blocking, only when tab is visible
+  // Auto-refresh every 10s — real-time sync for call center
   useEffect(() => {
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible') {
         router.refresh();
       }
-    }, 30000);
+    }, 10000);
     return () => clearInterval(interval);
   }, [router]);
 

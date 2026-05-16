@@ -4,7 +4,8 @@ import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/modules/auth/actions";
 import { syncProductStock } from "@/lib/stock-sync";
-import { getOrCreateDefaultWarehouse, updateOrderStatus } from "@/modules/orders/actions";
+import { getOrCreateDefaultWarehouse } from "@/modules/orders/helpers";
+import { updateOrderStatus } from "@/modules/orders/status-actions";
 
 // ============ COLLECTION RECORDS ============
 export async function getCollectionRecords(filters?: { byName?: string }) {

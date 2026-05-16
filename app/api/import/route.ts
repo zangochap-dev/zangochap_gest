@@ -1,7 +1,7 @@
 import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/modules/auth/actions";
-import { generateUniqueRef } from "@/modules/orders/actions";
+import { generateUniqueRef } from "@/modules/orders/helpers";
 
 export async function POST(req: NextRequest) {
   try {

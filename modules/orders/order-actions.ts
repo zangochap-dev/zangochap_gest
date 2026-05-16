@@ -1,0 +1,295 @@
+"use server";
+
+import prisma from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
+import { revalidatePath } from "next/cache";
+import { getSession } from "../auth/actions";
+import { ensureAuth } from "@/lib/auth";
+import { uploadImage } from "@/lib/upload";
+import { checkOrderAccess, generateUniqueRef, getOrCreateDefaultWarehouse, upsertCustomerFromOrder } from "./helpers";
+import { restoreStockForOrder } from "./stock";
+
+// ============ GET ORDER ============
+export async function getOrder(id: string) {
+  const session = await ensureAuth();
+  const order = await prisma.order.findUnique({
+    where: { id },
+    include: { items: true }
+  });
+  if (order && !checkOrderAccess(order, session)) {
+    throw new Error("Accès refusé à cette commande.");
+  }
+  return order;
+}
+
+// ============ CREATE ORDER ============
+export async function createOrder(data: {
+  customerId?: string;
+  customerName: string;
+  customerPhone: string;
+  customerPhone2?: string;
+  customerLocation: string;
+  commune: string;
+  deliveryFee?: number;
+  deliveryNote?: string;
+  items: Array<{
+    productId?: string;
+    name: string;
+    size: string;
+    color: string;
+    qty: number;
+    price: number;
+    emoji?: string;
+    image?: string;
+    isCustom?: boolean;
+    isGift?: boolean;
+    notes?: string;
+    desc?: string;
+  }>;
+  promoCode?: string;
+  discount?: number;
+  notes?: string;
+  type?: string;
+  total?: number;
+  deliveryDate?: string;
+  paymentMethod?: string;
+  status?: string;
+}) {
+  const session = await getSession();
+
+  // Process Images for custom items & Create private products for them
+  const processedItems = [];
+  let productCreatorId = session?.id;
+  if (!productCreatorId) {
+    const admin = await prisma.user.findFirst({ where: { role: 'ADMIN' } });
+    productCreatorId = admin?.id || 'system';
+  }
+
+  for (const item of data.items) {
+    if (item.image && item.image.startsWith('data:image')) {
+      item.image = await uploadImage(item.image, `order-item-${Date.now()}`);
+    }
+
+    let productId = item.productId;
+
+    if (item.isCustom) {
+      const warehouse = await getOrCreateDefaultWarehouse();
+      const newProduct = await prisma.product.create({
+        data: {
+          name: item.name,
+          price: new Prisma.Decimal(item.price),
+          emoji: item.emoji || '📦',
+          stock: 0,
+          status: 'DRAFT',
+          creatorId: productCreatorId,
+          variants: {
+            create: {
+              size: item.size || 'Standard',
+              color: item.color || 'Standard',
+              stock: 0,
+              stockLevels: {
+                create: {
+                  warehouseId: warehouse.id,
+                  quantity: 0
+                }
+              }
+            }
+          },
+          images: item.image ? {
+            create: {
+              name: item.name,
+              url: item.image
+            }
+          } : undefined
+        },
+        include: { variants: true }
+      });
+      productId = newProduct.id;
+    }
+
+    processedItems.push({
+      ...item,
+      productId
+    });
+  }
+
+  const ref = await generateUniqueRef(data.commune || undefined, data.type);
+  const calculatedTotal = processedItems.reduce((sum, item) => sum + Number(item.price) * Number(item.qty), 0);
+  const finalTotal = data.total !== undefined ? Number(data.total) : calculatedTotal;
+
+  const customer = await upsertCustomerFromOrder({
+    name: data.customerName,
+    phone: data.customerPhone,
+    phone2: data.customerPhone2,
+    location: data.customerLocation,
+    commune: data.commune,
+    orderAmount: finalTotal + (data.deliveryFee || 0),
+  });
+
+  const order = await prisma.order.create({
+    data: {
+      ref,
+      customerId: customer.id,
+      customerName: data.customerName,
+      customerPhone: data.customerPhone,
+      customerPhone2: data.customerPhone2,
+      customerLocation: data.customerLocation,
+      commune: data.commune,
+      total: finalTotal,
+      deliveryFee: Number(data.deliveryFee || 0),
+      deliveryNote: data.deliveryNote,
+      paymentMethod: data.paymentMethod,
+      status: (data.status as any) || (session ? 'CONFIRMED' : 'TO_PROCESS'),
+      commercialId: session?.id || null,
+      commercialName: session?.name || "Site Web",
+      deliveryDate: data.deliveryDate ? new Date(data.deliveryDate) : null,
+      promoCode: data.promoCode,
+      discount: Number(data.discount || 0),
+      notes: data.notes,
+      type: data.type,
+      confirmedAt: new Date(),
+      confirmedByName: session ? session.name : "Client Web",
+      items: {
+        create: processedItems.map(item => ({
+          name: item.name,
+          size: item.size,
+          color: item.color,
+          qty: Number(item.qty),
+          price: Number(item.price),
+          emoji: item.emoji || '📦',
+          image: item.image || null,
+          productId: item.productId,
+          isCustom: item.isCustom || false,
+          isGift: item.isGift || false,
+          notes: item.notes || item.desc || null,
+        })),
+      },
+      history: [
+        {
+          at: new Date().toISOString(),
+          action: session ? "Commande créée par commercial" : "Commande passée sur le site web",
+          by: session ? session.email : "public",
+          byName: session ? session.name : "Client Web",
+        },
+      ],
+    },
+    include: { items: true },
+  });
+
+  // Record promo usage if applicable
+  if (data.promoCode) {
+    try {
+      await prisma.promoUsage.create({
+        data: {
+          promoCode: data.promoCode,
+          orderId: order.id,
+          customerName: data.customerName,
+          customerPhone: data.customerPhone,
+          orderTotal: finalTotal + (data.deliveryFee || 0)
+        }
+      });
+    } catch (e) {
+      console.error("Failed to record promo usage:", e);
+    }
+  }
+
+  revalidatePath("/zangochap-manager/orders");
+  revalidatePath("/zangochap-manager/dashboard");
+
+  return { order: JSON.parse(JSON.stringify(order)) };
+}
+
+// ============ DELETE ORDER ============
+export async function deleteOrder(orderId: string) {
+  const session = await getSession();
+  if (!session || session.role?.toLowerCase() !== 'admin') throw new Error("Accès refusé");
+  const order = await prisma.order.findUnique({ where: { id: orderId }, include: { items: true } });
+  if (order?.stockDecremented) await restoreStockForOrder(order, session, 'ADJUSTMENT');
+  await prisma.order.delete({ where: { id: orderId } });
+  revalidatePath("/zangochap-manager/orders");
+  return { success: true };
+}
+
+// ============ UPDATE ORDER DETAILS (whitelist) ============
+export async function updateOrderDetails(orderId: string, data: any) {
+  const session = await getSession();
+  if (!session) throw new Error("Non authentifié");
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!order || !checkOrderAccess(order, session)) throw new Error("Accès refusé");
+
+  // SECURITY: whitelist only editable fields
+  const ALLOWED_FIELDS = ['customerName', 'customerPhone', 'customerPhone2', 'customerLocation', 'commune', 'deliveryFee', 'deliveryNote', 'notes'] as const;
+  const sanitized: Record<string, any> = {};
+  for (const key of ALLOWED_FIELDS) {
+    if (data[key] !== undefined) {
+      sanitized[key] = key === 'deliveryFee' ? Number(data[key]) || 0 : String(data[key]);
+    }
+  }
+
+  const history = Array.isArray(order.history) ? [...(order.history as any[])] : [];
+  history.push({ at: new Date().toISOString(), action: "Détails modifiés", by: session.email, byName: session.name });
+  await prisma.order.update({ where: { id: orderId }, data: { ...sanitized, history } });
+  revalidatePath("/zangochap-manager/orders");
+}
+
+// ============ ADD HISTORY ENTRY ============
+export async function addOrderHistoryEntry(orderId: string, action: string) {
+  const session = await getSession();
+  if (!session) return;
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!order) return;
+  const history = Array.isArray(order.history) ? [...(order.history as any[])] : [];
+  history.push({ at: new Date().toISOString(), action, by: session.email, byName: session.name });
+  await prisma.order.update({ where: { id: orderId }, data: { history } });
+}
+
+// ============ DUPLICATE ORDER ============
+export async function duplicateOrder(orderId: string, data: any) {
+  const session = await getSession();
+  if (!session) throw new Error("Non authentifié");
+
+  const original = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!original) throw new Error("Commande originale introuvable");
+
+  let finalNotes = data.notes || "";
+  if (data.type === 'Echange' && data.exchangeReason) {
+    finalNotes = `MOTIF ÉCHANGE: ${data.exchangeReason}${finalNotes ? `\n---\n${finalNotes}` : ''}`;
+  }
+
+  const newOrder = await createOrder({
+    ...data,
+    notes: finalNotes || `Dupliquée depuis ${original.ref}`,
+  });
+
+  return newOrder;
+}
+
+// ============ REPROGRAM ORDER ============
+export async function reprogramOrder(orderId: string, deliveryDate: string) {
+  const session = await getSession();
+  if (!session) throw new Error("Non authentifié");
+
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!order || !checkOrderAccess(order, session)) throw new Error("Accès refusé");
+
+  const history = Array.isArray(order.history) ? [...(order.history as any[])] : [];
+  history.push({
+    at: new Date().toISOString(),
+    action: `Reprogrammée pour le ${deliveryDate}`,
+    by: session.email,
+    byName: session.name
+  });
+
+  await prisma.order.update({
+    where: { id: orderId },
+    data: {
+      deliveryDate: new Date(deliveryDate),
+      type: "Reprogrammé",
+      status: "REPROGRAMMED",
+      history
+    }
+  });
+
+  revalidatePath("/zangochap-manager/orders");
+  return { success: true };
+}

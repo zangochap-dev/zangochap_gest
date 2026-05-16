@@ -60,14 +60,23 @@ export default async function OrdersPage({ searchParams }: PageProps) {
     if (params.to) where[dateField].lte = new Date(params.to + 'T23:59:59.999');
   }
 
-  // Role-based restrictions
+  // Role-based restrictions — use AND to combine with search, not overwrite OR
   if (user?.role === 'commercial' && scope === 'mine') {
-    where.OR = [
-      ...(where.OR || []),
-      { commercialId: user.id },
-      { commercialName: user.name },
-      { commercialName: "Site Web" }
-    ];
+    const scopeFilter = {
+      OR: [
+        { commercialId: user.id },
+        { commercialName: user.name },
+        { commercialName: "Site Web" }
+      ]
+    };
+    // If there's already a search OR, combine with AND
+    if (where.OR) {
+      const searchOR = where.OR;
+      delete where.OR;
+      where.AND = [{ OR: searchOR }, scopeFilter];
+    } else {
+      where.OR = scopeFilter.OR;
+    }
   }
 
   // Run only what we need: orders + count + staff (for assignment)

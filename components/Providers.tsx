@@ -8,8 +8,8 @@ import { CartProvider } from "@/lib/CartContext";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 60 * 1000,
-      refetchOnWindowFocus: false,
+      staleTime: 5_000,
+      refetchOnWindowFocus: true,
     },
   },
 });

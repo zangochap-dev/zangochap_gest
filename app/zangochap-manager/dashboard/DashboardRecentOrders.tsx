@@ -101,7 +101,7 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
                       <div className="cell-subtext" style={{ fontSize: 12 }}>{order.items.length} article{order.items.length > 1 ? 's' : ''}</div>
                     </td>
                     <td>
-                      <div className="cell-price-orange">{formatPrice(order.total)}</div>
+                      <div className="cell-price-orange">{formatPrice(order.total + (order.deliveryFee || 0) - (order.discount || 0))}</div>
                     </td>
                     <td><StatusBadge status={order.status} /></td>
                     <td style={{ textAlign: 'right' }}>
@@ -145,7 +145,7 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
                 </div>
                 <div className="modal-total-row">
                   <span>Total :</span>
-                  <span className="cell-price-orange">{formatPrice(selectedOrder.total)}</span>
+                  <span className="cell-price-orange">{formatPrice(selectedOrder.total + (selectedOrder.deliveryFee || 0) - (selectedOrder.discount || 0))}</span>
                 </div>
               </div>
             </div>
@@ -163,7 +163,10 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
                 <tbody>
                   {selectedOrder.items.map((item: any, i: number) => (
                     <tr key={i}>
-                      <td>{item.name}</td>
+                      <td style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {item.name}
+                        {item.isGift && <span style={{ fontSize: 9, background: 'var(--orange-soft)', color: 'var(--orange)', padding: '1px 6px', borderRadius: 10, fontWeight: 800, textTransform: 'uppercase' }}>Cadeau</span>}
+                      </td>
                       <td>{item.size} / {item.color}</td>
                       <td>x{item.qty}</td>
                       <td>{formatPrice(item.price)}</td>

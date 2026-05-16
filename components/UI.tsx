@@ -82,20 +82,24 @@ export const DetailCard = ({ label, children, className, style, onClick }: { lab
   </div>
 );
 
-export const ItemLine = ({ emoji, name, meta, price, image, onImageClick }: { 
+export const ItemLine = ({ emoji, name, meta, price, image, onImageClick, isGift }: { 
   emoji?: string; 
   name: string; 
   meta?: string; 
   price?: string;
   image?: string | null;
   onImageClick?: (url: string) => void;
+  isGift?: boolean;
 }) => (
   <div className="item-line">
     <div className={`item-emoji ${image ? 'item-emoji-img' : ''}`} onClick={() => image && onImageClick?.(getImageUrl(image))}>
       {image ? <img src={getImageUrl(image)} className="item-img-full" /> : (emoji || '📦')}
     </div>
     <div className="item-info">
-      <div className="item-name">{name}</div>
+      <div className="item-name" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        {name}
+        {isGift && <span style={{ fontSize: 9, background: 'var(--orange-soft)', color: 'var(--orange)', padding: '1px 6px', borderRadius: 10, fontWeight: 800, textTransform: 'uppercase' }}>Cadeau</span>}
+      </div>
       {meta && <div className="item-meta">{meta}</div>}
     </div>
     {price && <div className="item-price">{price}</div>}

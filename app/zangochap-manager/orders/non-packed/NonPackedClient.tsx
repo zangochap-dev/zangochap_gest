@@ -43,15 +43,29 @@ export default function NonPackedClient({ notPacked: initialNotPacked, withAlter
   const withAlternatives = data?.withAlternatives ?? initialAlternatives;
 
   const handleStatusChange = (orderId: string, status: string) => {
+    // Optimistic Update: Remove from list immediately
+    const previousData = queryClient.getQueryData(['non-packed-orders']);
+    queryClient.setQueryData(['non-packed-orders'], (old: any) => {
+      if (!old) return old;
+      return {
+        ...old,
+        notPacked: old.notPacked.filter((o: any) => o.id !== orderId),
+        withAlternatives: old.withAlternatives.filter((o: any) => o.id !== orderId),
+      };
+    });
+
     startTransition(async () => {
       try {
         await updateOrderStatus(orderId, status);
         showToast('Statut mis à jour ✓', 'success');
-        // Instant refetch instead of router.refresh()
-        queryClient.invalidateQueries({ queryKey: ['non-packed-orders'] });
         setSelectedOrder(null);
       } catch (e: any) {
+        // Rollback on error
+        queryClient.setQueryData(['non-packed-orders'], previousData);
         showToast(e.message || 'Erreur', 'error');
+      } finally {
+        // Final sync
+        queryClient.invalidateQueries({ queryKey: ['non-packed-orders'] });
       }
     });
   };

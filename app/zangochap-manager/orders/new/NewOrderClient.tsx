@@ -322,11 +322,13 @@ export default function NewOrderClient({ products, user, categories }: NewOrderC
       setItems([...items, {
         productId: selectingProduct.id,
         name: selectingProduct.name,
-        price: Number(selectingProduct.price),
+        price: selectingProduct.isGift ? 0 : Number(selectingProduct.price),
+        originalPrice: Number(selectingProduct.price),
         qty: Number(modalQty),
         size: selectedVariant.size,
         color: selectedVariant.color,
         emoji: selectingProduct.emoji || '📦',
+        isGift: !!selectingProduct.isGift,
         image: getImageUrl(selectingProduct.images?.[0]?.dataUrl || selectingProduct.images?.[0]?.url)
       }]);
     }
@@ -351,11 +353,13 @@ export default function NewOrderClient({ products, user, categories }: NewOrderC
       setItems([...items, {
         productId: product.id,
         name: product.name,
-        price: Number(product.price),
+        price: product.isGift ? 0 : Number(product.price),
+        originalPrice: Number(product.price),
         qty: 1,
         size: variant.size,
         color: variant.color,
         emoji: product.emoji || '📦',
+        isGift: !!product.isGift,
         image: getImageUrl(product.images?.[0]?.dataUrl || product.images?.[0]?.url)
       }]);
     }
@@ -372,11 +376,13 @@ export default function NewOrderClient({ products, user, categories }: NewOrderC
       setItems([...items, {
         productId: product.id,
         name: product.name,
-        price: Number(product.price),
+        price: product.isGift ? 0 : Number(product.price),
+        originalPrice: Number(product.price),
         qty: 1,
         size: '',
         color: '',
         emoji: product.emoji || '📦',
+        isGift: !!product.isGift,
         image: getImageUrl(product.images?.[0]?.dataUrl || product.images?.[0]?.url)
       }]);
     }
@@ -415,6 +421,22 @@ export default function NewOrderClient({ products, user, categories }: NewOrderC
       newItems[idx].qty = newQty;
     }
     setItems(newItems);
+  };
+  
+  const toggleGift = (index: number) => {
+    const newItems = [...items];
+    const item = newItems[index];
+    const isCurrentlyGift = !!item.isGift;
+    const originalPrice = item.originalPrice !== undefined ? item.originalPrice : item.price;
+
+    newItems[index] = {
+      ...item,
+      isGift: !isCurrentlyGift,
+      originalPrice: originalPrice,
+      price: !isCurrentlyGift ? 0 : originalPrice
+    };
+    setItems(newItems);
+    showToast(isCurrentlyGift ? 'Prix restauré' : 'Marqué comme cadeau (0F)', 'success');
   };
 
   const total = items.reduce((sum, item) => sum + (item.price * item.qty), 0);
@@ -716,7 +738,29 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
                         {item.isCustom && <span style={{ marginLeft: 6, background: 'var(--blue)', color: 'white', fontSize: 9, padding: '2px 6px', borderRadius: 4, fontWeight: 700, textTransform: 'uppercase' as const }}>Perso</span>}
                       </div>
                       <div className="pos-cart-item-meta">{item.size} · {item.color}</div>
-                      <div className="pos-cart-item-price">{formatPrice(item.price)}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div className="pos-cart-item-price" style={item.isGift ? { textDecoration: 'line-through', opacity: 0.5, fontSize: 11 } : {}}>
+                          {formatPrice(item.isGift ? (item.originalPrice || item.price) : item.price)}
+                        </div>
+                        {item.isGift && (
+                          <div style={{ background: 'var(--orange)', color: 'white', fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 10, textTransform: 'uppercase' }}>Cadeau</div>
+                        )}
+                        <button 
+                          onClick={() => toggleGift(idx)}
+                          style={{
+                            fontSize: 9,
+                            fontWeight: 700,
+                            color: item.isGift ? 'var(--ink)' : 'var(--orange)',
+                            background: item.isGift ? '#F2F2F7' : 'var(--orange-soft)',
+                            border: 'none',
+                            padding: '2px 6px',
+                            borderRadius: 4,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {item.isGift ? 'Annuler cadeau' : 'Offrir'}
+                        </button>
+                      </div>
                     </div>
                   </div>
                   <div className="pos-cart-item-actions">

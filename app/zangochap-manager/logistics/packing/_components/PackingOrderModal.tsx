@@ -148,8 +148,9 @@ export default function PackingOrderModal({
 
                   <div style={{ flex: 1, padding: '10px 14px', display: 'flex', flexDirection: 'column', justifyContent: 'center', minWidth: 0 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 2 }}>
-                      <div style={{ fontWeight: 800, fontSize: 14, color: isChecked ? '#8E8E93' : '#1C1C1E', textDecoration: isChecked ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={{ fontWeight: 800, fontSize: 14, color: isChecked ? '#8E8E93' : '#1C1C1E', textDecoration: isChecked ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
                         {item.name}
+                        {item.isGift && <span style={{ fontSize: 9, background: 'var(--orange-soft)', color: 'var(--orange)', padding: '1px 6px', borderRadius: 10, fontWeight: 800, textTransform: 'uppercase' }}>Cadeau</span>}
                       </div>
                       <div style={{ fontWeight: 900, fontSize: 16, color: isChecked ? '#8E8E93' : 'var(--orange)', marginLeft: 6 }}>
                         x{item.qty}
@@ -307,7 +308,10 @@ export default function PackingOrderModal({
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: 15, textDecoration: isChecked ? 'line-through' : 'none' }}>{item.name}</div>
+                    <div style={{ fontWeight: 700, fontSize: 15, textDecoration: isChecked ? 'line-through' : 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {item.name}
+                      {item.isGift && <span style={{ fontSize: 9, background: 'var(--orange-soft)', color: 'var(--orange)', padding: '1px 6px', borderRadius: 10, fontWeight: 800, textTransform: 'uppercase' }}>Cadeau</span>}
+                    </div>
                     <div style={{ fontSize: 13, color: 'var(--brown-soft)', marginTop: 4 }}>
                       Taille : {item.size} | Couleur : {item.color} | Qté : x{item.qty}
                     </div>

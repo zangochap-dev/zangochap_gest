@@ -101,6 +101,7 @@ export default function NonPackedModal({
                   name={item.name}
                   meta={`Taille ${item.size} · ${item.color} · Qté ${item.qty}`}
                   price={formatPrice(item.price * item.qty)}
+                  isGift={item.isGift}
                 />
               ))}
             </DetailCard>

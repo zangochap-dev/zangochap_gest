@@ -100,21 +100,64 @@ export default function OrdersClient({
   // Mutations
   const statusMutation = useMutation({
     mutationFn: ({ orderId, status }: { orderId: string, status: string }) => updateOrderStatus(orderId, status),
+    // Optimistic Update
+    onMutate: async ({ orderId, status }) => {
+      await queryClient.cancelQueries({ queryKey: ['orders'] });
+      const previousData = queryClient.getQueryData(['orders', queryKey[1]]);
+      
+      queryClient.setQueryData(['orders', queryKey[1]], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          orders: old.orders.map((o: any) => 
+            o.id === orderId ? { ...o, status } : o
+          )
+        };
+      });
+
+      return { previousData };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
       showToast('Statut mis à jour ✓', 'success');
     },
-    onError: (e: any) => showToast(e.message || 'Erreur', 'error')
+    onError: (err, variables, context: any) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(['orders', queryKey[1]], context.previousData);
+      }
+      showToast(err.message || 'Erreur', 'error');
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+    }
   });
 
   const deleteMutation = useMutation({
     mutationFn: (orderId: string) => deleteOrder(orderId),
+    onMutate: async (orderId) => {
+      await queryClient.cancelQueries({ queryKey: ['orders'] });
+      const previousData = queryClient.getQueryData(['orders', queryKey[1]]);
+      queryClient.setQueryData(['orders', queryKey[1]], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          orders: old.orders.filter((o: any) => o.id !== orderId)
+        };
+      });
+      return { previousData };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
       showToast('Commande supprimée ✓', 'success');
       setSelectedOrder(null);
     },
-    onError: (e: any) => showToast(e.message || 'Erreur', 'error')
+    onError: (err, variables, context: any) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(['orders', queryKey[1]], context.previousData);
+      }
+      showToast(err.message || 'Erreur', 'error');
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+    }
   });
 
   const updateDetailsMutation = useMutation({
@@ -131,22 +174,71 @@ export default function OrdersClient({
 
   const assignMutation = useMutation({
     mutationFn: ({ orderId, deliverymanId }: { orderId: string, deliverymanId: string }) => assignOrderToDeliveryman(orderId, deliverymanId),
+    onMutate: async ({ orderId, deliverymanId }) => {
+      await queryClient.cancelQueries({ queryKey: ['orders'] });
+      const previousData = queryClient.getQueryData(['orders', queryKey[1]]);
+      const deliveryman = deliverymen.find(d => d.id === deliverymanId);
+      
+      queryClient.setQueryData(['orders', queryKey[1]], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          orders: old.orders.map((o: any) => 
+            o.id === orderId ? { 
+              ...o, 
+              deliverymanId, 
+              deliverymanName: deliveryman?.name || 'Assigné',
+              status: 'CONFIRMED' // Usually assignment confirms the order
+            } : o
+          )
+        };
+      });
+      return { previousData };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
       showToast('Livreur assigné ✓', 'success');
       setSelectedOrder(null);
     },
-    onError: (e: any) => showToast(e.message || 'Erreur', 'error')
+    onError: (err, variables, context: any) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(['orders', queryKey[1]], context.previousData);
+      }
+      showToast(err.message || 'Erreur', 'error');
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+    }
   });
 
   const reprogramMutation = useMutation({
     mutationFn: ({ orderId, deliveryDate }: { orderId: string, deliveryDate: string }) => reprogramOrder(orderId, deliveryDate),
+    onMutate: async ({ orderId, deliveryDate }) => {
+      await queryClient.cancelQueries({ queryKey: ['orders'] });
+      const previousData = queryClient.getQueryData(['orders', queryKey[1]]);
+      queryClient.setQueryData(['orders', queryKey[1]], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          orders: old.orders.map((o: any) => 
+            o.id === orderId ? { ...o, deliveryDate: new Date(deliveryDate) } : o
+          )
+        };
+      });
+      return { previousData };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
       showToast('Commande reprogrammée ✓', 'success');
       setSelectedOrder(null);
     },
-    onError: (e: any) => showToast(e.message || 'Erreur', 'error')
+    onError: (err, variables, context: any) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(['orders', queryKey[1]], context.previousData);
+      }
+      showToast(err.message || 'Erreur', 'error');
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+    }
   });
 
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
@@ -868,12 +960,7 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
                       <td><span className="cell-muted">{order.items.length} article{order.items.length > 1 ? 's' : ''}</span></td>
                        <td>
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span className="cell-price">{formatPrice(order.total + (order.deliveryFee || 0))}</span>
-                          {order.deliveryFee > 0 && (
-                            <span style={{ fontSize: 9, color: 'var(--brown-soft)', fontWeight: 600 }}>
-                              dont {formatPrice(order.deliveryFee)} livr.
-                            </span>
-                          )}
+                          <span className="cell-price">{formatPrice(order.total + (order.deliveryFee || 0) - (order.discount || 0))}</span>
                         </div>
                       </td>
                       <td>
@@ -1402,6 +1489,7 @@ function OrderDetailModal({
                         name={item.name}
                         meta={`Taille ${item.size} · ${item.color} · Qté ${item.qty}`}
                         price={formatPrice(item.price * item.qty)}
+                        isGift={item.isGift}
                       />
                     );
                   })}

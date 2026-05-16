@@ -427,7 +427,10 @@ export default function DeliveryClient({ orders, user }: { orders: any[]; user: 
                         {item.qty}
                       </div>
                       <div className="flex-1">
-                        <div className="text-[13px] font-extrabold text-white mb-0.5">{item.name}</div>
+                        <div className="text-[13px] font-extrabold text-white mb-0.5 flex items-center gap-2">
+                          {item.name}
+                          {item.isGift && <span className="text-[8px] bg-[#FF6B00] text-white px-1.5 py-0.5 rounded font-black uppercase">Cadeau</span>}
+                        </div>
                         <div className="text-[10px] font-bold text-[#71717A]">
                           {[item.size, item.color].filter(Boolean).join(" · ")}
                         </div>

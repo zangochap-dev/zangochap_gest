@@ -17,7 +17,6 @@ interface PackingItemProps {
   onMarkPacking: (orderId: string, status: string) => void;
   onPreviewImage: (url: string) => void;
   onToggleCheckItem: (orderId: string, item: any) => void;
-  optimisticChecks?: Record<string, boolean>;
   idx?: number;
 }
 
@@ -32,14 +31,11 @@ export default function PackingItem({
   onMarkPacking,
   onPreviewImage,
   onToggleCheckItem,
-  optimisticChecks = {},
   idx = 0
 }: PackingItemProps) {
   
   const totalItems = o.items.length;
-  const checkedCount = o.items.filter((i: any) => {
-    return optimisticChecks[i.id] !== undefined ? optimisticChecks[i.id] : i.isVerified;
-  }).length;
+  const checkedCount = o.items.filter((i: any) => i.isVerified).length;
   const progress = (checkedCount / totalItems) * 100;
 
   if (isMobile) {
@@ -195,7 +191,7 @@ export default function PackingItem({
       </td>
       <td>
         {o.items.map((i: any, idx: number) => {
-          const isChecked = optimisticChecks[i.id] !== undefined ? optimisticChecks[i.id] : i.isVerified;
+          const isChecked = i.isVerified;
           return (
             <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, margin: '2px 0', opacity: isChecked ? 0.4 : 1, transition: 'opacity 0.2s' }}>
               <div

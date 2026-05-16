@@ -18,7 +18,6 @@ interface PackingOrderModalProps {
   onEditStock: (product: any) => void;
   onToggleCheckItem: (orderId: string, item: any) => void;
   onPreviewImage: (url: string) => void;
-  optimisticChecks?: Record<string, boolean>;
   savingChecks?: Set<string>;
 }
 
@@ -35,15 +34,12 @@ export default function PackingOrderModal({
   onEditStock,
   onToggleCheckItem,
   onPreviewImage,
-  optimisticChecks = {},
   savingChecks = new Set()
 }: PackingOrderModalProps) {
   
   if (!order) return null;
 
-  const progress = order.items.filter((i: any) => 
-    optimisticChecks[i.id] !== undefined ? optimisticChecks[i.id] : i.isVerified
-  ).length;
+  const progress = order.items.filter((i: any) => i.isVerified).length;
   const total = order.items.length;
 
   if (isMobile) {
@@ -77,7 +73,7 @@ export default function PackingOrderModal({
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {order.items.map((item: any, idx: number) => {
             const p = productMap.get(item.productId);
-            const isChecked = optimisticChecks[item.id] !== undefined ? optimisticChecks[item.id] : item.isVerified;
+            const isChecked = item.isVerified;
             const isSaving = savingChecks.has(item.id);
             return (
               <DetailCard
@@ -259,7 +255,7 @@ export default function PackingOrderModal({
       <SectionLabel>Checklist de l'emballeur</SectionLabel>
       {order.items.map((item: any, idx: number) => {
         const p = productMap.get(item.productId);
-        const isChecked = optimisticChecks[item.id] !== undefined ? optimisticChecks[item.id] : item.isVerified;
+        const isChecked = item.isVerified;
         const isSaving = savingChecks.has(item.id);
         return (
           <DetailCard

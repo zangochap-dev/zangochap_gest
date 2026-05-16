@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useTransition, useEffect } from "react";
+import React, { useState, useMemo, useTransition, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { TableCard, StatusBadge, EmptyState, DetailCard, SectionLabel, LocationBadge } from "@/components/UI";
 import Modal from "@/components/Modal";
@@ -46,19 +46,37 @@ export default function PackingClient({ initialOrders, products, user }: { initi
   const router = useRouter();
   const isMobile = useIsMobile();
   const [editingVariants, setEditingVariants] = useState<any>(null);
-  const [optimisticChecks, setOptimisticChecks] = useState<Record<string, boolean>>({});
   const [savingChecks, setSavingChecks] = useState<Set<string>>(new Set());
 
+  const pendingRef = useRef<Record<string, { status: boolean, time: number }>>({});
+
   // REACT QUERY: Smooth background polling (No UI lag)
-  const { data: queryData, isFetching } = useQuery({
+  const { data: queryData } = useQuery({
     queryKey: ['packing-orders'],
     queryFn: async () => {
-      const res = await fetch('/api/orders/packing'); // Ensure this endpoint exists or use appropriate one
+      const res = await fetch('/api/orders/packing');
       if (!res.ok) throw new Error('Erreur de synchro');
-      return res.json();
+      const json = await res.json();
+      
+      // MERGE LOGIC: Apply pending local updates that happened less than 10s ago
+      const now = Date.now();
+      const mergedOrders = json.orders.map((o: any) => ({
+        ...o,
+        items: o.items.map((i: any) => {
+          const pending = pendingRef.current[i.id];
+          if (pending && (now - pending.time) < 10000) {
+            return { ...i, isVerified: pending.status };
+          }
+          // Clean up old pending states
+          if (pending && (now - pending.time) >= 10000) delete pendingRef.current[i.id];
+          return i;
+        })
+      }));
+      
+      return { ...json, orders: mergedOrders };
     },
     initialData: { orders: initialOrders },
-    refetchInterval: 15000, // Every 15s is enough for logistics
+    refetchInterval: 15000,
     staleTime: 5000,
   });
 
@@ -182,21 +200,33 @@ export default function PackingClient({ initialOrders, products, user }: { initi
   };
 
   const toggleCheckItem = (orderId: string, item: any) => {
-    const currentStatus = optimisticChecks[item.id] !== undefined 
-      ? optimisticChecks[item.id] 
-      : item.isVerified;
+    // 1. Get current cache state
+    const previousData: any = queryClient.getQueryData(['packing-orders']);
+    const currentStatus = item.isVerified;
     const newStatus = !currentStatus;
-    
-    // Optimistic Update: Change UI INSTANTLY
-    setOptimisticChecks(prev => ({
-      ...prev,
-      [item.id]: newStatus
-    }));
 
-    // Track saving state for spinner
+    // 1.5 Track in pendingRef for the "Freshness Lock" (10s)
+    pendingRef.current[item.id] = { status: newStatus, time: Date.now() };
+
+    // 2. Update cache INSTANTLY (Global update)
+    queryClient.setQueryData(['packing-orders'], (old: any) => {
+      if (!old) return old;
+      return {
+        ...old,
+        orders: old.orders.map((o: any) => {
+          if (o.id !== orderId) return o;
+          return {
+            ...o,
+            items: o.items.map((i: any) => 
+              i.id === item.id ? { ...i, isVerified: newStatus } : i
+            )
+          };
+        })
+      };
+    });
+
+    // 3. Persist to DB
     setSavingChecks(prev => new Set(prev).add(item.id));
-
-    // Fire-and-forget: persist to DB without blocking UI
     toggleItemVerification(item.id, newStatus)
       .then(() => {
         setSavingChecks(prev => {
@@ -205,18 +235,15 @@ export default function PackingClient({ initialOrders, products, user }: { initi
           return next;
         });
       })
-      .catch(() => {
-        // Rollback on error
-        setOptimisticChecks(prev => ({
-          ...prev,
-          [item.id]: currentStatus
-        }));
+      .catch((err) => {
+        // Rollback on failure
+        queryClient.setQueryData(['packing-orders'], previousData);
         setSavingChecks(prev => {
           const next = new Set(prev);
           next.delete(item.id);
           return next;
         });
-        showToast("Erreur lors de la vérification", "error");
+        showToast("Erreur de sauvegarde", "error");
       });
   };
 
@@ -392,7 +419,6 @@ export default function PackingClient({ initialOrders, products, user }: { initi
                   onMarkPacking={handleMarkPacking}
                   onPreviewImage={setPreviewImage}
                   onToggleCheckItem={toggleCheckItem}
-                  optimisticChecks={optimisticChecks}
                 />
               ))
             )}
@@ -423,7 +449,6 @@ export default function PackingClient({ initialOrders, products, user }: { initi
           onEditStock={(p) => setEditingVariants({ product: p, variants: p.variants })}
           onToggleCheckItem={toggleCheckItem}
           onPreviewImage={setPreviewImage}
-          optimisticChecks={optimisticChecks}
           savingChecks={savingChecks}
         />
 
@@ -616,7 +641,6 @@ export default function PackingClient({ initialOrders, products, user }: { initi
                   onMarkPacking={handleMarkPacking}
                   onPreviewImage={setPreviewImage}
                   onToggleCheckItem={toggleCheckItem}
-                  optimisticChecks={optimisticChecks}
                 />
               ))}
             </tbody>
@@ -639,6 +663,7 @@ export default function PackingClient({ initialOrders, products, user }: { initi
           onEditStock={(p) => setEditingVariants({ product: p, variants: p.variants })}
           onToggleCheckItem={toggleCheckItem}
           onPreviewImage={setPreviewImage}
+          savingChecks={savingChecks}
         />
       )}
 

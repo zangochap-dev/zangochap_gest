@@ -1,4 +1,4 @@
-import React from "react";
+import React from "react"; // Re-sync schema
 import prisma from "@/lib/prisma";
 import Topbar from "@/components/Topbar";
 import { getSession } from "@/modules/auth/actions";

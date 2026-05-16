@@ -38,7 +38,7 @@ export default function PackingOrderModal({
   onPreviewImage,
   savingChecks = new Set()
 }: PackingOrderModalProps) {
-  
+
   if (!order) return null;
 
   const progress = order.items.filter((i: any) => i.isVerified).length;
@@ -46,10 +46,10 @@ export default function PackingOrderModal({
 
   if (isMobile) {
     return (
-      <Modal 
-        isOpen={true} 
-        onClose={onClose} 
-        title={`Détails · ${order.ref}`} 
+      <Modal
+        isOpen={true}
+        onClose={onClose}
+        title={`Détails · ${order.ref}`}
         large
         footer={
           <div style={{ display: 'flex', width: '100%', gap: 10 }}>
@@ -85,8 +85,8 @@ export default function PackingOrderModal({
                   padding: 0,
                   overflow: 'hidden',
                   borderRadius: 14,
-                  border: isSaving 
-                    ? '1.5px solid var(--orange)' 
+                  border: isSaving
+                    ? '1.5px solid var(--orange)'
                     : isChecked ? '1.5px solid #34C759' : '1px solid #E5E5EA',
                   background: isChecked ? '#F2FBF4' : 'white',
                   transition: 'all 0.2s ease',
@@ -169,20 +169,52 @@ export default function PackingOrderModal({
                           </div>
                         ))}
                       </div>
-                      <div style={{ display: 'flex', gap: 6 }}>
+                      <div style={{ display: 'flex', gap: 8, position: 'relative', zIndex: 10 }}>
                         <button
                           className="action-btn"
-                          onClick={(e) => { e.stopPropagation(); if (p) onEditStock(p); }}
-                          style={{ background: 'var(--cream)', color: 'var(--brown-soft)', width: 28, height: 28, borderRadius: 8, border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (p) onEditStock(p);
+                          }}
+                          style={{
+                            background: 'var(--cream)',
+                            color: 'var(--brown-soft)',
+                            width: 36,
+                            height: 36,
+                            borderRadius: 10,
+                            border: 'none',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                          }}
                         >
-                          <Edit2 size={14} />
+                          <Edit2 size={16} />
                         </button>
                         <button
                           className="action-btn"
-                          onClick={(e) => { e.stopPropagation(); onProposeAlternative(order.id, item.name); }}
-                          style={{ background: 'var(--orange-soft)', color: 'var(--orange)', width: 28, height: 28, borderRadius: 8, border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onProposeAlternative(order.id, item.name);
+                          }}
+                          style={{
+                            background: 'var(--orange-soft)',
+                            color: 'var(--orange)',
+                            width: 36,
+                            height: 36,
+                            borderRadius: 10,
+                            border: 'none',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                          }}
                         >
-                          <ArrowLeftRight size={14} />
+                          <ArrowLeftRight size={16} />
                         </button>
                       </div>
                     </div>
@@ -263,7 +295,7 @@ export default function PackingOrderModal({
           <DetailCard
             key={idx}
             className={isChecked ? 'checked' : ''}
-            style={{ 
+            style={{
               marginBottom: 12,
               border: isSaving ? '1.5px solid var(--orange)' : undefined,
               opacity: isSaving ? 0.75 : 1,
@@ -295,7 +327,7 @@ export default function PackingOrderModal({
             )}
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
               <div style={{ width: 28, height: 28, borderRadius: 8, border: '2px solid', borderColor: isChecked ? 'var(--green)' : 'var(--line)', background: isChecked ? 'var(--green-soft)' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 4 }}>
-                {savingChecks.has(item.id) 
+                {savingChecks.has(item.id)
                   ? <Loader2 size={16} color="var(--brown-soft)" style={{ animation: 'spin 0.8s linear infinite' }} />
                   : isChecked && <Check size={18} color="var(--green)" />
                 }

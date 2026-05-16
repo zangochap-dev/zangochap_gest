@@ -464,6 +464,82 @@ export default function PackingClient({ initialOrders, products, user }: { initi
           savingChecks={savingChecks}
           {...commonProps}
         />
+
+        {editingVariants && (
+          <VariantsEditorModal
+            product={editingVariants.product}
+            variants={editingVariants.variants}
+            onClose={() => setEditingVariants(null)}
+            onSave={async (vars) => {
+              try {
+                await updateProductVariants(editingVariants.product.id, vars);
+                showToast('Variantes mises à jour ✓', 'success');
+                setEditingVariants(null);
+                router.refresh();
+              } catch (e) { showToast('Erreur', 'error'); }
+            }}
+          />
+        )}
+
+        {mounted && previewItem !== null && createPortal(
+          <div 
+            className="lightbox-root" 
+            onClick={() => setPreviewItem(null)} 
+            style={{ 
+              position: 'fixed', 
+              inset: 0, 
+              zIndex: 999999, 
+              background: 'rgba(0,0,0,0.95)', 
+              backdropFilter: 'blur(15px)',
+              display: 'flex', 
+              flexDirection: 'column',
+              alignItems: 'center', 
+              justifyContent: 'center',
+              cursor: 'zoom-out',
+              padding: '20px',
+              animation: 'fadeIn 0.2s ease-out'
+            }}
+          >
+            <style>{`
+              @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+              @keyframes zoomIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+            `}</style>
+            
+            <div style={{ position: 'relative', maxWidth: '98vw', maxHeight: '95vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', animation: 'zoomIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+              <img 
+                src={previewItem.url} 
+                alt="Preview"
+                style={{ 
+                  display: 'block',
+                  maxWidth: '100%', 
+                  maxHeight: '80vh', 
+                  borderRadius: 16, 
+                  border: '2px solid rgba(255,255,255,0.2)',
+                  boxShadow: '0 50px 100px rgba(0,0,0,0.8)',
+                  objectFit: 'contain'
+                }} 
+              />
+              
+              <div style={{ marginTop: 24, textAlign: 'center', color: 'white' }}>
+                <h2 style={{ fontSize: 24, fontWeight: 900, marginBottom: 8, letterSpacing: '-0.02em' }}>{previewItem.name}</h2>
+                <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+                  {previewItem.size && <span style={{ background: 'white', color: 'black', padding: '6px 16px', borderRadius: 8, fontWeight: 900, fontSize: 18 }}>Taille {previewItem.size}</span>}
+                  {previewItem.color && <span style={{ background: 'rgba(255,255,255,0.2)', color: 'white', padding: '6px 16px', borderRadius: 8, fontWeight: 800, fontSize: 18, border: '1px solid rgba(255,255,255,0.3)' }}>{previewItem.color}</span>}
+                </div>
+              </div>
+
+              <button
+                onClick={(e) => { e.stopPropagation(); setPreviewItem(null); }}
+                style={{
+                  position: 'fixed', top: 40, right: 40, background: 'white', border: 'none', color: 'black', width: 60, height: 60, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', zIndex: 20
+                }}
+              >
+                <X size={36} strokeWidth={3} />
+              </button>
+            </div>
+          </div>,
+          document.body
+        )}
       </div>
     );
   }

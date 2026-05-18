@@ -327,7 +327,7 @@ export async function updateProductVariantsById(productId: string, variants: Arr
       defaultWarehouse = await tx.warehouse.create({ data: { name: "Entrepôt Principal", location: "Siège Zangochap" } });
     }
 
-    const existingVariants = await tx.productVariant.findMany({ 
+    const existingVariants = await tx.productVariant.findMany({
       where: { productId },
       include: { stockLevels: { include: { warehouse: true } } }
     });
@@ -350,8 +350,8 @@ export async function updateProductVariantsById(productId: string, variants: Arr
         targetVariantId = newVariant.id;
       }
 
-      const stockLvl = await tx.stockLevel.findFirst({ 
-        where: { variantId: targetVariantId, warehouseId: defaultWarehouse.id } 
+      const stockLvl = await tx.stockLevel.findFirst({
+        where: { variantId: targetVariantId, warehouseId: defaultWarehouse.id }
       });
 
       if (stockLvl) {
@@ -540,7 +540,7 @@ export async function updateProduct(id: string, data: Partial<{
   delete updateData.images;
   delete updateData.warehouseId;
 
-  if (data.price) updateData.price = new Prisma.Decimal(data.price);
+  if (data.price !== undefined) updateData.price = new Prisma.Decimal(data.price);
   if (data.oldPrice !== undefined) updateData.oldPrice = data.oldPrice ? new Prisma.Decimal(data.oldPrice) : null;
   if (data.isPublished !== undefined) updateData.status = data.isPublished ? 'PUBLISHED' : 'DRAFT';
 

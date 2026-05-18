@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useTransition, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import { X, RefreshCcw, Save, Sparkles, Warehouse, Check, ChevronsUpDown, Plus } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -122,6 +122,29 @@ interface ProductFormProps {
   title: string;
 }
 
+type ProductFormVariant = {
+  id?: string;
+  size: string;
+  color: string;
+  stock: number;
+  location: string;
+};
+
+type ProductFormStockLevel = {
+  warehouseId?: string;
+  position?: string | null;
+};
+
+type ProductFormInitialVariant = ProductFormVariant & {
+  stockLevels?: ProductFormStockLevel[];
+};
+
+const splitVariantValues = (value: string) =>
+  value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+
 export default function ProductForm({
   initialData,
   categories,
@@ -134,6 +157,18 @@ export default function ProductForm({
 }: ProductFormProps) {
   const { showToast } = useToast();
   const imgInputRef = useRef<HTMLInputElement>(null);
+  const sourceVariants: ProductFormInitialVariant[] = initialData?.variants || [];
+  const initialVariants: ProductFormVariant[] = sourceVariants.map((v) => ({
+    id: v.id,
+    size: v.size || '',
+    color: v.color || '',
+    stock: Math.max(0, Number(v.stock) || 0),
+    location: v.location || v.stockLevels?.find((level) => level.position)?.position || ''
+  }));
+  const initialWarehouseId =
+    sourceVariants.flatMap((variant) => variant.stockLevels || []).find((level) => level.warehouseId)?.warehouseId
+    || warehouses[0]?.id
+    || '';
 
   // -- States --
   const [images, setImages] = useState<Array<{ name: string; dataUrl: string }>>(
@@ -148,22 +183,14 @@ export default function ProductForm({
   const [description, setDescription] = useState(initialData?.description || '');
   const [origin, setOrigin] = useState(initialData?.origin || '');
   const [supplier, setSupplier] = useState(initialData?.supplier?.name || '');
-  const [selectedWarehouse, setSelectedWarehouse] = useState(warehouses[0]?.id || '');
+  const [selectedWarehouse, setSelectedWarehouse] = useState(initialWarehouseId);
 
-  const [sizes, setSizes] = useState<string[]>([]);
-  const [colors, setColors] = useState<string[]>([]);
+  const [sizes, setSizes] = useState<string[]>(Array.from(new Set(initialVariants.map(v => v.size).filter(Boolean))));
+  const [colors, setColors] = useState<string[]>(Array.from(new Set(initialVariants.map(v => v.color).filter(Boolean))));
   const [sizeInput, setSizeInput] = useState('');
   const [colorInput, setColorInput] = useState('');
 
-  const [variants, setVariants] = useState<Array<{ id?: string; size: string; color: string; stock: number; location: string }>>(
-    initialData?.variants?.map((v: any) => ({
-      id: v.id,
-      size: v.size,
-      color: v.color,
-      stock: Math.max(0, Number(v.stock) || 0),
-      location: v.location || ''
-    })) || []
-  );
+  const [variants, setVariants] = useState<ProductFormVariant[]>(initialVariants);
   const [isUnpublished, setIsUnpublished] = useState(initialData ? initialData.status !== 'PUBLISHED' : false);
   const [isFeatured, setIsFeatured] = useState(initialData?.isFeatured ?? false);
   const [isGift, setIsGift] = useState(initialData?.isGift ?? false);
@@ -194,9 +221,8 @@ export default function ProductForm({
   };
 
   const addSize = () => {
-    const v = sizeInput.trim();
-    if (!v) return;
-    const vals = v.split(',').map(s => s.trim()).filter(Boolean);
+    const vals = splitVariantValues(sizeInput);
+    if (!vals.length) return;
     const newSizes = [...sizes];
     vals.forEach(val => { if (!newSizes.includes(val)) newSizes.push(val); });
     setSizes(newSizes);
@@ -204,13 +230,47 @@ export default function ProductForm({
   };
 
   const addColor = () => {
-    const v = colorInput.trim();
-    if (!v) return;
-    const vals = v.split(',').map(c => c.trim()).filter(Boolean);
+    const vals = splitVariantValues(colorInput);
+    if (!vals.length) return;
     const newColors = [...colors];
     vals.forEach(val => { if (!newColors.includes(val)) newColors.push(val); });
     setColors(newColors);
     setColorInput('');
+  };
+
+  const addManualVariants = () => {
+    const nextSizes = splitVariantValues(sizeInput);
+    const nextColors = splitVariantValues(colorInput);
+
+    if (!nextSizes.length || !nextColors.length) {
+      showToast('Renseigne une taille et une couleur', 'error');
+      return;
+    }
+
+    const existing = new Set(variants.map(v => `${v.size.trim().toLowerCase()}|${v.color.trim().toLowerCase()}`));
+    const added: ProductFormVariant[] = [];
+
+    nextSizes.forEach(size => {
+      nextColors.forEach(color => {
+        const key = `${size.toLowerCase()}|${color.toLowerCase()}`;
+        if (!existing.has(key)) {
+          existing.add(key);
+          added.push({ size, color, stock: 0, location: '' });
+        }
+      });
+    });
+
+    if (!added.length) {
+      showToast('Cette variante existe deja', 'error');
+      return;
+    }
+
+    setVariants(prev => [...prev, ...added]);
+    setSizes(prev => Array.from(new Set([...prev, ...nextSizes])));
+    setColors(prev => Array.from(new Set([...prev, ...nextColors])));
+    setSizeInput('');
+    setColorInput('');
+    showToast(`${added.length} variante(s) ajoutee(s)`, 'success');
   };
 
   const generateAllVariants = () => {
@@ -218,17 +278,25 @@ export default function ProductForm({
       showToast('Ajoute au moins 1 taille et 1 couleur', 'error');
       return;
     }
-    const existing = new Set(variants.map(v => `${v.size}|${v.color}`));
+    const existing = new Set(variants.map(v => `${v.size.trim().toLowerCase()}|${v.color.trim().toLowerCase()}`));
     const newVariants = [...variants];
+    let addedCount = 0;
     sizes.forEach(s => {
       colors.forEach(c => {
-        if (!existing.has(`${s}|${c}`)) {
+        const key = `${s.trim().toLowerCase()}|${c.trim().toLowerCase()}`;
+        if (!existing.has(key)) {
+          existing.add(key);
           newVariants.push({ size: s, color: c, stock: 0, location: '' });
+          addedCount++;
         }
       });
     });
+    if (addedCount === 0) {
+      showToast('Toutes ces variantes existent deja', 'error');
+      return;
+    }
     setVariants(newVariants);
-    showToast(`${newVariants.length} variantes générées`, 'success');
+    showToast(`${addedCount} variante(s) générée(s)`, 'success');
   };
 
   const updateVariant = (idx: number, field: string, value: any) => {
@@ -250,9 +318,41 @@ export default function ProductForm({
       return;
     }
 
-    let finalVariants = [...variants];
+    let finalVariants = variants.map(v => ({
+      ...v,
+      size: v.size.trim(),
+      color: v.color.trim(),
+      stock: Math.max(0, Number(v.stock) || 0),
+      location: v.location.trim()
+    }));
+    const pendingSizes = splitVariantValues(sizeInput);
+    const pendingColors = splitVariantValues(colorInput);
+    if (pendingSizes.length && pendingColors.length) {
+      const existing = new Set(finalVariants.map(v => `${v.size.toLowerCase()}|${v.color.toLowerCase()}`));
+      pendingSizes.forEach(size => {
+        pendingColors.forEach(color => {
+          const key = `${size.toLowerCase()}|${color.toLowerCase()}`;
+          if (!existing.has(key)) {
+            existing.add(key);
+            finalVariants.push({ size, color, stock: 0, location: '' });
+          }
+        });
+      });
+    }
     if (finalVariants.length === 0 && !initialData) {
       finalVariants = [{ size: 'Standard', color: 'Standard', stock: 0, location: '' }];
+    }
+    if (finalVariants.some(v => !v.size || !v.color)) {
+      showToast("Chaque variante doit avoir une taille et une couleur", "error");
+      return;
+    }
+    const duplicateVariant = finalVariants.find((variant, index) => {
+      const key = `${variant.size.toLowerCase()}|${variant.color.toLowerCase()}`;
+      return finalVariants.findIndex(item => `${item.size.toLowerCase()}|${item.color.toLowerCase()}` === key) !== index;
+    });
+    if (duplicateVariant) {
+      showToast(`Variante en double : ${duplicateVariant.size} / ${duplicateVariant.color}`, "error");
+      return;
     }
 
     onSubmit({
@@ -438,19 +538,17 @@ export default function ProductForm({
             <div className="bg-white border border-[#E8DDD0] rounded-xl overflow-hidden shadow-sm">
               <div className="px-6 py-4 border-b border-[#F8F5F2] bg-[#FDFCFB] flex items-center justify-between">
                 <h2 className="font-bold text-[#1A1410]">Variantes & Stock</h2>
-                {!initialData && (
-                  <button
-                    type="button"
-                    className="px-3 py-1.5 bg-[#D4541C]/10 text-[#D4541C] text-[11px] font-bold rounded-lg hover:bg-[#D4541C]/20 transition-colors flex items-center gap-1.5"
-                    onClick={generateAllVariants}
-                  >
-                    <RefreshCcw size={12} /> Générer
-                  </button>
-                )}
+                <button
+                  type="button"
+                  className="px-3 py-1.5 bg-[#D4541C]/10 text-[#D4541C] text-[11px] font-bold rounded-lg hover:bg-[#D4541C]/20 transition-colors flex items-center gap-1.5"
+                  onClick={generateAllVariants}
+                >
+                  <RefreshCcw size={12} /> Générer
+                </button>
               </div>
               <div className="p-6 space-y-8">
-                {/* Configuration des attributs (only for new products or if user wants to add) */}
-                {!initialData && (
+                {/* Configuration des attributs */}
+                <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-3">
                       <label className="text-[11px] font-bold uppercase tracking-wider text-[#6B4838]">Tailles</label>
@@ -495,7 +593,14 @@ export default function ProductForm({
                       </div>
                     </div>
                   </div>
-                )}
+                  <button
+                    type="button"
+                    onClick={addManualVariants}
+                    className="w-full md:w-auto px-4 py-2 bg-[#1A1410] text-white rounded-lg text-[12px] font-bold flex items-center justify-center gap-2 hover:bg-[#D4541C] transition-colors"
+                  >
+                    <Plus size={14} /> Ajouter variante
+                  </button>
+                </div>
 
                 {/* Table des variantes */}
                 {variants.length > 0 && (
@@ -513,9 +618,21 @@ export default function ProductForm({
                         {variants.map((v, idx) => (
                           <tr key={idx} className="hover:bg-[#FDFCFB] transition-colors">
                             <td className="px-4 py-3">
-                              <div className="flex flex-col">
-                                <span className="font-bold text-[#1A1410]">{v.size}</span>
-                                <span className="text-[11px] text-[#6B4838]">{v.color}</span>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <input
+                                  type="text"
+                                  value={v.size}
+                                  onChange={e => updateVariant(idx, 'size', e.target.value)}
+                                  placeholder="Taille"
+                                  className="w-full bg-white border border-[#E8DDD0] rounded-md p-1.5 text-xs font-bold outline-none focus:border-[#D4541C]"
+                                />
+                                <input
+                                  type="text"
+                                  value={v.color}
+                                  onChange={e => updateVariant(idx, 'color', e.target.value)}
+                                  placeholder="Couleur"
+                                  className="w-full bg-white border border-[#E8DDD0] rounded-md p-1.5 text-xs font-semibold outline-none focus:border-[#D4541C]"
+                                />
                               </div>
                             </td>
                             <td className="px-4 py-3">
@@ -536,7 +653,9 @@ export default function ProductForm({
                               />
                             </td>
                             <td className="px-4 py-3 text-right">
-                              <button type="button" onClick={() => removeVariant(idx)} className="text-[#C73E1D] hover:scale-110 transition-transform"><X size={16} /></button>
+                              {!v.id && (
+                                <button type="button" onClick={() => removeVariant(idx)} className="text-[#C73E1D] hover:scale-110 transition-transform"><X size={16} /></button>
+                              )}
                             </td>
                           </tr>
                         ))}

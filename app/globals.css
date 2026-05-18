@@ -745,7 +745,7 @@
   }
 
   .chip-count {
-    background: rgba(0,0,0,0.06);
+    background: rgba(0, 0, 0, 0.06);
     padding: 1px 6px;
     border-radius: 10px;
     font-size: 10px;
@@ -754,7 +754,7 @@
   }
 
   .filter-chip.active .chip-count {
-    background: rgba(255,255,255,0.2);
+    background: rgba(255, 255, 255, 0.2);
     color: white;
   }
 
@@ -781,14 +781,16 @@
     cursor: pointer;
     transition: all 0.2s;
   }
+
   .shortcut-btn:hover {
     color: var(--ink);
     background: white;
   }
+
   .shortcut-btn.active {
     color: var(--orange);
     background: white;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   }
 
   .filter-select,
@@ -4469,7 +4471,7 @@
 }
 
 /* Dark mode disabled for order forms - forcing light theme */
-.pos-container, 
+.pos-container,
 .modal-content-new,
 .pos-checkout-grid,
 .pos-checkout-summary {
@@ -4483,8 +4485,8 @@
   color: var(--ink) !important;
 }
 
-.field-input, 
-.field-input-sm, 
+.field-input,
+.field-input-sm,
 .field-select,
 .pos-search-input {
   background-color: white !important;
@@ -4494,4 +4496,51 @@
 .field-label,
 .field-label-sm {
   color: var(--brown-soft) !important;
+}
+
+
+/* === ORDER FORM MODAL RESPONSIVE GRID === */
+.order-modal-grid {
+  display: grid;
+  grid-template-columns: 20% 60% 20%;
+  gap: 0;
+  height: 70vh;
+  position: relative;
+  margin: -24px;
+}
+
+@media (max-width: 1200px) {
+  .order-modal-grid {
+    grid-template-columns: 20% 60% 20%;
+  }
+}
+
+@media (max-width: 1024px) {
+  .order-modal-grid {
+    grid-template-columns: 20% 60% 20%;
+    height: 75vh;
+    overflow-y: auto;
+  }
+
+  .order-modal-grid>div:first-child {
+    grid-column: 1 / -1;
+    border-right: none !important;
+    border-bottom: 1px solid var(--line);
+    max-height: 280px;
+  }
+}
+
+@media (max-width: 768px) {
+  .order-modal-grid {
+    grid-template-columns: 1fr;
+    height: 80vh;
+    overflow-y: auto;
+  }
+
+  .order-modal-grid>div {
+    border-right: none !important;
+    border-bottom: 1px solid var(--line);
+    max-height: none !important;
+    height: auto !important;
+  }
 }

@@ -5,7 +5,7 @@ import {
   Phone, MessageCircle, Check, MapPin, Clock, Search, Navigation,
   X, ArrowRight, Package, AlertCircle, User, FileText, Tag,
   ChevronRight, TrendingUp, Banknote, CheckCircle2, AlertTriangle,
-  RotateCcw, History, LayoutDashboard
+  RotateCcw, History, LayoutDashboard, CalendarClock
 } from "lucide-react";
 import { formatPrice, formatDate } from "@/lib/constants";
 import { updateOrderStatus, markPartialDelivery } from "@/modules/orders/actions";
@@ -37,6 +37,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
   CANCELLED: { label: "Annulé", color: "#FF4D4D", bg: "rgba(255, 77, 77, 0.1)", border: "rgba(255, 77, 77, 0.2)", dot: "#FF4D4D" },
   PENDING: { label: "En cours", color: "#FACC15", bg: "rgba(250, 204, 21, 0.1)", border: "rgba(250, 204, 21, 0.2)", dot: "#FACC15", pulse: true },
   IN_TRANSIT: { label: "En route", color: "#38BDF8", bg: "rgba(56, 189, 248, 0.1)", border: "rgba(56, 189, 248, 0.2)", dot: "#38BDF8", pulse: true },
+  REPRO_DISPO: { label: "Repro-dispo", color: "#FACC15", bg: "rgba(250, 204, 21, 0.1)", border: "rgba(250, 204, 21, 0.2)", dot: "#FACC15" },
   PARTIALLY_DELIVERED: { label: "Partiel", color: "#2DD4BF", bg: "rgba(45, 212, 191, 0.1)", border: "rgba(45, 212, 191, 0.2)", dot: "#2DD4BF" },
 };
 
@@ -137,13 +138,18 @@ export default function DeliveryClient({ orders, user }: { orders: any[]; user: 
       showToast("Accès refusé : Action réservée aux livreurs", "error");
       return;
     }
-    const label = status === "DELIVERED" ? "Livraison confirmée" : "Retour enregistré";
-    if (!confirm(`Souhaitez-vous marquer cette commande comme ${status === "DELIVERED" ? "LIVRÉE" : "RETOURNÉE"} ?`)) return;
+    const statusMessages: Record<string, { label: string; confirm: string }> = {
+      DELIVERED: { label: "Livraison confirmée", confirm: "LIVRÉE" },
+      RETURNED: { label: "Retour enregistré", confirm: "RETOURNÉE" },
+      REPRO_DISPO: { label: "Commande repro-dispo pour demain", confirm: "REPRO-DISPO" },
+    };
+    const message = statusMessages[status] || statusMessages.RETURNED;
+    if (!confirm(`Souhaitez-vous marquer cette commande comme ${message.confirm} ?`)) return;
 
     startTransition(async () => {
       try {
         await updateOrderStatus(orderId, status);
-        showToast(label, "success");
+        showToast(message.label, "success");
         setSelectedOrder(null);
         router.refresh();
       } catch (e: any) {
@@ -486,6 +492,14 @@ export default function DeliveryClient({ orders, user }: { orders: any[]; user: 
                           >
                             <RotateCcw size={18} strokeWidth={3} />
                             ÉCHEC
+                          </button>
+                          <button
+                            disabled={isPending}
+                            onClick={() => handleStatusChange(selectedOrder.id, "REPRO_DISPO")}
+                            className="flex-1 flex items-center justify-center gap-2 h-14 rounded-xl border-2 border-yellow-500/30 bg-yellow-500/5 text-yellow-400 text-sm font-extrabold cursor-pointer transition-all"
+                          >
+                            <CalendarClock size={18} strokeWidth={3} />
+                            REPRO
                           </button>
                           <button
                             disabled={isPending}

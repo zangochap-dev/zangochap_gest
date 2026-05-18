@@ -36,6 +36,7 @@ export async function updateOrderStatus(orderId: string, newStatus: string, note
     'RETURNED': 'Retournée',
     'EXCHANGED': 'Echange effectué',
     'REPROGRAMMED': 'Reprogrammée',
+    'REPRO_DISPO': 'Repro-dispo',
     'TO_PROCESS': 'À traiter',
     'PARTIALLY_DELIVERED': 'Livrée partiellement',
     'PARTIAL': 'Emballage partiel',
@@ -66,9 +67,19 @@ export async function updateOrderStatus(orderId: string, newStatus: string, note
   };
 
   const normalizedStatus = newStatus.toUpperCase();
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(0, 0, 0, 0);
   let updatedOrder: any = null;
 
   await prisma.$transaction(async (tx) => {
+    if (normalizedStatus === 'REPRO_DISPO') {
+      updateData.deliveryDate = tomorrow;
+      updateData.deliverymanId = null;
+      updateData.deliverymanName = null;
+      updateData.type = 'Repro-dispo';
+    }
+
     if (['PACKED', 'PARTIAL'].includes(normalizedStatus)) {
       updateData.packedBy = session.email;
       updateData.packedByName = session.name;
@@ -80,14 +91,14 @@ export async function updateOrderStatus(orderId: string, newStatus: string, note
     }
 
     // Restore stock for non-shipping statuses
-    const shippingStatuses = ['PACKED', 'ON_DELIVERY', 'DELIVERED', 'PARTIALLY_DELIVERED'];
+    const shippingStatuses = ['PACKED', 'ON_DELIVERY', 'DELIVERED', 'PARTIALLY_DELIVERED', 'REPRO_DISPO'];
     if (!shippingStatuses.includes(normalizedStatus) && order.stockDecremented) {
       const type = normalizedStatus === 'EXCHANGED' ? 'EXCHANGE' : 'RETURN';
       await restoreStockForOrder(order, session, type, tx);
       updateData.stockDecremented = false;
     }
 
-    if (!['PACKED', 'PARTIAL', 'ON_DELIVERY', 'DELIVERED', 'PARTIALLY_DELIVERED'].includes(normalizedStatus)) {
+    if (!['PACKED', 'PARTIAL', 'ON_DELIVERY', 'DELIVERED', 'PARTIALLY_DELIVERED', 'REPRO_DISPO'].includes(normalizedStatus)) {
       updateData.packedBy = null;
       updateData.packedByName = null;
       updateData.packedAt = null;
@@ -107,6 +118,9 @@ export async function updateOrderStatus(orderId: string, newStatus: string, note
   revalidatePath("/zangochap-manager/logistics");
   revalidatePath("/zangochap-manager/logistics/packing");
   revalidatePath("/zangochap-manager/logistics/collection");
+  revalidatePath("/zangochap-manager/logistics/labels");
+  revalidatePath("/zangochap-manager/logistics/verification");
+  revalidatePath("/zangochap-manager/admin/delivery");
   revalidatePath("/zangochap-manager/dashboard");
   revalidatePath("/zangochap-rider");
   return { success: true, order: JSON.parse(JSON.stringify(updatedOrder)) };

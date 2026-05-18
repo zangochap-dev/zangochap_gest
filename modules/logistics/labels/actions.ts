@@ -20,7 +20,7 @@ export async function getTodayLabels() {
         lte: endOfDay,
       },
       status: {
-        not: "CANCELLED",
+        notIn: ["CANCELLED", "REPRO_DISPO"],
       },
     },
     select: {

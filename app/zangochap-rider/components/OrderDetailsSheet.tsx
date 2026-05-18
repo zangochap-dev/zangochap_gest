@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import {
   X, Phone, MessageCircle, Package,
   Check, RotateCcw, ChevronRight, MapPin, Banknote, CheckCircle2,
-  AlertCircle, Users, CheckSquare, Square, Navigation, Send
+  AlertCircle, Users, CheckSquare, Square, Navigation, Send, CalendarClock
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { formatPrice } from "@/lib/constants";
@@ -385,8 +385,17 @@ export function OrderDetailsSheet({
                 disabled={isPending}
                 onClick={() => onStatusUpdate(order.id, "RETURNED")}
                 className="flex-1 h-14 bg-[#FF3B30]/10 rounded-xl text-[#FF3B30] flex items-center justify-center active:scale-[0.98] transition-all border border-[#FF3B30]/10 disabled:opacity-40"
+                title="Retour"
               >
                 <RotateCcw size={20} strokeWidth={2.5} />
+              </button>
+              <button
+                disabled={isPending}
+                onClick={() => onStatusUpdate(order.id, "REPRO_DISPO")}
+                className="flex-1 h-14 bg-[#FF9500]/10 rounded-xl text-[#FF9500] flex items-center justify-center active:scale-[0.98] transition-all border border-[#FF9500]/10 disabled:opacity-40"
+                title="Repro-dispo demain"
+              >
+                <CalendarClock size={20} strokeWidth={2.5} />
               </button>
             </div>
           ) : (

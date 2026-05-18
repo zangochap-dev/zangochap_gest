@@ -3,8 +3,8 @@
 import React, { useState, useTransition, useMemo } from "react";
 import { TableCard, EmptyState, StatCard, StatusBadge } from "@/components/UI";
 import { formatPrice, formatDate, COMMUNES } from "@/lib/constants";
-import { Truck, User, UserPlus, Clock, Search, X, Package, Check, Filter, MapPin, Calendar, LayoutGrid, List, Archive, TrendingUp, ChevronRight, FileText, Phone, Printer } from "lucide-react";
-import { assignOrderToDeliveryman, bulkAssignOrders } from "@/modules/orders/actions";
+import { Truck, User, UserPlus, Clock, Search, X, Package, Check, Filter, MapPin, Calendar, LayoutGrid, List, Archive, TrendingUp, ChevronRight, FileText, Phone, Printer, CalendarClock } from "lucide-react";
+import { assignOrderToDeliveryman, bulkAssignOrders, updateOrderStatus } from "@/modules/orders/actions";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/Toast";
 import "./admin-delivery-client.css";
@@ -69,6 +69,20 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
         await bulkAssignOrders(Array.from(selectedIds), dId);
         showToast(`${selectedIds.size} commandes ${isUnassigning ? 'désattribuées' : 'attribuées ✓'}`, 'success');
         setSelectedIds(new Set());
+        router.refresh();
+      } catch (e: any) {
+        showToast(e.message || 'Erreur', 'error');
+      }
+    });
+  };
+
+  const handleReproDispo = (orderId: string) => {
+    if (!confirm("Mettre cette commande en repro-dispo pour la livraison de demain ?")) return;
+
+    startTransition(async () => {
+      try {
+        await updateOrderStatus(orderId, "REPRO_DISPO");
+        showToast("Commande repro-dispo pour demain ✓", "success");
         router.refresh();
       } catch (e: any) {
         showToast(e.message || 'Erreur', 'error');
@@ -407,20 +421,31 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
                       </td>
                       <td><StatusBadge status={order.status} /></td>
                       <td>
-                        <select
-                          className="assign-select"
-                          value={order.deliverymanId || ""}
-                          onChange={(e) => handleAssign(order.id, e.target.value)}
-                          disabled={isPending}
-                        >
-                          <option value="" disabled>Attribuer à...</option>
-                          <option value="unassigned" style={{ color: 'var(--red)' }}>❌ Désattribuer</option>
-                          {deliverymen.map(d => (
-                            <option key={d.id} value={d.id}>
-                              {d.name} ({riderLiveCounts[d.id] || 0})
-                            </option>
-                          ))}
-                        </select>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                          <button
+                            type="button"
+                            className="cell-btn-icon"
+                            onClick={() => handleReproDispo(order.id)}
+                            disabled={isPending || order.status === "REPRO_DISPO"}
+                            title="Repro-dispo demain"
+                          >
+                            <CalendarClock size={14} />
+                          </button>
+                          <select
+                            className="assign-select"
+                            value={order.deliverymanId || ""}
+                            onChange={(e) => handleAssign(order.id, e.target.value)}
+                            disabled={isPending}
+                          >
+                            <option value="" disabled>Attribuer à...</option>
+                            <option value="unassigned" style={{ color: 'var(--red)' }}>❌ Désattribuer</option>
+                            {deliverymen.map(d => (
+                              <option key={d.id} value={d.id}>
+                                {d.name} ({riderLiveCounts[d.id] || 0})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </td>
                     </tr>
                   ))}

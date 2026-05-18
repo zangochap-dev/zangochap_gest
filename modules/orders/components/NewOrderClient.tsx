@@ -8,7 +8,7 @@ import { getAutomaticDiscountAction } from "@/modules/products/actions";
 import { COMMUNES, formatPrice, DELIVERY_FEES } from "@/lib/constants";
 import { getCustomers } from "@/modules/crm/actions";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search, X, ShoppingCart, User, Plus, Minus, Trash2, CreditCard, Filter, RotateCcw, Info, Check, Maximize, Sparkles, RotateCw, Package, ArrowLeft, Tag, ChevronRight, ChevronLeft } from "lucide-react";
+import { Search, X, ShoppingCart, User, Plus, Minus, Trash2, Filter, RotateCcw, Info, Check, Maximize, Sparkles, RotateCw, Package, ArrowLeft, Tag, ChevronRight, ChevronLeft, Zap } from "lucide-react";
 import { getImageUrl } from "@/lib/utils";
 import VariantSelectionModal from "@/components/VariantSelectionModal";
 import ProductCard from "@/components/ProductCard";
@@ -21,6 +21,11 @@ interface NewOrderClientProps {
   user: any;
   categories: any[];
 }
+
+const ORDER_TYPE_DEFAULT_NOTES: Record<string, string> = {
+  Echange: '[ECHANGE]',
+  Express: '[EXPRESS] Livraison prioritaire',
+};
 
 export default function NewOrderClient({ products, user, categories }: NewOrderClientProps) {
   const [activeCategory, setActiveCategory] = useState('all');
@@ -74,6 +79,44 @@ export default function NewOrderClient({ products, user, categories }: NewOrderC
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [receiptOrder, setReceiptOrder] = useState<any>(null);
   const [showGallery, setShowGallery] = useState(false);
+  const activeOrderMode = orderType === 'Echange' ? 'exchange' : orderType === 'Express' ? 'express' : 'standard';
+
+  const orderModeMeta = {
+    standard: {
+      title: 'Nouvelle Vente',
+      subtitle: 'Point de Vente Zangochap',
+      label: 'Vente',
+      icon: Package,
+    },
+    exchange: {
+      title: 'Échange de produit',
+      subtitle: 'Sélectionnez les nouveaux articles',
+      label: 'Échange',
+      icon: RotateCcw,
+    },
+    express: {
+      title: 'Commande Express',
+      subtitle: 'Commande prioritaire',
+      label: 'Express',
+      icon: Zap,
+    },
+  }[activeOrderMode];
+
+  const handleOrderTypeChange = (type: string | null) => {
+    const currentNote = deliveryNote.trim();
+    const isAutomaticNote = Object.values(ORDER_TYPE_DEFAULT_NOTES).includes(currentNote);
+
+    setOrderType(type);
+
+    if (!type) {
+      if (isAutomaticNote) setDeliveryNote('');
+      return;
+    }
+
+    if (!currentNote || isAutomaticNote) {
+      setDeliveryNote(ORDER_TYPE_DEFAULT_NOTES[type] || '');
+    }
+  };
 
   // Extract unique images from all products for the gallery
   const galleryImages = useMemo(() => {
@@ -564,17 +607,37 @@ Ne passez pas à côté de cette belle surprise !`;
             <ArrowLeft size={20} />
           </Link>
           <div>
-            <h1>{orderType === 'Echange' ? 'Échange de produit' : 'Nouvelle Vente'}</h1>
-            <p>{orderType === 'Echange' ? 'Sélectionnez les nouveaux articles' : 'Point de Vente Zangochap'}</p>
+            <h1>{orderModeMeta.title}</h1>
+            <p>{orderModeMeta.subtitle}</p>
           </div>
         </div>
 
-        {orderType === 'Echange' && (
-          <div style={{ background: 'var(--orange-soft)', padding: '8px 16px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 10, border: '1px solid var(--orange)', color: 'var(--orange)', fontWeight: 700, fontSize: 13 }}>
-            <RotateCcw size={16} />
-            MODE ÉCHANGE ACTIVÉ : Les informations client sont déjà remplies.
-          </div>
-        )}
+        <div className="pos-order-type-switch" role="group" aria-label="Type de commande">
+          <button
+            type="button"
+            className={`pos-order-type-btn ${activeOrderMode === 'standard' ? 'active' : ''}`}
+            onClick={() => handleOrderTypeChange(null)}
+          >
+            <Package size={15} />
+            <span>Vente</span>
+          </button>
+          <button
+            type="button"
+            className={`pos-order-type-btn exchange ${activeOrderMode === 'exchange' ? 'active' : ''}`}
+            onClick={() => handleOrderTypeChange('Echange')}
+          >
+            <RotateCcw size={15} />
+            <span>Échange</span>
+          </button>
+          <button
+            type="button"
+            className={`pos-order-type-btn express ${activeOrderMode === 'express' ? 'active' : ''}`}
+            onClick={() => handleOrderTypeChange('Express')}
+          >
+            <Zap size={15} />
+            <span>Express</span>
+          </button>
+        </div>
 
         <button className="pos-custom-item-btn" onClick={() => setShowCustomItem(true)}>
           <Sparkles size={16} />
@@ -821,8 +884,8 @@ Ne passez pas à côté de cette belle surprise !`;
               disabled={items.length === 0}
               onClick={() => setShowCheckout(true)}
             >
-              <CreditCard size={18} />
-              Valider la commande
+              {React.createElement(orderModeMeta.icon, { size: 18 })}
+              Valider {orderModeMeta.label}
             </button>
           </div>
         </aside>

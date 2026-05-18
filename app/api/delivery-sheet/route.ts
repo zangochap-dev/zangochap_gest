@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
 
   const orders = await prisma.order.findMany({
     where: {
-      status: { notIn: ['CANCELLED', 'PENDING', 'TO_PROCESS'] },
+      status: { notIn: ['CANCELLED', 'PENDING', 'TO_PROCESS', 'REPRO_DISPO'] },
       ...dateFilter
     },
     include: { 

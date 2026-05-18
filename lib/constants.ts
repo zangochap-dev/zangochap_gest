@@ -15,6 +15,7 @@ export const COMMUNES: Record<string, string> = {
   'Bassam': 'BA',
   'Songon': 'YP',
   'Abidjan BJ': 'BJ',
+  'Boutique': 'BT',
   'Hors Abidjan': 'EXP',
 };
 
@@ -61,6 +62,7 @@ export const STATUS_LABELS: Record<string, string> = {
   SENT: 'Envoyé',
   ON_DELIVERY: 'En livraison',
   REPROGRAMMED: 'Reprogrammée',
+  REPRO_DISPO: 'Repro-dispo',
   PREPARING: 'En préparation',
 };
 
@@ -79,6 +81,7 @@ export const STATUS_CSS: Record<string, string> = {
   SENT: 'sent',
   ON_DELIVERY: 'on_delivery',
   REPROGRAMMED: 'reprogrammed',
+  REPRO_DISPO: 'repro_dispo',
   PREPARING: 'preparing',
 };
 

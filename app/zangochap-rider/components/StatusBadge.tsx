@@ -8,6 +8,7 @@ const STATUS_MAP: Record<string, { label: string; color: string; bg: string; dot
   CANCELLED: { label: "Annulé", color: "#FF3B30", bg: "#FFEBEA", dot: "#FF3B30" },
   PENDING: { label: "À livrer", color: "#FF9500", bg: "#FFF4E6", dot: "#FF9500" },
   ON_DELIVERY: { label: "En cours", color: "#007AFF", bg: "#E5F1FF", dot: "#007AFF" },
+  REPRO_DISPO: { label: "Repro-dispo", color: "#FF9500", bg: "#FFF4E6", dot: "#FF9500" },
   PARTIALLY_DELIVERED: { label: "Partiel", color: "#FF9500", bg: "#FFF4E6", dot: "#FF9500" },
 };
 

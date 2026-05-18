@@ -40,6 +40,13 @@
   font-size: 12px; font-weight: 700; outline: none; background: white; cursor: pointer; transition: 0.2s;
 }
 .assign-select:hover { border-color: var(--orange); background: var(--cream); }
+.cell-btn-icon {
+  width: 36px; height: 36px; border-radius: 10px; border: 1.5px solid var(--orange-soft);
+  background: var(--orange-soft); color: var(--orange); display: inline-flex; align-items: center;
+  justify-content: center; cursor: pointer; transition: 0.2s; flex-shrink: 0;
+}
+.cell-btn-icon:hover:not(:disabled) { background: var(--orange); color: white; }
+.cell-btn-icon:disabled { opacity: 0.45; cursor: not-allowed; }
 .cell-date { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--brown); }
 .cell-commune { font-size: 11px; font-weight: 700; color: var(--orange); margin-top: 2px; display: flex; align-items: center; }
 .cell-location { 

@@ -40,7 +40,7 @@ export default async function VerificationPrintPage({
 
   const orders = await prisma.order.findMany({
     where: {
-      status: { notIn: ['CANCELLED', 'PENDING', 'TO_PROCESS'] },
+      status: { notIn: ['CANCELLED', 'PENDING', 'TO_PROCESS', 'REPRO_DISPO'] },
       deletedAt: null,
       ...dateFilter
     },

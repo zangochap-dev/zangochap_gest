@@ -5,7 +5,7 @@ import Modal from "@/components/Modal";
 import { SectionLabel, DetailCard } from "@/components/UI";
 import { Check, ArrowLeftRight, Warehouse, Edit2, Loader2 } from "lucide-react";
 
-import { PackingOrder, PackingOrderItem, ProductWithVariants } from "../PackingClient";
+import { PackingOrder, PackingOrderItem, ProductWithVariants } from "../types";
 
 interface PackingOrderModalProps {
   order: PackingOrder | null | undefined;
@@ -41,7 +41,7 @@ export default function PackingOrderModal({
 
   if (!order) return null;
 
-  const progress = order.items.filter((i: any) => i.isVerified).length;
+  const progress = order.items.filter((i) => i.isVerified).length;
   const total = order.items.length;
 
   if (isMobile) {
@@ -73,8 +73,8 @@ export default function PackingOrderModal({
 
         <SectionLabel spaced>Checklist Articles</SectionLabel>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {order.items.map((item: any, idx: number) => {
-            const p = productMap.get(item.productId);
+          {order.items.map((item, idx: number) => {
+            const p = productMap.get(item.productId || "");
             const isChecked = item.isVerified;
             const isSaving = savingChecks.has(item.id);
             return (
@@ -162,7 +162,7 @@ export default function PackingOrderModal({
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 'auto' }}>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                        {p?.variants?.find((v: any) => v.size === item.size && v.color === item.color)?.stockLevels?.map((sl: any) => (
+                        {p?.variants?.find((v) => v.size === item.size && v.color === item.color)?.stockLevels?.map((sl) => (
                           <div key={sl.id} style={{ fontSize: 9, background: '#F2F2F7', padding: '2px 6px', borderRadius: 5, display: 'flex', alignItems: 'center', gap: 3 }}>
                             <Warehouse size={9} color="#FF6B2C" />
                             <span style={{ fontWeight: 700 }}>{sl.position || sl.warehouse.name}</span>
@@ -220,7 +220,7 @@ export default function PackingOrderModal({
                     </div>
                   </div>
                 </div>
-                {order.history?.filter((h: any) => h.action.includes(`Alternative proposée pour "${item.name}"`)).map((h: any, hi: number) => (
+                {order.history?.filter((h) => h.action.includes(`Alternative proposée pour "${item.name}"`)).map((h, hi: number) => (
                   <div key={hi} style={{ margin: '0 12px 10px', padding: '8px 12px', background: 'var(--orange-soft)', borderLeft: '3px solid var(--orange)', borderRadius: 6, fontSize: 12, fontWeight: 700, color: 'var(--ink)' }}>
                     <div style={{ fontSize: 9, textTransform: 'uppercase', opacity: 0.6, marginBottom: 2 }}>Alternative :</div>
                     {h.action.split(' : ')[1]}
@@ -232,7 +232,7 @@ export default function PackingOrderModal({
         </div>
 
         <div style={{ marginTop: 20 }}>
-          <SectionLabel spaced>Note d'emballage</SectionLabel>
+          <SectionLabel spaced>{"Note d'emballage"}</SectionLabel>
           <textarea
             className="mobile-search-input"
             value={packingNote}
@@ -253,11 +253,11 @@ export default function PackingOrderModal({
           <button className="btn-secondary" onClick={onClose}>Fermer</button>
           {order.status === 'PACKED' ? (
             <button className="btn-secondary" onClick={() => onMarkPacking(order.id, 'CONFIRMED')} disabled={isPending} style={{ background: '#FEE2E2', color: '#EF4444', borderColor: '#FCA5A5' }}>
-              <ArrowLeftRight size={14} /> Annuler l'emballage (Erreur)
+              <ArrowLeftRight size={14} /> {"Annuler l'emballage (Erreur)"}
             </button>
           ) : (
             <>
-              <button className="btn-secondary" onClick={() => onMarkPacking(order.id, 'CONFIRMED')} disabled={isPending} style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>
+              <button className="btn-secondary" onClick={() => onMarkPacking(order.id, 'UNAVAILABLE')} disabled={isPending} style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>
                 Pas en stock
               </button>
               <button className="btn-secondary" onClick={() => onMarkPacking(order.id, 'PARTIAL')} disabled={isPending} style={{ borderColor: 'var(--amber)', color: 'var(--amber)' }}>
@@ -286,9 +286,9 @@ export default function PackingOrderModal({
         </div>
       </div>
 
-      <SectionLabel>Checklist de l'emballeur</SectionLabel>
-      {order.items.map((item: any, idx: number) => {
-        const p = productMap.get(item.productId);
+      <SectionLabel>{"Checklist de l'emballeur"}</SectionLabel>
+      {order.items.map((item, idx: number) => {
+        const p = productMap.get(item.productId || "");
         const isChecked = item.isVerified;
         const isSaving = savingChecks.has(item.id);
         return (
@@ -333,7 +333,7 @@ export default function PackingOrderModal({
                 }
               </div>
               <div style={{ width: 60, height: 60, background: 'var(--cream-2)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, flexShrink: 0, overflow: 'hidden', border: '1px solid var(--line)' }}>
-                {item.image ? <img src={item.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onClick={(e) => { e.stopPropagation(); onPreviewImage(item.image!, item.name, item.size, item.color); }} /> : (item.emoji || '📦')}
+                {item.image ? <img src={item.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onClick={(e) => { e.stopPropagation(); onPreviewImage(item.image!, item.name, item.size, item.color); }} /> : (item.emoji || '📦')}
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -345,7 +345,7 @@ export default function PackingOrderModal({
                     <div style={{ fontSize: 13, color: 'var(--brown-soft)', marginTop: 4 }}>
                       Taille : {item.size} | Couleur : {item.color} | Qté : x{item.qty}
                     </div>
-                    {order.history?.filter((h: any) => h.action.includes(`Alternative proposée pour "${item.name}"`)).map((h: any, hi: number) => (
+                    {order.history?.filter((h) => h.action.includes(`Alternative proposée pour "${item.name}"`)).map((h, hi: number) => (
                       <div key={hi} style={{ fontSize: 10, color: 'var(--orange)', background: 'var(--orange-soft)', padding: '1px 6px', borderRadius: 4, fontWeight: 700, marginTop: 4 }}>
                         {h.action.split(' : ')[1]}
                       </div>
@@ -369,7 +369,7 @@ export default function PackingOrderModal({
       })}
 
       <div style={{ marginTop: 20 }}>
-        <SectionLabel>Note d'emballage</SectionLabel>
+        <SectionLabel>{"Note d'emballage"}</SectionLabel>
         <textarea className="field-input" value={packingNote} onChange={e => setPackingNote(e.target.value)} style={{ minHeight: 80 }} />
       </div>
     </Modal>

@@ -3873,12 +3873,61 @@
     font-size: 14px;
     font-weight: 700;
     color: var(--ink);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .variant-total-pill {
+    margin-left: auto;
+    flex-shrink: 0;
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--brown-soft);
+    background: var(--cream);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 3px 8px;
   }
 
   .v-card-controls {
     display: flex;
     flex-direction: column;
     gap: 12px;
+  }
+
+  .stock-level-editor {
+    display: grid;
+    gap: 10px;
+    padding: 10px 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .stock-level-editor[data-first="true"] {
+    border-top: none;
+    padding-top: 0;
+  }
+
+  .stock-level-warehouse {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--ink);
+  }
+
+  .stock-level-warehouse span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .stock-save-label-short {
+    display: none;
   }
 
   .control-group label {
@@ -3941,6 +3990,219 @@
     padding-left: 32px;
     font-size: 13px;
     font-family: var(--font-mono);
+  }
+
+  @media (max-width: 640px) {
+    .modal-content-new.large:has(.variants-editor-header) {
+      width: 100vw;
+      max-width: 100vw;
+      height: 100dvh;
+      max-height: 100dvh;
+      border-radius: 0 !important;
+    }
+
+    .modal-content-new.large:has(.variants-editor-header) .modal-header-new {
+      padding: 12px 14px !important;
+    }
+
+    .modal-content-new.large:has(.variants-editor-header) .modal-title-new {
+      font-size: 15px !important;
+    }
+
+    .modal-content-new.large:has(.variants-editor-header) .modal-body-new {
+      padding: 12px 12px 88px;
+      background: #F7F4EF;
+    }
+
+    .modal-content-new.large:has(.variants-editor-header) .modal-footer-new {
+      padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+      background: white;
+      box-shadow: 0 -10px 24px rgba(18, 18, 18, 0.08);
+    }
+
+    .modal-content-new.large:has(.variants-editor-header) .modal-footer-new button {
+      min-height: 46px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 800;
+      padding-inline: 10px;
+    }
+
+    .stock-save-label-full {
+      display: none;
+    }
+
+    .stock-save-label-short {
+      display: inline;
+    }
+
+    .variants-editor-header {
+      align-items: stretch;
+      gap: 10px;
+      margin: -12px -12px 12px;
+      padding: 12px;
+      border-bottom: 1px solid var(--line);
+      background: white;
+      box-shadow: 0 8px 18px rgba(18, 18, 18, 0.05);
+    }
+
+    .editor-product-info {
+      gap: 10px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .editor-thumb,
+    .editor-thumb-placeholder {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      flex-shrink: 0;
+      font-size: 11px;
+      font-weight: 900;
+      color: var(--brown-soft);
+    }
+
+    .editor-product-info h3 {
+      max-width: 52vw;
+      margin: 0 0 3px;
+      font-size: 13px;
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .editor-product-info p {
+      margin: 0;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--brown-soft);
+    }
+
+    .threshold-config {
+      width: 86px;
+      flex-shrink: 0;
+    }
+
+    .threshold-config label {
+      font-size: 9px;
+      margin-bottom: 4px;
+      white-space: nowrap;
+    }
+
+    .threshold-input-wrapper {
+      width: 86px;
+    }
+
+    .threshold-input-wrapper input {
+      height: 40px;
+      border-radius: 10px;
+      font-size: 15px;
+    }
+
+    .threshold-icon {
+      top: 13px;
+    }
+
+    .variants-editor-grid {
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    .variant-edit-card {
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 1px 0 rgba(18, 18, 18, 0.03);
+    }
+
+    .variant-edit-card:hover {
+      box-shadow: 0 1px 0 rgba(18, 18, 18, 0.03);
+    }
+
+    .v-card-header {
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .v-card-tag {
+      max-width: 44%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      padding: 4px 8px;
+      border-radius: 8px;
+      font-size: 10px;
+    }
+
+    .v-card-color-name {
+      font-size: 12px;
+    }
+
+    .variant-total-pill {
+      font-size: 10px;
+      padding: 3px 7px;
+    }
+
+    .v-card-controls {
+      gap: 8px;
+    }
+
+    .stock-level-editor {
+      gap: 8px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #FBFAF8;
+    }
+
+    .stock-level-editor[data-first="true"] {
+      border-top: 1px solid var(--line);
+      padding-top: 10px;
+    }
+
+    .stock-level-warehouse {
+      font-size: 12px;
+      padding-bottom: 2px;
+    }
+
+    .control-group label {
+      margin-bottom: 5px;
+      font-size: 9px;
+      letter-spacing: 0.02em;
+    }
+
+    .qty-stepper {
+      display: grid;
+      grid-template-columns: 44px minmax(72px, 1fr) 44px;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .qty-stepper button {
+      width: 44px;
+      height: 42px;
+      border-radius: 10px;
+      color: var(--ink);
+    }
+
+    .qty-stepper input {
+      width: 100%;
+      height: 42px;
+      border-radius: 10px;
+      font-size: 16px;
+    }
+
+    .location-input-wrapper input {
+      height: 42px;
+      border-radius: 10px;
+      font-size: 14px;
+      background: white;
+    }
+
+    .loc-icon {
+      top: 14px;
+    }
   }
 
   /* REFINED TECHNICAL MODAL (MATCHING HTML PROTOTYPE) */

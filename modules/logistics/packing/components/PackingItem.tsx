@@ -6,7 +6,7 @@ import { formatDay } from "@/lib/constants";
 import { Check, Edit2, Eye, Warehouse, ArrowLeftRight, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 
-import { PackingOrder, PackingOrderItem, ProductWithVariants } from "../PackingClient";
+import { PackingOrder, PackingOrderItem, ProductWithVariants } from "../types";
 
 interface PackingItemProps {
   order: PackingOrder;
@@ -40,7 +40,7 @@ const PackingItem = React.memo(({
   
   const totalItems = o.items.length;
   const checkedCount = o.items.filter((i: PackingOrderItem) => i.isVerified).length;
-  const progress = (checkedCount / totalItems) * 100;
+  const progress = totalItems > 0 ? (checkedCount / totalItems) * 100 : 0;
 
   if (isMobile) {
     return (
@@ -85,10 +85,13 @@ const PackingItem = React.memo(({
                   src={o.items[0].image} 
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
                   alt="" 
-                  onError={(e: any) => {
-                    e.target.onerror = null;
-                    e.target.style.display = 'none';
-                    e.target.parentElement.innerHTML = '<div style="display:flex;align-items:center;justify-center;height:100%;font-size:32px;">📦</div>';
+                  onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                    const target = e.currentTarget;
+                    target.onerror = null;
+                    target.style.display = 'none';
+                    if (target.parentElement) {
+                      target.parentElement.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:32px;">📦</div>';
+                    }
                   }}
                 />
               ) : (
@@ -224,12 +227,13 @@ const PackingItem = React.memo(({
                   alt=""
                   style={{ width: 22, height: 22, borderRadius: 4, objectFit: 'cover', cursor: 'zoom-in' }}
                   onClick={(e) => { e.stopPropagation(); onPreviewImage(imageUrl, i.name, i.size, i.color); }}
-                  onError={(e: any) => {
-                    e.target.onerror = null;
-                    e.target.style.display = 'none';
+                  onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                    const target = e.currentTarget;
+                    target.onerror = null;
+                    target.style.display = 'none';
                     const span = document.createElement('span');
                     span.innerText = i.emoji || '📦';
-                    e.target.parentElement.appendChild(span);
+                    target.parentElement?.appendChild(span);
                   }}
                 />
               ) : (
@@ -242,7 +246,7 @@ const PackingItem = React.memo(({
               <span className="size-dot">{i.size}</span>
               <strong style={{ fontSize: 11 }}>{i.color}</strong>
 
-              {o.history?.filter((h: any) => h.action.includes(`Alternative proposée pour "${i.name}"`)).map((h: any, hi: number) => (
+              {o.history?.filter((h) => h.action.includes(`Alternative proposée pour "${i.name}"`)).map((h, hi: number) => (
                 <div key={hi} style={{ fontSize: 10, color: 'var(--orange)', background: 'var(--orange-soft)', padding: '1px 6px', borderRadius: 4, fontWeight: 700, marginTop: 2 }}>
                   {h.action.split(' : ')[1]}
                 </div>
@@ -258,10 +262,10 @@ const PackingItem = React.memo(({
             if (!productId) return null;
             const p = productMap.get(productId);
             if (!p) return null;
-            const variant = p.variants.find((v: any) => v.size === item.size && v.color === item.color);
+            const variant = p.variants.find((v) => v.size === item.size && v.color === item.color);
             return (
               <div key={idx} style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                {variant?.stockLevels?.map((sl: any) => (
+                {variant?.stockLevels?.map((sl) => (
                   <div key={sl.id} style={{ fontSize: 9, background: 'var(--cream-2)', padding: '1px 5px', borderRadius: 4, display: 'flex', alignItems: 'center', gap: 3 }}>
                     <Warehouse size={8} className="text-orange" />
                     <span>{sl.warehouse.name}</span>
@@ -296,5 +300,7 @@ const PackingItem = React.memo(({
     </tr>
   );
 });
+
+PackingItem.displayName = "PackingItem";
 
 export default PackingItem;

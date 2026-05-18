@@ -6,7 +6,7 @@ import Modal from '@/components/Modal';
 import { TrendingUp, Truck, Users, ShoppingBag, Target, Star, Calendar, Package, Eye, Search, X, Loader2, Award } from 'lucide-react';
 import { formatPrice, formatDate } from '@/lib/constants';
 import { useRouter } from 'next/navigation';
-import { getUserPerformanceDetails } from '@/modules/orders/actions';
+import { getUserPerformanceDetails } from "@/modules/orders/actions";
 import "./performance-client.css";
 
 interface PerformanceClientProps {

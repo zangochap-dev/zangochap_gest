@@ -2,7 +2,7 @@ import React from "react";
 import type { Metadata } from "next";
 import prisma from "@/lib/prisma";
 import PublicLayout from "@/components/public/PublicLayout";
-import ShopClient from "@/app/shop/ShopClient";
+import ShopClient from "./ShopClient";
 import {
   SITE_NAME,
   SITE_URL,

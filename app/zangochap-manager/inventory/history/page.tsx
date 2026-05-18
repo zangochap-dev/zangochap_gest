@@ -1,7 +1,7 @@
 import React from 'react';
 import StockHistoryClient from './StockHistoryClient';
-import { getStockHistory } from '@/modules/orders/actions';
-import { getWarehouses } from '@/modules/logistics/warehouseActions';
+import { getStockHistory } from "@/modules/orders/actions";
+import { getWarehouses } from '@/modules/logistics/warehouses';
 
 export const metadata = {
   title: 'Historique des Stocks - Zangochap Manager',

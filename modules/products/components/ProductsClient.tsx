@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn, getImageUrl } from "@/lib/utils";
+import VariantsEditorModal from "../../logistics/packing/components/VariantsEditorModal";
 
 const PRODUCTS_PER_PAGE = 30;
 
@@ -517,128 +518,6 @@ function ProductDetailModal({ product: p, onClose, onEditVariants, onShowImage }
             )}
           </div>
         </div>
-      </div>
-    </Modal>
-  );
-}
-
-// ============================================
-// VARIANTS EDITOR MODAL
-// ============================================
-function VariantsEditorModal({ product, variants: initialVariants, onClose }: { product: any; variants: any[]; onClose: () => void }) {
-  const [variants, setVariants] = useState(initialVariants);
-  const [lowStockThreshold, setLowStockThreshold] = useState(product.lowStockThreshold || 5);
-  const [isPending, startTransition] = useTransition();
-  const { showToast } = useToast();
-  const router = useRouter();
-
-  const updateVariant = (idx: number, field: string, value: any) => {
-    const newVariants = [...variants];
-    newVariants[idx] = { ...newVariants[idx], [field]: field === 'stock' ? Math.max(0, parseInt(value) || 0) : value };
-    setVariants(newVariants);
-  };
-
-  const totalQty = variants.reduce((s: number, v: any) => s + (parseInt(v.stock) || 0), 0);
-
-  const handleSave = () => {
-    startTransition(async () => {
-      try {
-        await updateProductVariants(product.id, variants.map(v => ({
-          size: v.size,
-          color: v.color,
-          stock: parseInt(v.stock) || 0,
-          location: v.location || '',
-        })));
-        await updateProduct(product.id, { lowStockThreshold });
-        showToast('Données mises à jour ✓', 'success');
-        router.refresh();
-        onClose();
-      } catch (e: any) {
-        showToast(e.message || 'Erreur', 'error');
-      }
-    });
-  };
-
-  return (
-    <Modal isOpen={true} onClose={onClose}
-      title={
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <RefreshCw size={18} className="text-orange" />
-          <span>Gestion du Stock</span>
-        </div>
-      }
-      large
-      footer={
-        <div style={{ display: 'flex', gap: 12, width: '100%' }}>
-          <button className="btn-secondary" style={{ flex: 1 }} onClick={onClose}>Annuler</button>
-          <button className="btn-orange" style={{ flex: 1 }} onClick={handleSave} disabled={isPending}>
-            {isPending ? 'Sauvegarde...' : 'Enregistrer les modifications'}
-          </button>
-        </div>
-      }
-    >
-      <div className="variants-editor-header">
-        <div className="editor-product-info">
-          {product.images?.[0] ? (
-            <img src={getImageUrl(product.images[0].url)} className="editor-thumb" />
-          ) : (
-            <div className="editor-thumb-placeholder">📦</div>
-          )}
-          <div>
-            <h3>{product.name}</h3>
-            <p>Stock total : <span className={totalQty === 0 ? 'text-red' : 'text-green'}>{totalQty} unités</span></p>
-          </div>
-        </div>
-        <div className="threshold-config">
-          <label>Seuil d'alerte</label>
-          <div className="threshold-input-wrapper">
-            <input
-              type="number"
-              value={lowStockThreshold}
-              onChange={e => setLowStockThreshold(parseInt(e.target.value) || 0)}
-            />
-            <AlertTriangle size={14} className="threshold-icon" />
-          </div>
-        </div>
-      </div>
-
-      <div className="variants-editor-grid">
-        {variants.map((v: any, idx: number) => (
-          <div key={idx} className="variant-edit-card">
-            <div className="v-card-header">
-              <span className="v-card-tag">{v.size}</span>
-              <span className="v-card-color-name">{v.color}</span>
-            </div>
-
-            <div className="v-card-controls">
-              <div className="control-group">
-                <label>Quantité en stock</label>
-                <div className="qty-stepper">
-                  <button onClick={() => updateVariant(idx, 'stock', v.stock - 1)}><Minus size={14} /></button>
-                  <input
-                    type="number"
-                    value={v.stock}
-                    onChange={e => updateVariant(idx, 'stock', e.target.value)}
-                  />
-                  <button onClick={() => updateVariant(idx, 'stock', v.stock + 1)}><Plus size={14} /></button>
-                </div>
-              </div>
-
-              <div className="control-group">
-                <label>Emplacement (Rayon/Casier)</label>
-                <div className="location-input-wrapper">
-                  <MapPin size={14} className="loc-icon" />
-                  <input
-                    type="text"
-                    value={v.location || ''}
-                    onChange={e => updateVariant(idx, 'location', e.target.value)}
-                    placeholder="Ex: A1-02"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
       </div>
     </Modal>
   );

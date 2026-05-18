@@ -10,7 +10,7 @@ import {
   ShoppingBag, Tag, Info
 } from 'lucide-react';
 import { formatPrice, formatDate } from '@/lib/constants';
-import { createSettlement, toggleCommercialContacted } from '@/modules/orders/actions';
+import { createSettlement, toggleCommercialContacted } from "@/modules/orders/actions";
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/components/Toast';
 import "./settlement-client.css";

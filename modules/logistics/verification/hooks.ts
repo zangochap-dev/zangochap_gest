@@ -2,7 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/Toast";
-import { toggleItemVerification } from "@/modules/logistics/actions";
+import { toggleItemVerification } from "@/modules/logistics/verification/actions";
 import type { OrderWithItems } from "./types";
 import { useState } from "react";
 

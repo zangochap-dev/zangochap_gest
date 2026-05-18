@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { TableCard, DetailCard } from "@/components/UI";
 import Modal from "@/components/Modal";
-import { createWarehouse, updateWarehouse, deleteWarehouse, getWarehouseStock } from "@/modules/logistics/warehouseActions";
+import { createWarehouse, updateWarehouse, deleteWarehouse, getWarehouseStock } from "@/modules/logistics/warehouses";
 import { formatPrice } from "@/lib/constants";
 import { Trash2, AlertTriangle, Loader2 } from "lucide-react";
 import { useToast } from "@/components/Toast";

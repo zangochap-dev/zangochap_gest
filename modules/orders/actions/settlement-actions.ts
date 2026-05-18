@@ -2,9 +2,9 @@
 
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { getSession } from "../auth/actions";
+import { getSession } from "@/modules/auth/actions";
 import { ensureAuth } from "@/lib/auth";
-import { isRole } from "./helpers";
+import { isRole } from "../helpers";
 
 // ============ PENDING SETTLEMENTS ============
 export async function getPendingSettlements() {

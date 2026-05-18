@@ -1,7 +1,7 @@
 import React from "react";
-import { getWarehouses } from "@/modules/logistics/warehouseActions";
+import { getWarehouses } from "@/modules/logistics/warehouses";
 import { getCategories, getSuppliers } from "@/modules/settings/actions";
-import NewProductClient from "./NewProductClient";
+import NewProductClient from "@/modules/products/components/NewProductClient";
 
 export const dynamic = "force-dynamic";
 

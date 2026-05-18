@@ -28,14 +28,24 @@ interface StockHistoryClientProps {
 }
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
+type DatePreset = 'today' | 'yesterday' | 'custom' | 'all';
+
+function toLocalDateInputValue(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
 
 export default function StockHistoryClient({ movements, warehouses }: StockHistoryClientProps) {
   // --- States ---
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [warehouseFilter, setWarehouseFilter] = useState('ALL');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const todayStr = toLocalDateInputValue();
+  const [startDate, setStartDate] = useState(todayStr);
+  const [endDate, setEndDate] = useState(todayStr);
+  const [datePreset, setDatePreset] = useState<DatePreset>('today');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
@@ -88,34 +98,26 @@ export default function StockHistoryClient({ movements, warehouses }: StockHisto
     setSearch('');
     setTypeFilter('ALL');
     setWarehouseFilter('ALL');
-    setStartDate('');
-    setEndDate('');
+    setStartDate(todayStr);
+    setEndDate(todayStr);
+    setDatePreset('today');
     setCurrentPage(1);
   };
 
-  const setQuickDate = (range: 'today' | 'yesterday' | 'week' | 'month' | 'lastMonth' | 'all') => {
+  const setQuickDate = (range: DatePreset) => {
+    setDatePreset(range);
+    if (range === 'custom') return;
     const now = new Date();
     let from = '';
-    let to = now.toISOString().split('T')[0];
+    let to = toLocalDateInputValue(now);
 
     if (range === 'today') {
       from = to;
     } else if (range === 'yesterday') {
       const y = new Date();
       y.setDate(y.getDate() - 1);
-      from = y.toISOString().split('T')[0];
+      from = toLocalDateInputValue(y);
       to = from;
-    } else if (range === 'week') {
-      const w = new Date();
-      w.setDate(w.getDate() - 7);
-      from = w.toISOString().split('T')[0];
-    } else if (range === 'month') {
-      from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-    } else if (range === 'lastMonth') {
-      const lmFrom = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const lmTo = new Date(now.getFullYear(), now.getMonth(), 0);
-      from = lmFrom.toISOString().split('T')[0];
-      to = lmTo.toISOString().split('T')[0];
     } else if (range === 'all') {
       from = '';
       to = '';
@@ -220,18 +222,17 @@ export default function StockHistoryClient({ movements, warehouses }: StockHisto
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <label style={{ fontSize: 10, fontWeight: 800, color: 'var(--brown-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>Période (Du/Au)</label>
               <div style={{ display: 'flex', gap: 4, background: 'var(--cream)', padding: '2px 4px', borderRadius: 8, border: '1px solid var(--line)' }}>
-                <button className={`shortcut-btn ${!startDate && !endDate ? 'active' : ''}`} onClick={() => setQuickDate('all')}>Tout</button>
-                <button className="shortcut-btn" onClick={() => setQuickDate('today')}>Aujourd'hui</button>
-                <button className="shortcut-btn" onClick={() => setQuickDate('yesterday')}>Hier</button>
-                <button className="shortcut-btn" onClick={() => setQuickDate('week')}>7j</button>
-                <button className="shortcut-btn" onClick={() => setQuickDate('month')}>Mois</button>
+                <button className={`shortcut-btn ${datePreset === 'today' ? 'active' : ''}`} onClick={() => setQuickDate('today')}>Aujourd'hui</button>
+                <button className={`shortcut-btn ${datePreset === 'yesterday' ? 'active' : ''}`} onClick={() => setQuickDate('yesterday')}>Hier</button>
+                <button className={`shortcut-btn ${datePreset === 'custom' ? 'active' : ''}`} onClick={() => setQuickDate('custom')}>Perso</button>
+                <button className={`shortcut-btn ${datePreset === 'all' ? 'active' : ''}`} onClick={() => setQuickDate('all')}>Tout</button>
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <input 
                 type="date" 
                 value={startDate}
-                onChange={e => { setStartDate(e.target.value); setCurrentPage(1); }}
+                onChange={e => { setDatePreset('custom'); setStartDate(e.target.value); setCurrentPage(1); }}
                 style={{ 
                   flex: 1, padding: '10px 8px', borderRadius: 10, 
                   background: 'var(--cream)', border: '1px solid var(--line)',
@@ -241,7 +242,7 @@ export default function StockHistoryClient({ movements, warehouses }: StockHisto
               <input 
                 type="date" 
                 value={endDate}
-                onChange={e => { setEndDate(e.target.value); setCurrentPage(1); }}
+                onChange={e => { setDatePreset('custom'); setEndDate(e.target.value); setCurrentPage(1); }}
                 style={{ 
                   flex: 1, padding: '10px 8px', borderRadius: 10, 
                   background: 'var(--cream)', border: '1px solid var(--line)',

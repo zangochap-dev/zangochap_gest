@@ -2,11 +2,10 @@
 
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { syncVariantStock } from "@/lib/stock-sync";
+import { getSession } from "@/modules/auth/actions";
+import { setVariantWarehouseStock, transferVariantStock } from "@/modules/orders/actions/stock";
 
 export async function getWarehouses() {
-  console.log("DEBUG: Prisma initialized?", !!prisma);
-  console.log("DEBUG: Prisma models:", Object.keys(prisma || {}));
   const warehouses = await prisma.warehouse.findMany({
     orderBy: { name: 'asc' },
     include: {
@@ -94,24 +93,23 @@ export async function transferStock(data: {
   reason?: string;
 }) {
   const { variantId, fromWarehouseId, toWarehouseId, qty } = data;
+  const session = await getSession();
+  if (!session) throw new Error("Non authentifié");
 
-  // 1. Decrement from source
-  await prisma.stockLevel.update({
-    where: { variantId_warehouseId: { variantId, warehouseId: fromWarehouseId } },
-    data: { quantity: { decrement: qty } }
+  await prisma.$transaction(async (tx) => {
+    await transferVariantStock({
+      variantId,
+      fromWarehouseId,
+      toWarehouseId,
+      quantity: qty,
+      reason: data.reason,
+      session,
+    }, tx as any);
   });
-
-  // 2. Increment at destination
-  await prisma.stockLevel.upsert({
-    where: { variantId_warehouseId: { variantId, warehouseId: toWarehouseId } },
-    update: { quantity: { increment: qty } },
-    create: { variantId, warehouseId: toWarehouseId, quantity: qty }
-  });
-
-  // 3. Record movements
-  // In a real scenario, you'd record two movements or a special "TRANSFER" type
   
   revalidatePath("/zangochap-manager/logistics/warehouses");
+  revalidatePath("/zangochap-manager/products");
+  revalidatePath("/zangochap-manager/inventory");
   return { success: true };
 }
 
@@ -122,17 +120,21 @@ export async function adjustStock(data: {
   reason?: string;
 }) {
   const { variantId, warehouseId, newQuantity } = data;
+  const session = await getSession();
+  if (!session) throw new Error("Non authentifié");
 
-  await prisma.stockLevel.upsert({
-    where: { variantId_warehouseId: { variantId, warehouseId } },
-    update: { quantity: newQuantity },
-    create: { variantId, warehouseId, quantity: newQuantity }
+  await prisma.$transaction(async (tx) => {
+    await setVariantWarehouseStock({
+      variantId,
+      warehouseId,
+      newQuantity,
+      reason: data.reason,
+      session,
+    }, tx as any);
   });
-
-  // Synchronize variant and product
-  await syncVariantStock(variantId);
 
   revalidatePath("/zangochap-manager/logistics/warehouses");
   revalidatePath("/zangochap-manager/products");
+  revalidatePath("/zangochap-manager/inventory");
   return { success: true };
 }

@@ -1,44 +1,12 @@
 import React from "react";
-import prisma from "@/lib/prisma";
 import Topbar from "@/components/Topbar";
-import { getSession } from "@/modules/auth/actions";
-import PackingClient from "./PackingClient";
+import PackingClient from "@/modules/logistics/packing/PackingClient";
+import { getPackingPageData } from "@/modules/logistics/packing/data";
 
 export const dynamic = "force-dynamic";
 
 export default async function PackingPage() {
-  const user = await getSession();
-
-  const orders = await prisma.order.findMany({
-    where: {
-      status: { in: ['CONFIRMED', 'PREPARING', 'PACKED', 'PARTIAL', 'TO_PROCESS'] }
-    },
-    orderBy: { createdAt: "desc" },
-    include: { items: true },
-    take: 500 // Increased limit to ensure no orders are missed during busy shifts
-  });
-
-  const productIds = Array.from(new Set(orders.flatMap(o => o.items.map(i => i.productId)).filter(Boolean)));
-
-  const products = await prisma.product.findMany({
-    where: { id: { in: productIds as string[] } },
-    include: { 
-      variants: {
-        include: {
-          stockLevels: {
-            include: { warehouse: true }
-          }
-        }
-      },
-      category: true,
-    }
-  });
-
-  const data = JSON.parse(JSON.stringify({
-    orders,
-    products,
-    user
-  }));
+  const data = await getPackingPageData();
 
   return (
     <React.Suspense fallback={<div className="p-8 text-center opacity-50">Chargement du service emballage...</div>}>

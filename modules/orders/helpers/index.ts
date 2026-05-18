@@ -123,10 +123,22 @@ export async function upsertCustomerFromOrder(data: {
 
 // ============ WAREHOUSE HELPER ============
 export async function getOrCreateDefaultWarehouse() {
-  return prisma.warehouse.upsert({
-    where: { name: "Entrepôt Principal" },
-    update: {},
-    create: {
+  const existing = await prisma.warehouse.findFirst({
+    where: {
+      OR: [
+        { name: "Entrepôt Principal" },
+        { name: "Entrepôt  principal" },
+        { name: "Entrepot Principal" },
+        { name: "Entrepot  principal" },
+        { name: "Magasin Principal" },
+      ],
+    },
+  });
+
+  if (existing) return existing;
+
+  return prisma.warehouse.create({
+    data: {
       name: "Entrepôt Principal",
       location: "Siège Zangochap"
     }

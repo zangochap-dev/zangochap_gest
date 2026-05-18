@@ -1,20 +1,19 @@
 "use client";
-// Version: 1.0.3 - Force Recompile - Fix Hydration Issue
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { logoutAction } from "@/modules/auth/actions";
 import { ROLE_LABELS } from "@/lib/constants";
+import type { SidebarCounts } from "@/modules/orders/actions/sidebar-counts";
 
 import {
   LayoutDashboard, ShoppingBag, Package, Truck, Box, Users, BarChart3,
-  Tag, Upload, FileText, LogOut, ClipboardList,
-  AlertTriangle, Settings, MapPin, Store, ChevronRight, ChevronLeft, History, Wallet, Warehouse,
-  User, ExternalLink, Image as ImageIcon, Menu, X, Bell, WifiOff, RefreshCw,
+  Upload, FileText, LogOut, ClipboardList,
+  AlertTriangle, Settings, ChevronRight, ChevronLeft, History, Wallet, Warehouse,
+  Image as ImageIcon, Menu, X, Bell, WifiOff,
   CheckCircle, Plus
 } from "lucide-react";
 
@@ -26,33 +25,39 @@ interface SidebarProps {
     role: string;
     initials: string;
   };
-  counts?: {
-    orders?: number;
-    packing?: number;
-    collection?: number;
-    toProcess?: number;
-    myDeliveries?: number;
-  };
+  counts?: SidebarCounts;
 }
 
-const NAV_FOR_ROLE: Record<string, (counts?: any) => any[]> = {
+type NavItem = {
+  label: string;
+  href: string;
+  icon: React.ReactNode;
+  badge?: number;
+};
+
+type NavSection = {
+  title?: string;
+  items: NavItem[];
+};
+
+const NAV_FOR_ROLE: Record<string, (counts: SidebarCounts) => NavSection[]> = {
   commercial: (counts) => [
     { items: [{ label: 'Dashboard', href: '/zangochap-manager/dashboard', icon: <LayoutDashboard size={18} /> }, { label: 'Répertoire', href: '/zangochap-manager/directory', icon: <Users size={18} /> }] },
-    { title: 'Commandes', items: [{ label: 'Toutes les commandes', href: '/zangochap-manager/orders', icon: <ShoppingBag size={18} />, badge: counts?.orders }, { label: 'À traiter (site)', href: '/zangochap-manager/orders/to-process', icon: <AlertTriangle size={18} />, badge: counts?.toProcess }, { label: 'Non emballées', href: '/zangochap-manager/orders/non-packed', icon: <Package size={18} /> }, { label: 'Nouvelle commande', href: '/zangochap-manager/orders/new', icon: <ClipboardList size={18} /> }] },
+    { title: 'Commandes', items: [{ label: 'Toutes les commandes', href: '/zangochap-manager/orders', icon: <ShoppingBag size={18} />, badge: counts.orders }, { label: 'À traiter (site)', href: '/zangochap-manager/orders/to-process', icon: <AlertTriangle size={18} />, badge: counts.toProcess }, { label: 'Non emballées', href: '/zangochap-manager/orders/non-packed', icon: <Package size={18} /> }, { label: 'Nouvelle commande', href: '/zangochap-manager/orders/new', icon: <ClipboardList size={18} /> }] },
     { title: 'Catalogue', items: [{ label: 'Tous les produits', href: '/zangochap-manager/products', icon: <Box size={18} /> }, { label: 'Ajouter un produit', href: '/zangochap-manager/products/new', icon: <Plus size={18} /> }] },
     { title: 'Clients', items: [{ label: 'CRM Clients', href: '/zangochap-manager/admin/crm', icon: <Users size={18} /> }] },
   ],
   packing: (counts) => [
     { items: [{ label: 'Dashboard', href: '/zangochap-manager/dashboard', icon: <LayoutDashboard size={18} /> }, { label: 'Répertoire', href: '/zangochap-manager/directory', icon: <Users size={18} /> }] },
-    { title: 'Commandes', items: [{ label: 'Toutes les commandes', href: '/zangochap-manager/orders', icon: <ShoppingBag size={18} />, badge: counts?.orders }] },
-    { title: 'Logistique', items: [{ label: 'Emballage', href: '/zangochap-manager/logistics/packing', icon: <Package size={18} />, badge: counts?.packing }, { label: 'Fiche vérification', href: '/zangochap-manager/logistics/verification', icon: <FileText size={18} /> }] },
+    { title: 'Commandes', items: [{ label: 'Toutes les commandes', href: '/zangochap-manager/orders', icon: <ShoppingBag size={18} />, badge: counts.orders }] },
+    { title: 'Logistique', items: [{ label: 'Emballage', href: '/zangochap-manager/logistics/packing', icon: <Package size={18} />, badge: counts.packing }, { label: 'Fiche vérification', href: '/zangochap-manager/logistics/verification', icon: <FileText size={18} /> }] },
     { title: 'Catalogue', items: [{ label: 'Tous les produits', href: '/zangochap-manager/products', icon: <Box size={18} /> }, { label: 'Ajouter un produit', href: '/zangochap-manager/products/new', icon: <ClipboardList size={18} /> }] },
   ],
   collection: (counts) => [
     { items: [{ label: 'Dashboard', href: '/zangochap-manager/dashboard', icon: <LayoutDashboard size={18} /> }, { label: 'Répertoire', href: '/zangochap-manager/directory', icon: <Users size={18} /> }] },
-    { title: 'Logistique', items: [{ label: 'Collecte', href: '/zangochap-manager/logistics/collection', icon: <Truck size={18} />, badge: counts?.collection }] },
+    { title: 'Logistique', items: [{ label: 'Collecte', href: '/zangochap-manager/logistics/collection', icon: <Truck size={18} />, badge: counts.collection }] },
   ],
-  stock: (counts) => [
+  stock: () => [
     { items: [{ label: 'Dashboard', href: '/zangochap-manager/dashboard', icon: <LayoutDashboard size={18} /> }, { label: 'Répertoire', href: '/zangochap-manager/directory', icon: <Users size={18} /> }] },
     { title: 'Inventaire', items: [{ label: 'Tous les produits', href: '/zangochap-manager/products', icon: <Box size={18} /> }, { label: 'Ruptures de stock', href: '/zangochap-manager/products/shortages', icon: <AlertTriangle size={18} /> }, { label: 'Historique stock', href: '/zangochap-manager/inventory/history', icon: <History size={18} /> }, { label: 'Entrepôts', href: '/zangochap-manager/logistics/warehouses', icon: <Warehouse size={18} /> }] },
   ],
@@ -60,16 +65,16 @@ const NAV_FOR_ROLE: Record<string, (counts?: any) => any[]> = {
     { items: [{ label: 'Dashboard', href: '/zangochap-manager/dashboard', icon: <LayoutDashboard size={18} /> }, { label: 'Répertoire', href: '/zangochap-manager/directory', icon: <Users size={18} /> }] },
     {
       title: 'Commandes', items: [
-        { label: 'Toutes les commandes', href: '/zangochap-manager/orders', icon: <ShoppingBag size={18} />, badge: counts?.orders },
-        { label: 'À traiter (site)', href: '/zangochap-manager/orders/to-process', icon: <AlertTriangle size={18} />, badge: counts?.toProcess },
+        { label: 'Toutes les commandes', href: '/zangochap-manager/orders', icon: <ShoppingBag size={18} />, badge: counts.orders },
+        { label: 'À traiter (site)', href: '/zangochap-manager/orders/to-process', icon: <AlertTriangle size={18} />, badge: counts.toProcess },
         { label: 'Non emballées', href: '/zangochap-manager/orders/non-packed', icon: <Package size={18} /> },
         { label: 'Nouvelle commande', href: '/zangochap-manager/orders/new', icon: <ClipboardList size={18} /> }
       ]
     },
     {
       title: 'Logistique', items: [
-        { label: 'Emballage', href: '/zangochap-manager/logistics/packing', icon: <Package size={18} />, badge: counts?.packing },
-        { label: 'Collecte', href: '/zangochap-manager/logistics/collection', icon: <Truck size={18} />, badge: counts?.collection },
+        { label: 'Emballage', href: '/zangochap-manager/logistics/packing', icon: <Package size={18} />, badge: counts.packing },
+        { label: 'Collecte', href: '/zangochap-manager/logistics/collection', icon: <Truck size={18} />, badge: counts.collection },
         { label: 'Entrepôts', href: '/zangochap-manager/logistics/warehouses', icon: <Warehouse size={18} /> },
         { label: 'Vérification', href: '/zangochap-manager/logistics/verification', icon: <CheckCircle size={18} /> }
       ]
@@ -97,7 +102,7 @@ const NAV_FOR_ROLE: Record<string, (counts?: any) => any[]> = {
     },
   ],
   livreur: (counts) => [
-    { items: [{ label: 'Mes Livraisons', href: '/zangochap-rider', icon: <Truck size={18} />, badge: counts?.myDeliveries }, { label: 'Répertoire', href: '/zangochap-manager/directory', icon: <Users size={18} /> }] },
+    { items: [{ label: 'Mes Livraisons', href: '/zangochap-rider', icon: <Truck size={18} />, badge: counts.myDeliveries }, { label: 'Répertoire', href: '/zangochap-manager/directory', icon: <Users size={18} /> }] },
   ],
 };
 
@@ -110,15 +115,15 @@ export default function Sidebar({ user, counts: initialCounts }: SidebarProps) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [hasNewNotifications, setHasNewNotifications] = useState(false);
 
-  const defaultCounts = { orders: 0, packing: 0, collection: 0, toProcess: 0, myDeliveries: 0 };
+  const defaultCounts: SidebarCounts = { orders: 0, packing: 0, collection: 0, toProcess: 0, myDeliveries: 0 };
 
-  // Fetch counts via lightweight API — instant, no server-action overhead
-  const { data: counts = defaultCounts } = useQuery({
-    queryKey: ['sidebar-counts', user.id],
+  // Fetch counts via a lightweight API. The API derives the user from the session.
+  const { data: counts = defaultCounts } = useQuery<SidebarCounts>({
+    queryKey: ['sidebar-counts'],
     queryFn: async () => {
-      const res = await fetch(`/api/sidebar-counts?userId=${user.id || ''}`);
+      const res = await fetch('/api/sidebar-counts');
       if (!res.ok) return defaultCounts;
-      return res.json();
+      return (await res.json()) as SidebarCounts;
     },
     initialData: initialCounts || defaultCounts,
     refetchInterval: 60_000,
@@ -241,7 +246,7 @@ export default function Sidebar({ user, counts: initialCounts }: SidebarProps) {
 
         <nav className="flex-1 overflow-y-auto px-3.5 py-2 scrollbar-hide">
           <div className="flex flex-col gap-6">
-            {sections.map((section: any, sIdx: number) => (
+            {sections.map((section, sIdx) => (
               <div key={sIdx}>
                 {section.title && !isCollapsed && (
                   <div className="text-[10px] font-extrabold uppercase text-white/25 px-3 mb-3 tracking-wider">
@@ -249,7 +254,7 @@ export default function Sidebar({ user, counts: initialCounts }: SidebarProps) {
                   </div>
                 )}
                 <div className="flex flex-col gap-0.5">
-                  {section.items.map((item: any) => {
+                  {section.items.map((item) => {
                     const isActive = pathname === item.href || (item.href !== '/zangochap-manager/dashboard' && pathname.startsWith(item.href));
                     return (
                       <Link
@@ -264,7 +269,7 @@ export default function Sidebar({ user, counts: initialCounts }: SidebarProps) {
                           <span className={`flex items-center ${isActive ? 'opacity-100 text-[#FF6B2C]' : 'opacity-60'}`}>{item.icon}</span>
                           {!isCollapsed && <span>{item.label}</span>}
                         </div>
-                        {mounted && item.badge > 0 && (
+                        {mounted && typeof item.badge === "number" && item.badge > 0 && (
                           <span className="bg-[#FF6B2C] text-white text-[10px] font-black px-1.5 py-0.5 rounded-md">
                             {item.badge}
                           </span>

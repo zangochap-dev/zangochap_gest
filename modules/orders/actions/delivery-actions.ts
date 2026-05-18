@@ -2,8 +2,8 @@
 
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { getSession } from "../auth/actions";
-import { checkOrderAccess, isRole } from "./helpers";
+import { getSession } from "@/modules/auth/actions";
+import { checkOrderAccess, isRole } from "../helpers";
 
 // ============ ASSIGN TO DELIVERYMAN ============
 export async function assignOrderToDeliveryman(orderId: string, deliverymanId: string) {

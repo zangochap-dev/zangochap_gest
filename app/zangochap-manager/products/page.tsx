@@ -2,7 +2,7 @@ import React from "react";
 import prisma from "@/lib/prisma";
 import Topbar from "@/components/Topbar";
 import { getSession } from "@/modules/auth/actions";
-import ProductsClient from "./ProductsClient";
+import ProductsClient from "@/modules/products/components/ProductsClient";
 import { getCategories, getSuppliers } from "@/modules/settings/actions";
 
 export const dynamic = "force-dynamic";

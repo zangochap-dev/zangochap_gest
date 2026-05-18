@@ -16,7 +16,7 @@ import Script from "next/script";
 import VariantSelectionModal from "@/components/VariantSelectionModal";
 import ProductCard from "@/components/ProductCard";
 import ReceiptModal from "@/components/ReceiptModal";
-import "../dashboard/dashboard.css";
+import "./dashboard.css";
 
 const ZANGOCHAP_LOGO_SVG = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%">
   <path d="M 70 60 Q 70 35 100 35 Q 130 35 130 60" stroke="#D4541C" stroke-width="9" fill="none" stroke-linecap="round"/>
@@ -104,12 +104,12 @@ export default function OrdersClient({
     onMutate: async ({ orderId, status }) => {
       await queryClient.cancelQueries({ queryKey: ['orders'] });
       const previousData = queryClient.getQueryData(['orders', queryKey[1]]);
-      
+
       queryClient.setQueryData(['orders', queryKey[1]], (old: any) => {
         if (!old) return old;
         return {
           ...old,
-          orders: old.orders.map((o: any) => 
+          orders: old.orders.map((o: any) =>
             o.id === orderId ? { ...o, status } : o
           )
         };
@@ -178,15 +178,15 @@ export default function OrdersClient({
       await queryClient.cancelQueries({ queryKey: ['orders'] });
       const previousData = queryClient.getQueryData(['orders', queryKey[1]]);
       const deliveryman = deliverymen.find(d => d.id === deliverymanId);
-      
+
       queryClient.setQueryData(['orders', queryKey[1]], (old: any) => {
         if (!old) return old;
         return {
           ...old,
-          orders: old.orders.map((o: any) => 
-            o.id === orderId ? { 
-              ...o, 
-              deliverymanId, 
+          orders: old.orders.map((o: any) =>
+            o.id === orderId ? {
+              ...o,
+              deliverymanId,
               deliverymanName: deliveryman?.name || 'Assigné',
               status: 'CONFIRMED' // Usually assignment confirms the order
             } : o
@@ -219,7 +219,7 @@ export default function OrdersClient({
         if (!old) return old;
         return {
           ...old,
-          orders: old.orders.map((o: any) => 
+          orders: old.orders.map((o: any) =>
             o.id === orderId ? { ...o, deliveryDate: new Date(deliveryDate) } : o
           )
         };
@@ -280,7 +280,7 @@ export default function OrdersClient({
     params.set('page', '1');
 
     router.push(`?${params.toString()}`);
-  }, [filter, communeFilter, scope, dateFrom, dateTo, debouncedSearch, router]);
+  }, [filter, communeFilter, scope, dateFrom, dateTo, dateType, debouncedSearch, router, searchParams, user?.role]);
 
   // Handle auto-print from URL
   useEffect(() => {
@@ -296,6 +296,14 @@ export default function OrdersClient({
       }
     }
   }, [searchParams, orders]);
+
+  useEffect(() => {
+    if (!selectedOrder) return;
+    const freshOrder = orders.find((o: any) => o.id === selectedOrder.id);
+    if (freshOrder && freshOrder !== selectedOrder) {
+      setSelectedOrder(freshOrder);
+    }
+  }, [orders, selectedOrder]);
 
   // Handle page change specifically
   const goToPage = (page: number) => {
@@ -823,7 +831,7 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
     const month = m.toISOString().split('T')[0];
     if (dateFrom === month && (dateTo === today || !dateTo)) return 'month';
 
-    return null;
+    return 'custom';
   }, [dateFrom, dateTo]);
 
   return (
@@ -876,6 +884,9 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
           <button className={`shortcut-btn ${activeRange === 'all' ? 'active' : ''}`} onClick={() => setQuickDate('all')}>Tout</button>
           <button className={`shortcut-btn ${activeRange === 'today' ? 'active' : ''}`} onClick={() => setQuickDate('today')}>Aujourd'hui</button>
           <button className={`shortcut-btn ${activeRange === 'yesterday' ? 'active' : ''}`} onClick={() => setQuickDate('yesterday')}>Hier</button>
+          <button className={`shortcut-btn ${activeRange === 'custom' ? 'active' : ''}`} onClick={() => {
+            if (!dateFrom && !dateTo) setQuickDate('today');
+          }}>Perso</button>
           <button className={`shortcut-btn ${activeRange === 'week' ? 'active' : ''}`} onClick={() => setQuickDate('week')}>7 jours</button>
           <button className={`shortcut-btn ${activeRange === 'month' ? 'active' : ''}`} onClick={() => setQuickDate('month')}>Ce mois</button>
         </div>
@@ -958,7 +969,7 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
                       </td>
                       <td>{order.commune || '—'}</td>
                       <td><span className="cell-muted">{order.items.length} article{order.items.length > 1 ? 's' : ''}</span></td>
-                       <td>
+                      <td>
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
                           <span className="cell-price">{formatPrice(order.total + (order.deliveryFee || 0) - (order.discount || 0))}</span>
                         </div>

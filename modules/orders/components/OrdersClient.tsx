@@ -6,7 +6,19 @@
 
 
 
+
+
+
+
+
+
+
+
 import React, { useState, useMemo, useCallback, useTransition, useEffect, useRef } from "react";
+
+
+
+
 
 
 
@@ -14,7 +26,15 @@ import { createPortal } from "react-dom";
 
 
 
+
+
+
+
 import { TableCard, StatusBadge, EmptyState, DetailCard, ItemLine, InfoBanner, SectionLabel } from "@/components/UI";
+
+
+
+
 
 
 
@@ -22,7 +42,15 @@ import Modal from "@/components/Modal";
 
 
 
+
+
+
+
 import { useToast } from "@/components/Toast";
+
+
+
+
 
 
 
@@ -30,7 +58,15 @@ import { updateOrderStatus, duplicateOrder, deleteOrder, createOrder, addOrderHi
 
 
 
+
+
+
+
 import { formatPrice, formatDay, formatDate, CATEGORIES, COMMUNES, STATUS_LABELS, DELIVERY_FEES } from "@/lib/constants";
+
+
+
+
 
 
 
@@ -38,7 +74,15 @@ import { getImageUrl } from "@/lib/utils";
 
 
 
+
+
+
+
 import { useRouter, useSearchParams } from "next/navigation";
+
+
+
+
 
 
 
@@ -46,7 +90,15 @@ import { Plus, Eye, Package, Trash2, Minus, Search, X, ChevronLeft, ChevronRight
 
 
 
+
+
+
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+
+
+
 
 
 
@@ -54,7 +106,15 @@ import Link from "next/link";
 
 
 
+
+
+
+
 import Script from "next/script";
+
+
+
+
 
 
 
@@ -62,11 +122,23 @@ import VariantSelectionModal from "@/components/VariantSelectionModal";
 
 
 
+
+
+
+
 import ProductCard from "@/components/ProductCard";
 
 
 
+
+
+
+
 import ReceiptModal from "@/components/ReceiptModal";
+
+
+
+
 
 
 
@@ -78,7 +150,19 @@ import "./dashboard.css";
 
 
 
+
+
+
+
+
+
+
+
 const ZANGOCHAP_LOGO_SVG = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%">
+
+
+
+
 
 
 
@@ -86,7 +170,15 @@ const ZANGOCHAP_LOGO_SVG = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/
 
 
 
+
+
+
+
   <path d="M 50 60 L 150 60 L 165 175 L 35 175 Z" fill="#D4541C"/>
+
+
+
+
 
 
 
@@ -94,11 +186,27 @@ const ZANGOCHAP_LOGO_SVG = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/
 
 
 
+
+
+
+
   <path d="M 90 80 Q 100 87 110 80" stroke="#D4541C" stroke-width="2" fill="none"/>
 
 
 
+
+
+
+
 </svg>`;
+
+
+
+
+
+
+
+
 
 
 
@@ -114,7 +222,19 @@ const ITEMS_PER_PAGE = 25;
 
 
 
+
+
+
+
+
+
+
+
 interface OrdersClientProps {
+
+
+
+
 
 
 
@@ -122,7 +242,15 @@ interface OrdersClientProps {
 
 
 
+
+
+
+
   products: any[];
+
+
+
+
 
 
 
@@ -130,7 +258,15 @@ interface OrdersClientProps {
 
 
 
+
+
+
+
   staffUsers?: any[];
+
+
+
+
 
 
 
@@ -138,7 +274,15 @@ interface OrdersClientProps {
 
 
 
+
+
+
+
   totalCount: number;
+
+
+
+
 
 
 
@@ -146,7 +290,15 @@ interface OrdersClientProps {
 
 
 
+
+
+
+
   pageSize: number;
+
+
+
+
 
 
 
@@ -154,7 +306,15 @@ interface OrdersClientProps {
 
 
 
+
+
+
+
   todayStr?: string;
+
+
+
+
 
 
 
@@ -166,7 +326,19 @@ interface OrdersClientProps {
 
 
 
+
+
+
+
+
+
+
+
 export default function OrdersClient({
+
+
+
+
 
 
 
@@ -174,7 +346,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
   products,
+
+
+
+
 
 
 
@@ -182,7 +362,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
   staffUsers = [],
+
+
+
+
 
 
 
@@ -190,7 +378,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
   totalCount,
+
+
+
+
 
 
 
@@ -198,7 +394,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
   pageSize,
+
+
+
+
 
 
 
@@ -206,7 +410,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
   todayStr: serverTodayStr
+
+
+
+
 
 
 
@@ -214,7 +426,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
   const router = useRouter();
+
+
+
+
 
 
 
@@ -226,7 +446,19 @@ export default function OrdersClient({
 
 
 
+
+
+
+
+
+
+
+
   // -- Sync local state with URL --
+
+
+
+
 
 
 
@@ -234,7 +466,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
   const [communeFilter, setCommuneFilter] = useState(searchParams.get('commune') || 'all');
+
+
+
+
 
 
 
@@ -242,7 +482,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
   const todayStr = serverTodayStr || new Date().toISOString().split('T')[0];
+
+
+
+
 
 
 
@@ -250,7 +498,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
   const [dateTo, setDateTo] = useState(searchParams.get('to') === null ? todayStr : (searchParams.get('to') || ''));
+
+
+
+
 
 
 
@@ -258,7 +514,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+
+
+
+
 
 
 
@@ -270,11 +534,31 @@ export default function OrdersClient({
 
 
 
+
+
+
+
+
+
+
+
   const queryClient = useQueryClient();
 
 
 
+
+
+
+
   const page = parseInt(searchParams.get('page') || '1');
+
+
+
+
+
+
+
+
 
 
 
@@ -290,7 +574,19 @@ export default function OrdersClient({
 
 
 
+
+
+
+
+
+
+
+
   // React Query for Orders
+
+
+
+
 
 
 
@@ -298,7 +594,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
     queryKey,
+
+
+
+
 
 
 
@@ -306,7 +610,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       const params = new URLSearchParams({
+
+
+
+
 
 
 
@@ -314,7 +626,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
         status: filter,
+
+
+
+
 
 
 
@@ -322,7 +642,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
         scope,
+
+
+
+
 
 
 
@@ -330,7 +658,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
         to: dateTo,
+
+
+
+
 
 
 
@@ -338,7 +674,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
         q: debouncedSearch
+
+
+
+
 
 
 
@@ -346,7 +690,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       const res = await fetch(`/api/orders?${params.toString()}`);
+
+
+
+
 
 
 
@@ -354,7 +706,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       return res.json();
+
+
+
+
 
 
 
@@ -362,7 +722,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
     initialData: { orders: initialOrders, totalCount },
+
+
+
+
 
 
 
@@ -370,11 +738,27 @@ export default function OrdersClient({
 
 
 
+
+
+
+
     staleTime: 0,
 
 
 
+
+
+
+
   });
+
+
+
+
+
+
+
+
 
 
 
@@ -386,7 +770,19 @@ export default function OrdersClient({
 
 
 
+
+
+
+
   const currentTotalCount = queryData?.totalCount || totalCount;
+
+
+
+
+
+
+
+
 
 
 
@@ -398,7 +794,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
   const statusMutation = useMutation({
+
+
+
+
 
 
 
@@ -406,7 +810,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
     // Optimistic Update
+
+
+
+
 
 
 
@@ -414,7 +826,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       await queryClient.cancelQueries({ queryKey: ['orders'] });
+
+
+
+
 
 
 
@@ -426,7 +846,19 @@ export default function OrdersClient({
 
 
 
+
+
+
+
+
+
+
+
       queryClient.setQueryData(['orders', queryKey[1]], (old: any) => {
+
+
+
+
 
 
 
@@ -434,7 +866,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
         return {
+
+
+
+
 
 
 
@@ -442,7 +882,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
           orders: old.orders.map((o: any) =>
+
+
+
+
 
 
 
@@ -450,11 +898,23 @@ export default function OrdersClient({
 
 
 
+
+
+
+
           )
 
 
 
+
+
+
+
         };
+
+
+
+
 
 
 
@@ -466,11 +926,27 @@ export default function OrdersClient({
 
 
 
+
+
+
+
+
+
+
+
       return { previousData };
 
 
 
+
+
+
+
     },
+
+
+
+
 
 
 
@@ -478,11 +954,23 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       showToast('Statut mis à jour ✓', 'success');
 
 
 
+
+
+
+
     },
+
+
+
+
 
 
 
@@ -490,7 +978,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       if (context?.previousData) {
+
+
+
+
 
 
 
@@ -498,7 +994,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       }
+
+
+
+
 
 
 
@@ -506,7 +1010,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
     },
+
+
+
+
 
 
 
@@ -514,7 +1026,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       queryClient.invalidateQueries({ queryKey: ['orders'] });
+
+
+
+
 
 
 
@@ -522,7 +1042,19 @@ export default function OrdersClient({
 
 
 
+
+
+
+
   });
+
+
+
+
+
+
+
+
 
 
 
@@ -534,7 +1066,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
     mutationFn: (orderId: string) => deleteOrder(orderId),
+
+
+
+
 
 
 
@@ -542,7 +1082,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       await queryClient.cancelQueries({ queryKey: ['orders'] });
+
+
+
+
 
 
 
@@ -550,7 +1098,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       queryClient.setQueryData(['orders', queryKey[1]], (old: any) => {
+
+
+
+
 
 
 
@@ -558,7 +1114,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
         return {
+
+
+
+
 
 
 
@@ -566,7 +1130,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
           orders: old.orders.filter((o: any) => o.id !== orderId)
+
+
+
+
 
 
 
@@ -574,7 +1146,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       });
+
+
+
+
 
 
 
@@ -582,7 +1162,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
     },
+
+
+
+
 
 
 
@@ -590,7 +1178,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       showToast('Commande supprimée ✓', 'success');
+
+
+
+
 
 
 
@@ -598,7 +1194,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
     },
+
+
+
+
 
 
 
@@ -606,7 +1210,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       if (context?.previousData) {
+
+
+
+
 
 
 
@@ -614,7 +1226,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       }
+
+
+
+
 
 
 
@@ -622,7 +1242,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
     },
+
+
+
+
 
 
 
@@ -630,7 +1258,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       queryClient.invalidateQueries({ queryKey: ['orders'] });
+
+
+
+
 
 
 
@@ -638,7 +1274,19 @@ export default function OrdersClient({
 
 
 
+
+
+
+
   });
+
+
+
+
+
+
+
+
 
 
 
@@ -650,7 +1298,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
     mutationFn: ({ orderId, data }: { orderId: string, data: any }) => updateOrderDetails(orderId, data),
+
+
+
+
 
 
 
@@ -658,7 +1314,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       queryClient.invalidateQueries({ queryKey: ['orders'] });
+
+
+
+
 
 
 
@@ -666,7 +1330,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       if (selectedOrder?.id === variables.orderId) {
+
+
+
+
 
 
 
@@ -674,7 +1346,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       }
+
+
+
+
 
 
 
@@ -682,11 +1362,27 @@ export default function OrdersClient({
 
 
 
+
+
+
+
     onError: (e: any) => showToast(e.message || 'Erreur', 'error')
 
 
 
+
+
+
+
   });
+
+
+
+
+
+
+
+
 
 
 
@@ -698,7 +1394,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
     mutationFn: ({ orderId, deliverymanId }: { orderId: string, deliverymanId: string }) => assignOrderToDeliveryman(orderId, deliverymanId),
+
+
+
+
 
 
 
@@ -706,11 +1410,23 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       await queryClient.cancelQueries({ queryKey: ['orders'] });
 
 
 
+
+
+
+
       const previousData = queryClient.getQueryData(['orders', queryKey[1]]);
+
+
+
+
 
 
 
@@ -722,7 +1438,19 @@ export default function OrdersClient({
 
 
 
+
+
+
+
+
+
+
+
       queryClient.setQueryData(['orders', queryKey[1]], (old: any) => {
+
+
+
+
 
 
 
@@ -730,7 +1458,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
         return {
+
+
+
+
 
 
 
@@ -738,7 +1474,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
           orders: old.orders.map((o: any) =>
+
+
+
+
 
 
 
@@ -746,7 +1490,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
               ...o,
+
+
+
+
 
 
 
@@ -754,7 +1506,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
               deliverymanName: deliveryman?.name || 'Assigné',
+
+
+
+
 
 
 
@@ -762,7 +1522,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
             } : o
+
+
+
+
 
 
 
@@ -770,7 +1538,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
         };
+
+
+
+
 
 
 
@@ -778,11 +1554,23 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       return { previousData };
 
 
 
+
+
+
+
     },
+
+
+
+
 
 
 
@@ -790,7 +1578,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       showToast('Livreur assigné ✓', 'success');
+
+
+
+
 
 
 
@@ -798,7 +1594,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
     },
+
+
+
+
 
 
 
@@ -806,7 +1610,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       if (context?.previousData) {
+
+
+
+
 
 
 
@@ -814,7 +1626,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       }
+
+
+
+
 
 
 
@@ -822,7 +1642,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
     },
+
+
+
+
 
 
 
@@ -830,7 +1658,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       queryClient.invalidateQueries({ queryKey: ['orders'] });
+
+
+
+
 
 
 
@@ -838,7 +1674,19 @@ export default function OrdersClient({
 
 
 
+
+
+
+
   });
+
+
+
+
+
+
+
+
 
 
 
@@ -850,7 +1698,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
     mutationFn: ({ orderId, deliveryDate }: { orderId: string, deliveryDate: string }) => reprogramOrder(orderId, deliveryDate),
+
+
+
+
 
 
 
@@ -858,7 +1714,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       await queryClient.cancelQueries({ queryKey: ['orders'] });
+
+
+
+
 
 
 
@@ -866,7 +1730,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       queryClient.setQueryData(['orders', queryKey[1]], (old: any) => {
+
+
+
+
 
 
 
@@ -874,7 +1746,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
         return {
+
+
+
+
 
 
 
@@ -882,7 +1762,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
           orders: old.orders.map((o: any) =>
+
+
+
+
 
 
 
@@ -890,7 +1778,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
           )
+
+
+
+
 
 
 
@@ -898,7 +1794,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       });
+
+
+
+
 
 
 
@@ -906,7 +1810,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
     },
+
+
+
+
 
 
 
@@ -914,7 +1826,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       showToast('Commande reprogrammée ✓', 'success');
+
+
+
+
 
 
 
@@ -922,7 +1842,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
     },
+
+
+
+
 
 
 
@@ -930,7 +1858,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       if (context?.previousData) {
+
+
+
+
 
 
 
@@ -938,7 +1874,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       }
+
+
+
+
 
 
 
@@ -946,7 +1890,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
     },
+
+
+
+
 
 
 
@@ -954,11 +1906,23 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       queryClient.invalidateQueries({ queryKey: ['orders'] });
 
 
 
+
+
+
+
     }
+
+
+
+
 
 
 
@@ -970,7 +1934,19 @@ export default function OrdersClient({
 
 
 
+
+
+
+
+
+
+
+
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+
+
+
+
 
 
 
@@ -978,7 +1954,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
   const [orderToDuplicate, setOrderToDuplicate] = useState<any>(null);
+
+
+
+
 
 
 
@@ -986,7 +1970,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
   const [receiptOrder, setReceiptOrder] = useState<any>(null);
+
+
+
+
 
 
 
@@ -998,7 +1990,19 @@ export default function OrdersClient({
 
 
 
+
+
+
+
+
+
+
+
   const [isPending, startTransition] = useTransition();
+
+
+
+
 
 
 
@@ -1010,7 +2014,19 @@ export default function OrdersClient({
 
 
 
+
+
+
+
+
+
+
+
   // Debounced search — 300ms delay
+
+
+
+
 
 
 
@@ -1018,7 +2034,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
     const timer = setTimeout(() => {
+
+
+
+
 
 
 
@@ -1026,11 +2050,23 @@ export default function OrdersClient({
 
 
 
+
+
+
+
     }, 300);
 
 
 
+
+
+
+
     return () => clearTimeout(timer);
+
+
+
+
 
 
 
@@ -1042,7 +2078,19 @@ export default function OrdersClient({
 
 
 
+
+
+
+
+
+
+
+
   // Sync state to URL when filters change
+
+
+
+
 
 
 
@@ -1050,7 +2098,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
   useEffect(() => {
+
+
+
+
 
 
 
@@ -1058,7 +2114,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       isFirstRender.current = false;
+
+
+
+
 
 
 
@@ -1066,11 +2130,27 @@ export default function OrdersClient({
 
 
 
+
+
+
+
     }
 
 
 
+
+
+
+
     const params = new URLSearchParams(searchParams.toString());
+
+
+
+
+
+
+
+
 
 
 
@@ -1082,7 +2162,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
     if (communeFilter !== 'all') params.set('commune', communeFilter); else params.delete('commune');
+
+
+
+
 
 
 
@@ -1090,7 +2178,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
     if (dateFrom !== null && searchParams.get('from') !== dateFrom) params.set('from', dateFrom);
+
+
+
+
 
 
 
@@ -1098,7 +2194,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
     if (dateType !== 'created') params.set('dateType', dateType); else params.delete('dateType');
+
+
+
+
 
 
 
@@ -1110,7 +2214,19 @@ export default function OrdersClient({
 
 
 
+
+
+
+
+
+
+
+
     // Always reset to page 1 on filter change
+
+
+
+
 
 
 
@@ -1122,7 +2238,19 @@ export default function OrdersClient({
 
 
 
+
+
+
+
+
+
+
+
     router.push(`?${params.toString()}`);
+
+
+
+
 
 
 
@@ -1134,7 +2262,19 @@ export default function OrdersClient({
 
 
 
+
+
+
+
+
+
+
+
   // Handle auto-print from URL
+
+
+
+
 
 
 
@@ -1142,7 +2282,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
     const printId = searchParams.get('print');
+
+
+
+
 
 
 
@@ -1150,7 +2298,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       const order = orders.find((o: any) => o.id === printId);
+
+
+
+
 
 
 
@@ -1158,7 +2314,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
         setReceiptOrder(order);
+
+
+
+
 
 
 
@@ -1166,7 +2330,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
         const params = new URLSearchParams(searchParams.toString());
+
+
+
+
 
 
 
@@ -1174,7 +2346,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
         window.history.replaceState(null, '', `?${params.toString()}`);
+
+
+
+
 
 
 
@@ -1182,7 +2362,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
     }
+
+
+
+
 
 
 
@@ -1194,7 +2382,19 @@ export default function OrdersClient({
 
 
 
+
+
+
+
+
+
+
+
   useEffect(() => {
+
+
+
+
 
 
 
@@ -1202,7 +2402,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
     const freshOrder = orders.find((o: any) => o.id === selectedOrder.id);
+
+
+
+
 
 
 
@@ -1210,11 +2418,23 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       setSelectedOrder(freshOrder);
 
 
 
+
+
+
+
     }
+
+
+
+
 
 
 
@@ -1226,7 +2446,19 @@ export default function OrdersClient({
 
 
 
+
+
+
+
+
+
+
+
   // Handle page change specifically
+
+
+
+
 
 
 
@@ -1234,7 +2466,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
     const params = new URLSearchParams(searchParams.toString());
+
+
+
+
 
 
 
@@ -1242,11 +2482,27 @@ export default function OrdersClient({
 
 
 
+
+
+
+
     router.push(`?${params.toString()}`);
 
 
 
+
+
+
+
   };
+
+
+
+
+
+
+
+
 
 
 
@@ -1258,11 +2514,23 @@ export default function OrdersClient({
 
 
 
+
+
+
+
     const now = new Date();
 
 
 
+
+
+
+
     let from = '';
+
+
+
+
 
 
 
@@ -1274,7 +2542,19 @@ export default function OrdersClient({
 
 
 
+
+
+
+
+
+
+
+
     if (range === 'today') {
+
+
+
+
 
 
 
@@ -1282,7 +2562,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
     } else if (range === 'yesterday') {
+
+
+
+
 
 
 
@@ -1290,7 +2578,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       y.setDate(y.getDate() - 1);
+
+
+
+
 
 
 
@@ -1298,7 +2594,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       to = from;
+
+
+
+
 
 
 
@@ -1306,7 +2610,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       const w = new Date();
+
+
+
+
 
 
 
@@ -1314,7 +2626,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       from = w.toISOString().split('T')[0];
+
+
+
+
 
 
 
@@ -1322,7 +2642,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+
+
+
+
 
 
 
@@ -1330,7 +2658,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       const lmFrom = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+
+
+
 
 
 
@@ -1338,7 +2674,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       from = lmFrom.toISOString().split('T')[0];
+
+
+
+
 
 
 
@@ -1346,7 +2690,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
     } else if (range === 'all') {
+
+
+
+
 
 
 
@@ -1354,11 +2706,27 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       to = '';
 
 
 
+
+
+
+
     }
+
+
+
+
+
+
+
+
 
 
 
@@ -1370,7 +2738,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
     setDateTo(to);
+
+
+
+
 
 
 
@@ -1382,11 +2758,27 @@ export default function OrdersClient({
 
 
 
+
+
+
+
+
+
+
+
   const paginatedOrders = orders;
 
 
 
+
+
+
+
   const totalPages = Math.ceil(currentTotalCount / pageSize);
+
+
+
+
 
 
 
@@ -1398,11 +2790,27 @@ export default function OrdersClient({
 
 
 
+
+
+
+
+
+
+
+
   const handleStatusChange = useCallback((orderId: string, status: string) => {
 
 
 
+
+
+
+
     statusMutation.mutate({ orderId, status });
+
+
+
+
 
 
 
@@ -1414,11 +2822,27 @@ export default function OrdersClient({
 
 
 
+
+
+
+
+
+
+
+
   const handleReprogram = useCallback((orderId: string, deliveryDate: string) => {
 
 
 
+
+
+
+
     reprogramMutation.mutate({ orderId, deliveryDate });
+
+
+
+
 
 
 
@@ -1430,7 +2854,19 @@ export default function OrdersClient({
 
 
 
+
+
+
+
+
+
+
+
   const handleDuplicate = useCallback((orderId: string, data: any) => {
+
+
+
+
 
 
 
@@ -1438,7 +2874,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       try {
+
+
+
+
 
 
 
@@ -1446,7 +2890,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
         showToast('Commande dupliquée ✓', 'success');
+
+
+
+
 
 
 
@@ -1454,7 +2906,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
         queryClient.invalidateQueries({ queryKey: ['orders'] });
+
+
+
+
 
 
 
@@ -1462,7 +2922,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
         showToast(e.message || 'Erreur', 'error');
+
+
+
+
 
 
 
@@ -1470,7 +2938,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
     });
+
+
+
+
 
 
 
@@ -1482,11 +2958,27 @@ export default function OrdersClient({
 
 
 
+
+
+
+
+
+
+
+
   const handleUpdateDetails = useCallback((orderId: string, data: any) => {
 
 
 
+
+
+
+
     updateDetailsMutation.mutate({ orderId, data });
+
+
+
+
 
 
 
@@ -1498,7 +2990,19 @@ export default function OrdersClient({
 
 
 
+
+
+
+
+
+
+
+
   const handleDelete = useCallback((orderId: string) => {
+
+
+
+
 
 
 
@@ -1506,7 +3010,15 @@ export default function OrdersClient({
 
 
 
+
+
+
+
     deleteMutation.mutate(orderId);
+
+
+
+
 
 
 
@@ -1518,11 +3030,27 @@ export default function OrdersClient({
 
 
 
+
+
+
+
+
+
+
+
   const handleAssign = useCallback((orderId: string, deliverymanId: string) => {
 
 
 
+
+
+
+
     assignMutation.mutate({ orderId, deliverymanId });
+
+
+
+
 
 
 
@@ -1534,7 +3062,19 @@ export default function OrdersClient({
 
 
 
+
+
+
+
+
+
+
+
   const handleWhatsApp = useCallback((order: any) => {
+
+
+
+
 
 
 
@@ -1542,11 +3082,23 @@ export default function OrdersClient({
 
 
 
+
+
+
+
       showToast('Numéro de téléphone manquant', 'error');
 
 
 
+
+
+
+
       return;
+
+
+
+
 
 
 
@@ -1558,7 +3110,19 @@ export default function OrdersClient({
 
 
 
+
+
+
+
+
+
+
+
     const totalAmount = (order.total || 0) + (order.deliveryFee || 0) - (order.discount || 0);
+
+
+
+
 
 
 
@@ -1566,11 +3130,27 @@ export default function OrdersClient({
 
 
 
+
+
+
+
     const lastName = names[0] || "";
 
 
 
+
+
+
+
     const firstName = names.slice(1).join(" ") || "—";
+
+
+
+
+
+
+
+
 
 
 
@@ -1586,7 +3166,19 @@ export default function OrdersClient({
 
 
 
+
+
+
+
+
+
+
+
     const msg = `🎉 *Votre commande est validée !*
+
+
+
+
 
 
 
@@ -1594,11 +3186,27 @@ Veuillez vérifier vos informations enregistrées pour la commande
 
 
 
+
+
+
+
 Nom: ${lastName}
 
 
 
+
+
+
+
 Prenom: ${firstName}
+
+
+
+
+
+
+
+
 
 
 
@@ -1614,7 +3222,23 @@ Numéro joignable 1: ${order.customerPhone}
 
 
 
+
+
+
+
+
+
+
+
 Numéro joignable 2 : ${order.customerPhone2 || '—'}
+
+
+
+
+
+
+
+
 
 
 
@@ -1630,11 +3254,31 @@ Lieu de livraison : ${order.customerLocation} (${order.commune})
 
 
 
+
+
+
+
+
+
+
+
 Nom du produit : 
 
 
 
+
+
+
+
 ${itemsList}
+
+
+
+
+
+
+
+
 
 
 
@@ -1650,11 +3294,31 @@ Prix total: ${totalAmount.toLocaleString('fr-FR')} FCFA
 
 
 
+
+
+
+
+
+
+
+
 1️⃣ Téléchargez l’application dès maintenant en cliquant ici 👇🏾:
 
 
 
+
+
+
+
 📲 *Android* : https://play.google.com/store/apps/details?id=com.zangochap.zangochap&pcampaignid=web_share
+
+
+
+
+
+
+
+
 
 
 
@@ -1670,7 +3334,23 @@ Prix total: ${totalAmount.toLocaleString('fr-FR')} FCFA
 
 
 
+
+
+
+
+
+
+
+
 2️⃣ Envoyez-nous une capture d’écran de l’application installée pour activer votre surprise .
+
+
+
+
+
+
+
+
 
 
 
@@ -1686,7 +3366,19 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
+
+
+
+
     let phone = order.customerPhone.replace(/[^0-9]/g, '');
+
+
+
+
 
 
 
@@ -1694,7 +3386,19 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
     else if (!phone.startsWith('225') && phone.length === 10) phone = '225' + phone;
+
+
+
+
+
+
+
+
 
 
 
@@ -1710,7 +3414,19 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
+
+
+
+
     startTransition(async () => {
+
+
+
+
 
 
 
@@ -1718,11 +3434,23 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
     });
 
 
 
+
+
+
+
     showToast('WhatsApp ouvert ✓', 'success');
+
+
+
+
 
 
 
@@ -1734,11 +3462,27 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
+
+
+
+
   const handlePrintReceipt = useCallback((order: any, format: 'a4' | 'a6' | 'thermal') => {
 
 
 
+
+
+
+
     const totalPayer = (order.total || 0) + (order.deliveryFee || 0) - (order.discount || 0);
+
+
+
+
 
 
 
@@ -1750,7 +3494,19 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
+
+
+
+
     const itemsHtml = order.items.map((i: any) => `
+
+
+
+
 
 
 
@@ -1758,7 +3514,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         <td style="padding:6px 4px;border-bottom:1px solid #eee">
+
+
+
+
 
 
 
@@ -1766,7 +3530,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           ${i.isCustom ? '<span style="font-size:9px;background:#DCEAFC;color:#1F5C8C;padding:1px 5px;border-radius:3px;margin-left:4px">PERSO</span>' : ''}
+
+
+
+
 
 
 
@@ -1774,7 +3546,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         </td>
+
+
+
+
 
 
 
@@ -1782,7 +3562,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         <td style="padding:6px 4px;border-bottom:1px solid #eee;text-align:right">${formatPrice(i.price)}</td>
+
+
+
+
 
 
 
@@ -1790,11 +3578,27 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
       </tr>
 
 
 
+
+
+
+
     `).join('');
+
+
+
+
+
+
+
+
 
 
 
@@ -1810,7 +3614,19 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
+
+
+
+
     const getTypeStyle = (type: string) => {
+
+
+
+
 
 
 
@@ -1818,7 +3634,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         'Echange': { bg: '#F5F3FF', text: '#7C3AED' },
+
+
+
+
 
 
 
@@ -1826,7 +3650,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         'Express': { bg: '#FEF2F2', text: '#EF4444' },
+
+
+
+
 
 
 
@@ -1834,7 +3666,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
       };
+
+
+
+
 
 
 
@@ -1842,7 +3682,19 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
     };
+
+
+
+
+
+
+
+
 
 
 
@@ -1858,7 +3710,19 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
+
+
+
+
     if (format === 'a4') {
+
+
+
+
 
 
 
@@ -1866,7 +3730,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
       <style>
+
+
+
+
 
 
 
@@ -1874,7 +3746,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         body { font-family: 'Helvetica', Arial, sans-serif; color: #1A1410; margin: 0; }
+
+
+
+
 
 
 
@@ -1882,7 +3762,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         .logo-block { display: flex; align-items: center; gap: 12px; }
+
+
+
+
 
 
 
@@ -1890,7 +3778,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         .logo-text { font-family: Georgia, serif; font-size: 28px; font-weight: 700; color: #4A2E1F; line-height: 1; }
+
+
+
+
 
 
 
@@ -1898,7 +3794,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         .receipt-title { text-align: right; }
+
+
+
+
 
 
 
@@ -1906,7 +3810,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         .receipt-ref { font-family: monospace; font-size: 16px; font-weight: 700; color: #4A2E1F; }
+
+
+
+
 
 
 
@@ -1914,7 +3826,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 18px; }
+
+
+
+
 
 
 
@@ -1922,7 +3842,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         .info-block p { margin: 2px 0; font-size: 13px; }
+
+
+
+
 
 
 
@@ -1930,7 +3858,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         table.items { width: 100%; border-collapse: collapse; margin: 18px 0; }
+
+
+
+
 
 
 
@@ -1938,7 +3874,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         table.items th.right { text-align: right; }
+
+
+
+
 
 
 
@@ -1946,7 +3890,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         .totals { margin-left: auto; width: 280px; margin-top: 8px; }
+
+
+
+
 
 
 
@@ -1954,7 +3906,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         .totals tr.grand td { border-top: 2px solid #1A1410; font-weight: 700; font-size: 18px; color: #D4541C; padding-top: 12px; }
+
+
+
+
 
 
 
@@ -1962,7 +3922,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         .footer .commercial-block { background: #FAF6F1; padding: 10px 14px; border-radius: 8px; margin-bottom: 10px; font-size: 12px; color: #4A2E1F; }
+
+
+
+
 
 
 
@@ -1970,11 +3938,23 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
       </style></head><body>
 
 
 
+
+
+
+
         <div class="header">
+
+
+
+
 
 
 
@@ -1982,7 +3962,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             <div class="logo-mark">${ZANGOCHAP_LOGO_SVG}</div>
+
+
+
+
 
 
 
@@ -1990,7 +3978,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
               <div class="logo-text">zangochap</div>
+
+
+
+
 
 
 
@@ -1998,11 +3994,23 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             </div>
 
 
 
+
+
+
+
           </div>
+
+
+
+
 
 
 
@@ -2010,7 +4018,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             ${order.type && order.type !== 'Standard' ? `<div class="receipt-label" style="background:${typeStyle.bg};color:${typeStyle.text};">${order.type}</div><br>` : ''}
+
+
+
+
 
 
 
@@ -2018,7 +4034,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             <div class="receipt-ref">${order.ref}</div>
+
+
+
+
 
 
 
@@ -2026,11 +4050,23 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           </div>
 
 
 
+
+
+
+
         </div>
+
+
+
+
 
 
 
@@ -2038,7 +4074,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           <div class="info-block">
+
+
+
+
 
 
 
@@ -2046,7 +4090,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             <p><strong>${order.customerName}</strong></p>
+
+
+
+
 
 
 
@@ -2054,11 +4106,23 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             ${order.customerPhone2 ? `<p>📞 ${order.customerPhone2}</p>` : ''}
 
 
 
+
+
+
+
           </div>
+
+
+
+
 
 
 
@@ -2066,7 +4130,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             <h3>Livraison</h3>
+
+
+
+
 
 
 
@@ -2074,7 +4146,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             <p style="color:#D4541C;font-weight:600">${order.commune || ''}</p>
+
+
+
+
 
 
 
@@ -2082,11 +4162,23 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           </div>
 
 
 
+
+
+
+
         </div>
+
+
+
+
 
 
 
@@ -2094,7 +4186,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         <table class="items">
+
+
+
+
 
 
 
@@ -2102,7 +4202,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             <th>Article</th><th class="center">Qté</th><th class="right">P.U.</th><th class="right">Total</th>
+
+
+
+
 
 
 
@@ -2110,11 +4218,23 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           <tbody>${itemsHtml}</tbody>
 
 
 
+
+
+
+
         </table>
+
+
+
+
 
 
 
@@ -2122,7 +4242,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           <tr><td>Sous-total</td><td style="text-align:right">${formatPrice(order.total)}</td></tr>
+
+
+
+
 
 
 
@@ -2130,7 +4258,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           ${order.discount > 0 ? `<tr><td>Remise</td><td style="text-align:right">-${formatPrice(order.discount)}</td></tr>` : ''}
+
+
+
+
 
 
 
@@ -2138,7 +4274,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           <tr><td colspan="2" style="text-align:center;padding-top:8px;font-size:11px;color:#6B4838">💵 Paiement à la livraison</td></tr>
+
+
+
+
 
 
 
@@ -2146,7 +4290,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         <div class="footer">
+
+
+
+
 
 
 
@@ -2154,11 +4306,23 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             Commande traitée par <strong>${order.commercialName || '—'}</strong>
 
 
 
+
+
+
+
           </div>
+
+
+
+
 
 
 
@@ -2166,7 +4330,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           <p style="margin-top:6px">zangochap.com</p>
+
+
+
+
 
 
 
@@ -2174,7 +4346,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
       </body></html>`;
+
+
+
+
 
 
 
@@ -2182,11 +4362,23 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
       html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Reçu ${order.ref}</title>
 
 
 
+
+
+
+
       <style>
+
+
+
+
 
 
 
@@ -2194,7 +4386,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         body { font-family: 'Helvetica', Arial, sans-serif; color: #1A1410; margin: 0; font-size: 11px; }
+
+
+
+
 
 
 
@@ -2202,7 +4402,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         .logo-mark { width: 36px; height: 36px; margin: 0 auto 4px; }
+
+
+
+
 
 
 
@@ -2210,7 +4418,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         .ref { font-family: monospace; font-size: 13px; font-weight: 700; margin-top: 2px; }
+
+
+
+
 
 
 
@@ -2218,7 +4434,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         .meta { font-size: 9px; color: #666; margin-top: 2px; }
+
+
+
+
 
 
 
@@ -2226,7 +4450,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         .info strong { color: #D4541C; }
+
+
+
+
 
 
 
@@ -2234,7 +4466,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         table { width: 100%; border-collapse: collapse; font-size: 10px; margin: 8px 0; }
+
+
+
+
 
 
 
@@ -2242,7 +4482,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         td { padding: 3px 4px; border-bottom: 1px dashed #ccc; }
+
+
+
+
 
 
 
@@ -2250,7 +4498,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         .total-row { display: flex; justify-content: space-between; padding: 2px 0; }
+
+
+
+
 
 
 
@@ -2258,7 +4514,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         .footer { text-align: center; margin-top: 10px; font-size: 9px; color: #6B4838; }
+
+
+
+
 
 
 
@@ -2266,7 +4530,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
       </style></head><body>
+
+
+
+
 
 
 
@@ -2274,7 +4546,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           <div class="logo-mark">${ZANGOCHAP_LOGO_SVG}</div>
+
+
+
+
 
 
 
@@ -2282,7 +4562,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           ${order.type && order.type !== 'Standard' ? `<div class="label-tag" style="background:${typeStyle.bg};color:${typeStyle.text};">${order.type}</div><br>` : ''}
+
+
+
+
 
 
 
@@ -2290,11 +4578,23 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           <div class="meta">${dateStr}</div>
 
 
 
+
+
+
+
         </div>
+
+
+
+
 
 
 
@@ -2302,7 +4602,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           <strong>${order.customerName}</strong><br>
+
+
+
+
 
 
 
@@ -2310,11 +4618,23 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           📍 ${order.customerLocation || ''} (${order.commune || ''})
 
 
 
+
+
+
+
         </div>
+
+
+
+
 
 
 
@@ -2322,7 +4642,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         <table>
+
+
+
+
 
 
 
@@ -2330,7 +4658,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           <tbody>
+
+
+
+
 
 
 
@@ -2338,7 +4674,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
               <tr>
+
+
+
+
 
 
 
@@ -2346,7 +4690,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                 <td style="text-align:center">${i.qty}</td>
+
+
+
+
 
 
 
@@ -2354,7 +4706,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
               </tr>
+
+
+
+
 
 
 
@@ -2362,7 +4722,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           </tbody>
+
+
+
+
 
 
 
@@ -2370,7 +4738,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         <div class="total">
+
+
+
+
 
 
 
@@ -2378,7 +4754,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           <div class="total-row"><span>Livraison</span><span>${formatPrice(order.deliveryFee || 0)}</span></div>
+
+
+
+
 
 
 
@@ -2386,7 +4770,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           <div class="total-row grand"><span>À PAYER</span><span>${formatPrice(totalPayer)}</span></div>
+
+
+
+
 
 
 
@@ -2394,7 +4786,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         </div>
+
+
+
+
 
 
 
@@ -2402,7 +4802,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           Servi par <strong>${order.commercialName || '—'}</strong>
+
+
+
+
 
 
 
@@ -2410,11 +4818,23 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         </div>
 
 
 
+
+
+
+
       </body></html>`;
+
+
+
+
 
 
 
@@ -2422,7 +4842,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
       html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Reçu ${order.ref}</title>
+
+
+
+
 
 
 
@@ -2430,7 +4858,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         @page { size: 80mm auto; margin: 3mm; }
+
+
+
+
 
 
 
@@ -2438,7 +4874,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         .center { text-align: center; }
+
+
+
+
 
 
 
@@ -2446,7 +4890,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         .bold { font-weight: 700; }
+
+
+
+
 
 
 
@@ -2454,7 +4906,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         .logo-mark { width: 40px; height: 40px; margin: 0 auto 4px; display: block; }
+
+
+
+
 
 
 
@@ -2462,7 +4922,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         .sep { border-top: 1px dashed #000; margin: 6px 0; }
+
+
+
+
 
 
 
@@ -2470,7 +4938,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         .item { margin: 4px 0; }
+
+
+
+
 
 
 
@@ -2478,7 +4954,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         .item-meta { font-size: 9px; color: #333; }
+
+
+
+
 
 
 
@@ -2486,7 +4970,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         .note-box { border: 1px dashed #000; padding: 4px 6px; margin: 4px 0; font-size: 10px; }
+
+
+
+
 
 
 
@@ -2494,7 +4986,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         <div class="center">
+
+
+
+
 
 
 
@@ -2502,7 +5002,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           <div class="big">ZANGOCHAP</div>
+
+
+
+
 
 
 
@@ -2510,7 +5018,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           <div style="font-size:9px">Abidjan, Côte d'Ivoire</div>
+
+
+
+
 
 
 
@@ -2518,7 +5034,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         <div class="sep"></div>
+
+
+
+
 
 
 
@@ -2526,7 +5050,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         <div class="center bold" style="margin-top:4px">${order.ref}</div>
+
+
+
+
 
 
 
@@ -2534,7 +5066,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         <div class="sep"></div>
+
+
+
+
 
 
 
@@ -2542,7 +5082,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         <div>Tel: ${order.customerPhone}</div>
+
+
+
+
 
 
 
@@ -2550,7 +5098,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         <div>${order.customerLocation || ''}</div>
+
+
+
+
 
 
 
@@ -2558,11 +5114,23 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         ${order.notes ? `<div class="note-box"><strong>NOTE:</strong> ${order.notes}</div>` : ''}
 
 
 
+
+
+
+
         <div class="sep"></div>
+
+
+
+
 
 
 
@@ -2570,7 +5138,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           <div class="item">
+
+
+
+
 
 
 
@@ -2578,7 +5154,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             <div class="item-meta">${i.size} · ${i.color}</div>
+
+
+
+
 
 
 
@@ -2586,7 +5170,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
               <span>${i.qty} x ${formatPrice(i.price)}</span>
+
+
+
+
 
 
 
@@ -2594,7 +5186,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             </div>
+
+
+
+
 
 
 
@@ -2602,11 +5202,23 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         `).join('')}
 
 
 
+
+
+
+
         <div class="sep"></div>
+
+
+
+
 
 
 
@@ -2614,7 +5226,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         <div class="row"><span>Livraison</span><span>${formatPrice(order.deliveryFee || 0)}</span></div>
+
+
+
+
 
 
 
@@ -2622,7 +5242,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         <div class="sep"></div>
+
+
+
+
 
 
 
@@ -2630,7 +5258,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         <div class="center" style="margin-top:4px;font-size:10px">PAIEMENT A LA LIVRAISON</div>
+
+
+
+
 
 
 
@@ -2638,7 +5274,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         <div class="center" style="font-size:9px">
+
+
+
+
 
 
 
@@ -2646,7 +5290,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           Merci pour votre confiance !
+
+
+
+
 
 
 
@@ -2654,11 +5306,27 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
       </body></html>`;
 
 
 
+
+
+
+
     }
+
+
+
+
+
+
+
+
 
 
 
@@ -2670,7 +5338,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
     if (!win) {
+
+
+
+
 
 
 
@@ -2678,7 +5354,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
       return;
+
+
+
+
 
 
 
@@ -2686,7 +5370,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
     win.document.write(html);
+
+
+
+
 
 
 
@@ -2694,7 +5386,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
     win.focus();
+
+
+
+
 
 
 
@@ -2702,7 +5402,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
       win.print();
+
+
+
+
 
 
 
@@ -2710,7 +5418,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         await addOrderHistoryEntry(order.id, `Reçu imprimé au format ${format.toUpperCase()} (par ${user?.name})`);
+
+
+
+
 
 
 
@@ -2718,7 +5434,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
     }, 500);
+
+
+
+
 
 
 
@@ -2730,7 +5454,19 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
+
+
+
+
   const handleDownloadPDF = useCallback((order: any) => {
+
+
+
+
 
 
 
@@ -2738,7 +5474,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
       showToast('La librairie PDF est en cours de chargement...', 'success');
+
+
+
+
 
 
 
@@ -2746,7 +5490,19 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
     }
+
+
+
+
+
+
+
+
 
 
 
@@ -2762,7 +5518,19 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
+
+
+
+
     const totalPayer = (order.total || 0) + (order.deliveryFee || 0) - (order.discount || 0);
+
+
+
+
 
 
 
@@ -2774,7 +5542,19 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
+
+
+
+
     const itemsHtml = order.items.map((i: any) => `
+
+
+
+
 
 
 
@@ -2782,7 +5562,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         <td style="padding:6px 4px;border-bottom:1px solid #eee">
+
+
+
+
 
 
 
@@ -2790,7 +5578,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           ${i.isCustom ? '<span style="font-size:9px;background:#DCEAFC;color:#1F5C8C;padding:1px 5px;border-radius:3px;margin-left:4px">PERSO</span>' : ''}
+
+
+
+
 
 
 
@@ -2798,7 +5594,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         </td>
+
+
+
+
 
 
 
@@ -2806,7 +5610,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         <td style="padding:6px 4px;border-bottom:1px solid #eee;text-align:right">${formatPrice(i.price)}</td>
+
+
+
+
 
 
 
@@ -2814,7 +5626,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
       </tr>
+
+
+
+
 
 
 
@@ -2826,7 +5646,19 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
+
+
+
+
     const getTypeStyle = (type: string) => {
+
+
+
+
 
 
 
@@ -2834,7 +5666,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         'Echange': { bg: '#F5F3FF', text: '#7C3AED' },
+
+
+
+
 
 
 
@@ -2842,7 +5682,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         'Express': { bg: '#FEF2F2', text: '#EF4444' },
+
+
+
+
 
 
 
@@ -2850,7 +5698,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
       };
+
+
+
+
 
 
 
@@ -2858,7 +5714,19 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
     };
+
+
+
+
+
+
+
+
 
 
 
@@ -2874,7 +5742,19 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
+
+
+
+
     const html = `
+
+
+
+
 
 
 
@@ -2882,7 +5762,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         <div style="display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 16px; border-bottom: 3px solid #D4541C; margin-bottom: 18px;">
+
+
+
+
 
 
 
@@ -2890,7 +5778,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             <div style="width: 64px; height: 64px;">${ZANGOCHAP_LOGO_SVG}</div>
+
+
+
+
 
 
 
@@ -2898,7 +5794,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
               <div style="font-family: Georgia, serif; font-size: 28px; font-weight: 700; color: #4A2E1F; line-height: 1;">zangochap</div>
+
+
+
+
 
 
 
@@ -2906,11 +5810,23 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             </div>
 
 
 
+
+
+
+
           </div>
+
+
+
+
 
 
 
@@ -2918,7 +5834,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             ${order.type && order.type !== 'Standard' ? `<div style="display: inline-block; padding: 2px 8px; background: ${typeStyle.bg}; color: ${typeStyle.text}; font-size: 9px; font-weight: 800; text-transform: uppercase; border-radius: 4px; margin-bottom: 4px;">${order.type}</div><br>` : ''}
+
+
+
+
 
 
 
@@ -2926,7 +5850,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             <div style="font-family: monospace; font-size: 16px; font-weight: 700; color: #4A2E1F;">${order.ref}</div>
+
+
+
+
 
 
 
@@ -2934,11 +5866,23 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           </div>
 
 
 
+
+
+
+
         </div>
+
+
+
+
 
 
 
@@ -2946,7 +5890,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           <div>
+
+
+
+
 
 
 
@@ -2954,7 +5906,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             <p style="margin: 2px 0; font-size: 13px;"><strong>${order.customerName}</strong></p>
+
+
+
+
 
 
 
@@ -2962,11 +5922,23 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             ${order.customerPhone2 ? `<p style="margin: 2px 0; font-size: 13px;">📞 ${order.customerPhone2}</p>` : ''}
 
 
 
+
+
+
+
           </div>
+
+
+
+
 
 
 
@@ -2974,7 +5946,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             <h3 style="font-size: 11px; color: #6B4838; text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 6px 0;">Livraison</h3>
+
+
+
+
 
 
 
@@ -2982,7 +5962,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             <p style="margin: 2px 0; font-size: 13px; color:#D4541C;font-weight:600">${order.commune || ''}</p>
+
+
+
+
 
 
 
@@ -2990,11 +5978,23 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           </div>
 
 
 
+
+
+
+
         </div>
+
+
+
+
 
 
 
@@ -3002,7 +6002,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         <table style="width: 100%; border-collapse: collapse; margin: 18px 0;">
+
+
+
+
 
 
 
@@ -3010,7 +6018,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             <th style="background: #FAF6F1; padding: 8px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: #4A2E1F; border-bottom: 2px solid #D4541C;">Article</th>
+
+
+
+
 
 
 
@@ -3018,7 +6034,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             <th style="background: #FAF6F1; padding: 8px; text-align: right; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: #4A2E1F; border-bottom: 2px solid #D4541C;">P.U.</th>
+
+
+
+
 
 
 
@@ -3026,7 +6050,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           </tr></thead>
+
+
+
+
 
 
 
@@ -3034,7 +6066,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         </table>
+
+
+
+
 
 
 
@@ -3042,7 +6082,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           <div style="display: flex; justify-content: space-between; padding: 6px 8px;"><span>Sous-total</span><span>${formatPrice(order.total)}</span></div>
+
+
+
+
 
 
 
@@ -3050,7 +6098,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           ${order.discount > 0 ? `<div style="display: flex; justify-content: space-between; padding: 6px 8px; color: #2D7A4F;"><span>Remise</span><span>-${formatPrice(order.discount)}</span></div>` : ''}
+
+
+
+
 
 
 
@@ -3058,7 +6114,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         </div>
+
+
+
+
 
 
 
@@ -3066,7 +6130,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           <p>Merci pour votre confiance ! En cas d'erreur, contactez-nous immédiatement.</p>
+
+
+
+
 
 
 
@@ -3074,11 +6146,23 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         </div>
 
 
 
+
+
+
+
       </div>
+
+
+
+
 
 
 
@@ -3090,7 +6174,19 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
+
+
+
+
     const container = document.createElement('div');
+
+
+
+
 
 
 
@@ -3098,7 +6194,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
     container.style.left = '-9999px';
+
+
+
+
 
 
 
@@ -3106,7 +6210,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
     container.style.width = '800px';
+
+
+
+
 
 
 
@@ -3114,7 +6226,19 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
     document.body.appendChild(container);
+
+
+
+
+
+
+
+
 
 
 
@@ -3130,7 +6254,19 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
+
+
+
+
     const opt = {
+
+
+
+
 
 
 
@@ -3138,7 +6274,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
       filename: filename,
+
+
+
+
 
 
 
@@ -3146,11 +6290,23 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
       html2canvas: { scale: 2, useCORS: true },
 
 
 
+
+
+
+
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+
+
+
+
 
 
 
@@ -3162,11 +6318,27 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
+
+
+
+
     (window as any).html2pdf().from(container).set(opt).save().then(() => {
 
 
 
+
+
+
+
       document.body.removeChild(container);
+
+
+
+
 
 
 
@@ -3174,7 +6346,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
       startTransition(async () => {
+
+
+
+
 
 
 
@@ -3182,7 +6362,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
       });
+
+
+
+
 
 
 
@@ -3190,7 +6378,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
       console.error(err);
+
+
+
+
 
 
 
@@ -3198,11 +6394,23 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
       showToast('Erreur lors de la génération du PDF', 'error');
 
 
 
+
+
+
+
     });
+
+
+
+
 
 
 
@@ -3214,7 +6422,19 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
+
+
+
+
   const filters = [
+
+
+
+
 
 
 
@@ -3222,7 +6442,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
     { key: 'pending', label: 'En attente', count: statusCounts.pending || 0 },
+
+
+
+
 
 
 
@@ -3230,7 +6458,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
     { key: 'packed', label: 'Emballées', count: statusCounts.packed || 0 },
+
+
+
+
 
 
 
@@ -3238,7 +6474,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
     { key: 'cancelled', label: 'Annulées', count: statusCounts.cancelled || 0 },
+
+
+
+
 
 
 
@@ -3250,7 +6494,19 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
+
+
+
+
   const activeRange = useMemo(() => {
+
+
+
+
 
 
 
@@ -3258,7 +6514,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
     const today = new Date().toISOString().split('T')[0];
+
+
+
+
 
 
 
@@ -3270,7 +6534,19 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
+
+
+
+
     const y = new Date();
+
+
+
+
 
 
 
@@ -3278,7 +6554,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
     const yesterday = y.toISOString().split('T')[0];
+
+
+
+
 
 
 
@@ -3290,7 +6574,19 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
+
+
+
+
     const w = new Date();
+
+
+
+
 
 
 
@@ -3298,7 +6594,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
     const week = w.toISOString().split('T')[0];
+
+
+
+
 
 
 
@@ -3310,7 +6614,19 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
+
+
+
+
     const m = new Date();
+
+
+
+
 
 
 
@@ -3318,7 +6634,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
     const month = m.toISOString().split('T')[0];
+
+
+
+
 
 
 
@@ -3330,7 +6654,19 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
+
+
+
+
     return 'custom';
+
+
+
+
 
 
 
@@ -3342,7 +6678,19 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
+
+
+
+
   return (
+
+
+
+
 
 
 
@@ -3350,7 +6698,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
       {/* SEARCH BAR */}
+
+
+
+
 
 
 
@@ -3358,7 +6714,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         <Search size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--brown-soft)' }} />
+
+
+
+
 
 
 
@@ -3366,7 +6730,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           type="text"
+
+
+
+
 
 
 
@@ -3374,7 +6746,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           placeholder="Rechercher par réf, nom, téléphone, commercial..."
+
+
+
+
 
 
 
@@ -3382,7 +6762,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           onChange={e => setSearchQuery(e.target.value)}
+
+
+
+
 
 
 
@@ -3390,7 +6778,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         {searchQuery && (
+
+
+
+
 
 
 
@@ -3398,7 +6794,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             onClick={() => setSearchQuery('')}
+
+
+
+
 
 
 
@@ -3406,7 +6810,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: '#DEE2E6', width: 22, height: 22, borderRadius: '50%' }}
+
+
+
+
 
 
 
@@ -3414,7 +6826,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             <X size={12} />
+
+
+
+
 
 
 
@@ -3422,11 +6842,27 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         )}
 
 
 
+
+
+
+
       </div>
+
+
+
+
+
+
+
+
 
 
 
@@ -3438,7 +6874,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
       <div className="filters-bar">
+
+
+
+
 
 
 
@@ -3446,7 +6890,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           <button
+
+
+
+
 
 
 
@@ -3454,7 +6906,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             className={`filter-chip ${filter === f.key ? 'active' : ''}`}
+
+
+
+
 
 
 
@@ -3462,7 +6922,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           >
+
+
+
+
 
 
 
@@ -3470,11 +6938,23 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             {f.count > 0 && <span className="chip-count">{f.count}</span>}
 
 
 
+
+
+
+
           </button>
+
+
+
+
 
 
 
@@ -3482,7 +6962,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         <select className="filter-select" value={communeFilter} onChange={e => setCommuneFilter(e.target.value)}>
+
+
+
+
 
 
 
@@ -3490,7 +6978,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           {Object.keys(COMMUNES).map(c => <option key={c} value={c}>{c}</option>)}
+
+
+
+
 
 
 
@@ -3498,7 +6994,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         {user?.role === 'commercial' && (
+
+
+
+
 
 
 
@@ -3506,7 +7010,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             <option value="mine">Mes commandes</option>
+
+
+
+
 
 
 
@@ -3514,7 +7026,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           </select>
+
+
+
+
 
 
 
@@ -3522,7 +7042,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         <div className="filter-spacer" />
+
+
+
+
 
 
 
@@ -3530,7 +7058,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           <button className={`shortcut-btn ${activeRange === 'all' ? 'active' : ''}`} onClick={() => setQuickDate('all')}>Tout</button>
+
+
+
+
 
 
 
@@ -3538,7 +7074,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           <button className={`shortcut-btn ${activeRange === 'yesterday' ? 'active' : ''}`} onClick={() => setQuickDate('yesterday')}>Hier</button>
+
+
+
+
 
 
 
@@ -3546,7 +7090,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             if (!dateFrom && !dateTo) setQuickDate('today');
+
+
+
+
 
 
 
@@ -3554,7 +7106,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           <button className={`shortcut-btn ${activeRange === 'week' ? 'active' : ''}`} onClick={() => setQuickDate('week')}>7 jours</button>
+
+
+
+
 
 
 
@@ -3562,7 +7122,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         </div>
+
+
+
+
 
 
 
@@ -3570,7 +7138,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           <select className="filter-select" value={dateType} onChange={e => setDateType(e.target.value)} style={{ width: 110, fontSize: 11 }}>
+
+
+
+
 
 
 
@@ -3578,7 +7154,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             <option value="delivery">Livraison</option>
+
+
+
+
 
 
 
@@ -3586,7 +7170,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           <input type="date" className="filter-date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+
+
+
+
 
 
 
@@ -3594,7 +7186,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         </div>
+
+
+
+
 
 
 
@@ -3602,7 +7202,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           {(queryFetching || queryLoading) && <RefreshCw size={14} className="animate-spin text-orange" />}
+
+
+
+
 
 
 
@@ -3610,7 +7218,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             className="btn-secondary"
+
+
+
+
 
 
 
@@ -3618,7 +7234,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             title="Actualiser"
+
+
+
+
 
 
 
@@ -3626,7 +7250,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             disabled={queryFetching}
+
+
+
+
 
 
 
@@ -3634,7 +7266,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             <RefreshCw size={14} className={queryFetching ? 'animate-spin' : ''} />
+
+
+
+
 
 
 
@@ -3642,7 +7282,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         </div>
+
+
+
+
 
 
 
@@ -3650,11 +7298,23 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           <Plus size={14} /> Nouvelle commande
 
 
 
+
+
+
+
         </Link>
+
+
+
+
 
 
 
@@ -3666,7 +7326,19 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
+
+
+
+
       {/* TABLE */}
+
+
+
+
 
 
 
@@ -3674,7 +7346,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         {paginatedOrders.length === 0 ? (
+
+
+
+
 
 
 
@@ -3682,7 +7362,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         ) : (
+
+
+
+
 
 
 
@@ -3690,7 +7378,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             <table>
+
+
+
+
 
 
 
@@ -3698,7 +7394,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                 <tr>
+
+
+
+
 
 
 
@@ -3706,7 +7410,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                   <th>Date Création</th>
+
+
+
+
 
 
 
@@ -3714,7 +7426,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                   <th>Client</th>
+
+
+
+
 
 
 
@@ -3722,7 +7442,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                   <th>Commune</th>
+
+
+
+
 
 
 
@@ -3730,7 +7458,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                   <th>Total</th>
+
+
+
+
 
 
 
@@ -3738,7 +7474,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                   <th></th>
+
+
+
+
 
 
 
@@ -3746,7 +7490,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
               </thead>
+
+
+
+
 
 
 
@@ -3754,7 +7506,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                 {paginatedOrders.map((order: any) => {
+
+
+
+
 
 
 
@@ -3762,7 +7522,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                   return (
+
+
+
+
 
 
 
@@ -3770,7 +7538,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                       <td>
+
+
+
+
 
 
 
@@ -3778,7 +7554,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                           <span className="cell-mono" style={{ fontWeight: 700 }}>{order.ref}</span>
+
+
+
+
 
 
 
@@ -3786,11 +7570,23 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                         </div>
 
 
 
+
+
+
+
                       </td>
+
+
+
+
 
 
 
@@ -3798,7 +7594,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                       <td>
+
+
+
+
 
 
 
@@ -3806,11 +7610,23 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                           {order.deliveryDate ? formatDate(order.deliveryDate) : '—'}
 
 
 
+
+
+
+
                         </div>
+
+
+
+
 
 
 
@@ -3818,7 +7634,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                           <div style={{ fontSize: 9, color: 'var(--orange)', fontWeight: 800, textTransform: 'uppercase' }}>Reprogrammée</div>
+
+
+
+
 
 
 
@@ -3826,11 +7650,23 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                       </td>
 
 
 
+
+
+
+
                       <td>
+
+
+
+
 
 
 
@@ -3838,7 +7674,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                         <div className="cell-muted">{order.customerPhone}</div>
+
+
+
+
 
 
 
@@ -3846,7 +7690,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                       <td>
+
+
+
+
 
 
 
@@ -3854,7 +7706,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                           <span className="source-badge">Site Web</span>
+
+
+
+
 
 
 
@@ -3862,7 +7722,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                           <span className="cell-muted" style={{ fontSize: 12 }}>{order.commercialName || '—'}</span>
+
+
+
+
 
 
 
@@ -3870,7 +7738,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                       </td>
+
+
+
+
 
 
 
@@ -3878,11 +7754,23 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                       <td><span className="cell-muted">{order.items.length} article{order.items.length > 1 ? 's' : ''}</span></td>
 
 
 
+
+
+
+
                       <td>
+
+
+
+
 
 
 
@@ -3890,7 +7778,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                           <span className="cell-price">{formatPrice(order.total + (order.deliveryFee || 0) - (order.discount || 0))}</span>
+
+
+
+
 
 
 
@@ -3898,11 +7794,23 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                       </td>
 
 
 
+
+
+
+
                       <td>
+
+
+
+
 
 
 
@@ -3910,7 +7818,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                         {order.status === 'ON_DELIVERY' && order.deliverymanName && (
+
+
+
+
 
 
 
@@ -3918,7 +7834,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                             <Truck size={10} /> {order.deliverymanName}
+
+
+
+
 
 
 
@@ -3926,7 +7850,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                         )}
+
+
+
+
 
 
 
@@ -3934,7 +7866,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                       <td>
+
+
+
+
 
 
 
@@ -3942,7 +7882,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                           <button className="action-btn" title="Voir le détail" onClick={() => setSelectedOrder(order)}>
+
+
+
+
 
 
 
@@ -3950,7 +7898,19 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                           </button>
+
+
+
+
+
+
+
+
 
 
 
@@ -3962,7 +7922,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                           {(user?.role === 'admin' || user?.role === 'commercial') && (
+
+
+
+
 
 
 
@@ -3970,7 +7938,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                               <button className="action-btn" title="Modifier" onClick={() => setOrderToEdit(order)}>
+
+
+
+
 
 
 
@@ -3978,7 +7954,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                               </button>
+
+
+
+
 
 
 
@@ -3986,11 +7970,23 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                                 <Copy size={14} />
 
 
 
+
+
+
+
                               </button>
+
+
+
+
 
 
 
@@ -3998,7 +7994,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                                 <Trash2 size={14} />
+
+
+
+
 
 
 
@@ -4006,7 +8010,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                             </>
+
+
+
+
 
 
 
@@ -4018,7 +8030,19 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
+
+
+
+
                           <button className="action-btn" title="Envoyer reçu WhatsApp au client" onClick={() => handleWhatsApp(order)} style={{ background: '#dcfce7', color: '#16a34a' }}>
+
+
+
+
 
 
 
@@ -4026,7 +8050,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                           </button>
+
+
+
+
 
 
 
@@ -4034,7 +8066,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                             <Printer size={14} />
+
+
+
+
 
 
 
@@ -4042,7 +8082,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                         </div>
+
+
+
+
 
 
 
@@ -4050,7 +8098,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                     </tr>
+
+
+
+
 
 
 
@@ -4058,11 +8114,23 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                 })}
 
 
 
+
+
+
+
               </tbody>
+
+
+
+
 
 
 
@@ -4074,7 +8142,19 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
+
+
+
+
             {/* PAGINATION */}
+
+
+
+
 
 
 
@@ -4082,7 +8162,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', borderTop: '1px solid var(--line)', background: 'var(--cream)' }}>
+
+
+
+
 
 
 
@@ -4090,11 +8178,23 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                   {((currentPage - 1) * pageSize) + 1}–{Math.min(currentPage * pageSize, totalCount)} sur {totalCount}
 
 
 
+
+
+
+
                 </div>
+
+
+
+
 
 
 
@@ -4102,11 +8202,23 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                   <button
 
 
 
+
+
+
+
                     className="action-btn"
+
+
+
+
 
 
 
@@ -4114,7 +8226,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                     onClick={() => goToPage(currentPage - 1)}
+
+
+
+
 
 
 
@@ -4122,7 +8242,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                   >
+
+
+
+
 
 
 
@@ -4130,7 +8258,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                   </button>
+
+
+
+
 
 
 
@@ -4138,7 +8274,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                     let pageNum: number;
+
+
+
+
 
 
 
@@ -4146,7 +8290,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                       pageNum = i + 1;
+
+
+
+
 
 
 
@@ -4154,7 +8306,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                       pageNum = i + 1;
+
+
+
+
 
 
 
@@ -4162,7 +8322,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                       pageNum = totalPages - 4 + i;
+
+
+
+
 
 
 
@@ -4170,7 +8338,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                       pageNum = currentPage - 2 + i;
+
+
+
+
 
 
 
@@ -4178,7 +8354,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                     return (
+
+
+
+
 
 
 
@@ -4186,7 +8370,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                         key={pageNum}
+
+
+
+
 
 
 
@@ -4194,7 +8386,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                         style={{
+
+
+
+
 
 
 
@@ -4202,7 +8402,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
+
+
+
+
 
 
 
@@ -4210,7 +8418,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                           background: currentPage === pageNum ? 'var(--ink)' : 'white',
+
+
+
+
 
 
 
@@ -4218,7 +8434,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                           boxShadow: currentPage === pageNum ? 'none' : '0 1px 2px rgba(0,0,0,0.06)',
+
+
+
+
 
 
 
@@ -4226,7 +8450,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                         }}
+
+
+
+
 
 
 
@@ -4234,7 +8466,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                         {pageNum}
+
+
+
+
 
 
 
@@ -4242,7 +8482,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                     );
+
+
+
+
 
 
 
@@ -4250,7 +8498,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                   <button
+
+
+
+
 
 
 
@@ -4258,7 +8514,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                     disabled={currentPage >= totalPages}
+
+
+
+
 
 
 
@@ -4266,7 +8530,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                     style={{ opacity: currentPage >= totalPages ? 0.3 : 1 }}
+
+
+
+
 
 
 
@@ -4274,7 +8546,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                     <ChevronRight size={16} />
+
+
+
+
 
 
 
@@ -4282,7 +8562,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
                 </div>
+
+
+
+
 
 
 
@@ -4290,7 +8578,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             )}
+
+
+
+
 
 
 
@@ -4298,7 +8594,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         )}
+
+
+
+
 
 
 
@@ -4310,7 +8614,19 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
+
+
+
+
       {/* ORDER DETAIL MODAL */}
+
+
+
+
 
 
 
@@ -4318,7 +8634,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         <OrderDetailModal
+
+
+
+
 
 
 
@@ -4326,7 +8650,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           user={user}
+
+
+
+
 
 
 
@@ -4334,7 +8666,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           onStatusChange={handleStatusChange}
+
+
+
+
 
 
 
@@ -4342,7 +8682,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           onDelete={handleDelete}
+
+
+
+
 
 
 
@@ -4350,7 +8698,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           onWhatsApp={handleWhatsApp}
+
+
+
+
 
 
 
@@ -4358,7 +8714,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           deliverymen={deliverymen}
+
+
+
+
 
 
 
@@ -4366,7 +8730,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           isPending={isPending}
+
+
+
+
 
 
 
@@ -4374,7 +8746,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           setIsEditing={setIsEditing}
+
+
+
+
 
 
 
@@ -4382,7 +8762,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           products={products}
+
+
+
+
 
 
 
@@ -4390,11 +8778,27 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         />
 
 
 
+
+
+
+
       )}
+
+
+
+
+
+
+
+
 
 
 
@@ -4406,7 +8810,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         <OrderFormModal
+
+
+
+
 
 
 
@@ -4414,7 +8826,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           order={orderToDuplicate}
+
+
+
+
 
 
 
@@ -4422,7 +8842,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           onConfirm={(data) => handleDuplicate(orderToDuplicate.id, data)}
+
+
+
+
 
 
 
@@ -4430,7 +8858,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           onPreviewImage={setPreviewImage}
+
+
+
+
 
 
 
@@ -4438,11 +8874,27 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         />
 
 
 
+
+
+
+
       )}
+
+
+
+
+
+
+
+
 
 
 
@@ -4454,7 +8906,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         <OrderFormModal
+
+
+
+
 
 
 
@@ -4462,7 +8922,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           order={orderToEdit}
+
+
+
+
 
 
 
@@ -4470,7 +8938,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           onConfirm={(data) => {
+
+
+
+
 
 
 
@@ -4478,7 +8954,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             setOrderToEdit(null);
+
+
+
+
 
 
 
@@ -4486,7 +8970,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           isPending={updateDetailsMutation.isPending}
+
+
+
+
 
 
 
@@ -4494,7 +8986,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           products={products}
+
+
+
+
 
 
 
@@ -4502,7 +9002,19 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
       )}
+
+
+
+
+
+
+
+
 
 
 
@@ -4514,7 +9026,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         <ReceiptModal
+
+
+
+
 
 
 
@@ -4522,7 +9042,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           onClose={() => setReceiptOrder(null)}
+
+
+
+
 
 
 
@@ -4530,7 +9058,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           onDownloadPDF={handleDownloadPDF}
+
+
+
+
 
 
 
@@ -4538,11 +9074,27 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         />
 
 
 
+
+
+
+
       )}
+
+
+
+
+
+
+
+
 
 
 
@@ -4554,7 +9106,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         <div
+
+
+
+
 
 
 
@@ -4562,7 +9122,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           onClick={() => setPreviewImage(null)}
+
+
+
+
 
 
 
@@ -4570,7 +9138,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         >
+
+
+
+
 
 
 
@@ -4578,7 +9154,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             <img
+
+
+
+
 
 
 
@@ -4586,7 +9170,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
               alt="Preview"
+
+
+
+
 
 
 
@@ -4594,7 +9186,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
             />
+
+
+
+
 
 
 
@@ -4602,7 +9202,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
               className="lightbox-close"
+
+
+
+
 
 
 
@@ -4610,7 +9218,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
               style={{ position: 'absolute', top: -40, right: 0, background: 'transparent', border: 'none', color: 'white', cursor: 'pointer' }}
+
+
+
+
 
 
 
@@ -4618,7 +9234,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
               <X size={24} />
+
+
+
+
 
 
 
@@ -4626,7 +9250,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           </div>
+
+
+
+
 
 
 
@@ -4634,7 +9266,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         document.body
+
+
+
+
 
 
 
@@ -4642,7 +9282,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
       <style>{`
+
+
+
+
 
 
 
@@ -4650,11 +9298,23 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           transition: all 0.2s ease;
 
 
 
+
+
+
+
         }
+
+
+
+
 
 
 
@@ -4662,7 +9322,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           border-color: var(--orange) !important;
+
+
+
+
 
 
 
@@ -4670,7 +9338,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           transform: translateY(-2px);
+
+
+
+
 
 
 
@@ -4678,7 +9354,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
         }
+
+
+
+
 
 
 
@@ -4686,7 +9370,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
           transform: translateY(0);
+
+
+
+
 
 
 
@@ -4694,7 +9386,15 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
       `}</style>
+
+
+
+
 
 
 
@@ -4702,11 +9402,23 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
     </div>
 
 
 
+
+
+
+
   );
+
+
+
+
 
 
 
@@ -4718,7 +9430,19 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
+
+
+
+
 // ============================================
+
+
+
+
 
 
 
@@ -4726,11 +9450,23 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
 
 
+
+
+
+
 // ============================================
 
 
 
+
+
+
+
 const TypeBadge = ({ type, compact = false }: { type: string; compact?: boolean }) => {
+
+
+
+
 
 
 
@@ -4742,7 +9478,19 @@ const TypeBadge = ({ type, compact = false }: { type: string; compact?: boolean 
 
 
 
+
+
+
+
+
+
+
+
   const colors: Record<string, { bg: string, text: string }> = {
+
+
+
+
 
 
 
@@ -4750,7 +9498,15 @@ const TypeBadge = ({ type, compact = false }: { type: string; compact?: boolean 
 
 
 
+
+
+
+
     'Reprogrammé': { bg: '#EEF2FF', text: '#4F46E5' },
+
+
+
+
 
 
 
@@ -4758,11 +9514,27 @@ const TypeBadge = ({ type, compact = false }: { type: string; compact?: boolean 
 
 
 
+
+
+
+
     'Recuperation': { bg: '#F0FDF4', text: '#16A34A' },
 
 
 
+
+
+
+
   };
+
+
+
+
+
+
+
+
 
 
 
@@ -4778,7 +9550,19 @@ const TypeBadge = ({ type, compact = false }: { type: string; compact?: boolean 
 
 
 
+
+
+
+
+
+
+
+
   return (
+
+
+
+
 
 
 
@@ -4786,7 +9570,15 @@ const TypeBadge = ({ type, compact = false }: { type: string; compact?: boolean 
 
 
 
+
+
+
+
       fontSize: compact ? 9 : 10,
+
+
+
+
 
 
 
@@ -4794,7 +9586,15 @@ const TypeBadge = ({ type, compact = false }: { type: string; compact?: boolean 
 
 
 
+
+
+
+
       color: color.text,
+
+
+
+
 
 
 
@@ -4802,7 +9602,15 @@ const TypeBadge = ({ type, compact = false }: { type: string; compact?: boolean 
 
 
 
+
+
+
+
       padding: compact ? '2px 6px' : '3px 10px',
+
+
+
+
 
 
 
@@ -4810,7 +9618,15 @@ const TypeBadge = ({ type, compact = false }: { type: string; compact?: boolean 
 
 
 
+
+
+
+
       textTransform: 'uppercase',
+
+
+
+
 
 
 
@@ -4818,7 +9634,15 @@ const TypeBadge = ({ type, compact = false }: { type: string; compact?: boolean 
 
 
 
+
+
+
+
       display: 'inline-flex',
+
+
+
+
 
 
 
@@ -4826,7 +9650,15 @@ const TypeBadge = ({ type, compact = false }: { type: string; compact?: boolean 
 
 
 
+
+
+
+
       gap: 4
+
+
+
+
 
 
 
@@ -4834,7 +9666,15 @@ const TypeBadge = ({ type, compact = false }: { type: string; compact?: boolean 
 
 
 
+
+
+
+
       {type}
+
+
+
+
 
 
 
@@ -4842,7 +9682,15 @@ const TypeBadge = ({ type, compact = false }: { type: string; compact?: boolean 
 
 
 
+
+
+
+
   );
+
+
+
+
 
 
 
@@ -4854,7 +9702,19 @@ const TypeBadge = ({ type, compact = false }: { type: string; compact?: boolean 
 
 
 
+
+
+
+
+
+
+
+
 // ============================================
+
+
+
+
 
 
 
@@ -4862,7 +9722,15 @@ const TypeBadge = ({ type, compact = false }: { type: string; compact?: boolean 
 
 
 
+
+
+
+
 // ============================================
+
+
+
+
 
 
 
@@ -4870,7 +9738,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
   order, user, onClose, onStatusChange, onUpdateDetails, onDelete, onAssign, onWhatsApp, onReprogram, deliverymen, staffUsers, isPending, isEditing, setIsEditing, onPrintReceipt, onPreviewImage, products, onEdit
+
+
+
+
 
 
 
@@ -4878,7 +9754,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
   order: any; user: any; onClose: () => void; onStatusChange: (id: string, status: string) => void;
+
+
+
+
 
 
 
@@ -4886,7 +9770,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
   onDelete: (id: string) => void;
+
+
+
+
 
 
 
@@ -4894,7 +9786,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
   onWhatsApp: (order: any) => void;
+
+
+
+
 
 
 
@@ -4902,7 +9802,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
   deliverymen?: any[];
+
+
+
+
 
 
 
@@ -4910,7 +9818,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
   isPending: boolean;
+
+
+
+
 
 
 
@@ -4918,7 +9834,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
   onPrintReceipt: (order: any) => void;
+
+
+
+
 
 
 
@@ -4926,7 +9850,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
   products: any[];
+
+
+
+
 
 
 
@@ -4934,7 +9866,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
 }) {
+
+
+
+
 
 
 
@@ -4942,7 +9882,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
     customerName: order.customerName,
+
+
+
+
 
 
 
@@ -4950,7 +9898,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
     customerPhone2: order.customerPhone2 || '',
+
+
+
+
 
 
 
@@ -4958,7 +9914,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
     commune: order.commune || '',
+
+
+
+
 
 
 
@@ -4966,7 +9930,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
     notes: order.notes || '',
+
+
+
+
 
 
 
@@ -4974,7 +9946,19 @@ function OrderDetailModal({
 
 
 
+
+
+
+
   });
+
+
+
+
+
+
+
+
 
 
 
@@ -4986,7 +9970,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
   const [reprogramDate, setReprogramDate] = useState(() => {
+
+
+
+
 
 
 
@@ -4994,7 +9986,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
     tomorrow.setDate(tomorrow.getDate() + 1);
+
+
+
+
 
 
 
@@ -5002,7 +10002,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
     return tomorrow.toISOString().split('T')[0];
+
+
+
+
 
 
 
@@ -5014,7 +10022,19 @@ function OrderDetailModal({
 
 
 
+
+
+
+
+
+
+
+
   const history = Array.isArray(order.history) ? order.history : [];
+
+
+
+
 
 
 
@@ -5022,7 +10042,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
   const isOwner = order.commercialId === user?.id;
+
+
+
+
 
 
 
@@ -5034,7 +10062,19 @@ function OrderDetailModal({
 
 
 
+
+
+
+
+
+
+
+
   const handleSave = () => {
+
+
+
+
 
 
 
@@ -5042,11 +10082,27 @@ function OrderDetailModal({
 
 
 
+
+
+
+
     setIsEditing(false);
 
 
 
+
+
+
+
   };
+
+
+
+
+
+
+
+
 
 
 
@@ -5058,7 +10114,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
     return Array.from(new Set(
+
+
+
+
 
 
 
@@ -5066,7 +10130,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
         .filter((h: any) => h.action.includes('collecté') || h.action.includes('indisponible'))
+
+
+
+
 
 
 
@@ -5074,7 +10146,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
     )).filter(Boolean) as string[];
+
+
+
+
 
 
 
@@ -5086,7 +10166,19 @@ function OrderDetailModal({
 
 
 
+
+
+
+
+
+
+
+
   const findPhone = (name?: string | null, idOrEmail?: string | null) => {
+
+
+
+
 
 
 
@@ -5094,7 +10186,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
     const found = staffUsers?.find(u =>
+
+
+
+
 
 
 
@@ -5102,7 +10202,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
       u.email === idOrEmail ||
+
+
+
+
 
 
 
@@ -5110,11 +10218,23 @@ function OrderDetailModal({
 
 
 
+
+
+
+
     );
 
 
 
+
+
+
+
     return found?.phone;
+
+
+
+
 
 
 
@@ -5126,7 +10246,19 @@ function OrderDetailModal({
 
 
 
+
+
+
+
+
+
+
+
   return (
+
+
+
+
 
 
 
@@ -5134,7 +10266,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
       <Modal
+
+
+
+
 
 
 
@@ -5142,7 +10282,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
         onClose={onClose}
+
+
+
+
 
 
 
@@ -5150,7 +10298,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+
+
+
+
 
 
 
@@ -5158,7 +10314,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
               <span style={{ fontSize: 16 }}>Commande · {order.ref}</span>
+
+
+
+
 
 
 
@@ -5166,7 +10330,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
             </div>
+
+
+
+
 
 
 
@@ -5174,7 +10346,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
               <button className="action-btn-sm" onClick={onEdit} title="Modifier">
+
+
+
+
 
 
 
@@ -5182,11 +10362,23 @@ function OrderDetailModal({
 
 
 
+
+
+
+
               </button>
 
 
 
+
+
+
+
             )}
+
+
+
+
 
 
 
@@ -5194,7 +10386,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
         }
+
+
+
+
 
 
 
@@ -5202,7 +10402,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
         footer={
+
+
+
+
 
 
 
@@ -5210,11 +10418,23 @@ function OrderDetailModal({
 
 
 
+
+
+
+
             {isEditing ? (
 
 
 
+
+
+
+
               <>
+
+
+
+
 
 
 
@@ -5222,11 +10442,23 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                   <Save size={14} /> Enregistrer
 
 
 
+
+
+
+
                 </button>
+
+
+
+
 
 
 
@@ -5234,7 +10466,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
               </>
+
+
+
+
 
 
 
@@ -5242,7 +10482,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
               <>
+
+
+
+
 
 
 
@@ -5250,7 +10498,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                   <>
+
+
+
+
 
 
 
@@ -5258,7 +10514,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                       <button className="btn-orange" onClick={() => onStatusChange(order.id, 'CONFIRMED')} disabled={isPending}>
+
+
+
+
 
 
 
@@ -5266,11 +10530,23 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                       </button>
 
 
 
+
+
+
+
                     )}
+
+
+
+
 
 
 
@@ -5278,7 +10554,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                       <button className="btn-secondary" onClick={() => onStatusChange(order.id, 'PACKED')} disabled={isPending}>
+
+
+
+
 
 
 
@@ -5286,11 +10570,23 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                       </button>
 
 
 
+
+
+
+
                     )}
+
+
+
+
 
 
 
@@ -5298,7 +10594,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+
+
+
+
 
 
 
@@ -5306,7 +10610,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                           className="btn-secondary"
+
+
+
+
 
 
 
@@ -5314,7 +10626,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                           onChange={(e) => {
+
+
+
+
 
 
 
@@ -5322,7 +10642,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                             if (val) {
+
+
+
+
 
 
 
@@ -5330,7 +10658,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                                 onAssign(order.id, val);
+
+
+
+
 
 
 
@@ -5338,7 +10674,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                             }
+
+
+
+
 
 
 
@@ -5346,7 +10690,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                           defaultValue=""
+
+
+
+
 
 
 
@@ -5354,7 +10706,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                           <option value="" disabled>Attribuer livreur...</option>
+
+
+
+
 
 
 
@@ -5362,7 +10722,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                         </select>
+
+
+
+
 
 
 
@@ -5370,7 +10738,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                     )}
+
+
+
+
 
 
 
@@ -5378,7 +10754,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                       <button className="btn-orange" onClick={() => onStatusChange(order.id, 'DELIVERED')} disabled={isPending}>
+
+
+
+
 
 
 
@@ -5386,7 +10770,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                       </button>
+
+
+
+
 
 
 
@@ -5394,7 +10786,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                     <button className="btn-secondary" onClick={() => onDelete(order.id)} disabled={isPending} style={{ borderColor: 'var(--red)', color: 'var(--red)' }}>
+
+
+
+
 
 
 
@@ -5402,7 +10802,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                     </button>
+
+
+
+
 
 
 
@@ -5410,7 +10818,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                       <Ban size={14} /> Annuler
+
+
+
+
 
 
 
@@ -5418,7 +10834,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                   </>
+
+
+
+
 
 
 
@@ -5426,7 +10850,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                 <button className="btn-whatsapp" onClick={() => onWhatsApp(order)}>
+
+
+
+
 
 
 
@@ -5434,7 +10866,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                 </button>
+
+
+
+
 
 
 
@@ -5442,11 +10882,23 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                   <Printer size={14} /> Imprimer
 
 
 
+
+
+
+
                 </button>
+
+
+
+
 
 
 
@@ -5454,7 +10906,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                   <Calendar size={14} /> Reprogrammer
+
+
+
+
 
 
 
@@ -5462,7 +10922,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                 <button className="btn-secondary" onClick={onClose}>Fermer</button>
+
+
+
+
 
 
 
@@ -5470,7 +10938,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
             )}
+
+
+
+
 
 
 
@@ -5478,7 +10954,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
         }
+
+
+
+
 
 
 
@@ -5486,7 +10970,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
         {isReprogramming ? (
+
+
+
+
 
 
 
@@ -5494,7 +10986,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
             <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--orange-soft)', color: 'var(--orange)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+
+
+
+
 
 
 
@@ -5502,11 +11002,23 @@ function OrderDetailModal({
 
 
 
+
+
+
+
             </div>
 
 
 
+
+
+
+
             <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>Reprogrammer la commande</h3>
+
+
+
+
 
 
 
@@ -5518,7 +11030,19 @@ function OrderDetailModal({
 
 
 
+
+
+
+
+
+
+
+
             <div className="form-row" style={{ maxWidth: 300, margin: '0 auto' }}>
+
+
+
+
 
 
 
@@ -5526,7 +11050,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
               <input
+
+
+
+
 
 
 
@@ -5534,7 +11066,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                 className="field-input"
+
+
+
+
 
 
 
@@ -5542,7 +11082,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                 onChange={e => setReprogramDate(e.target.value)}
+
+
+
+
 
 
 
@@ -5550,11 +11098,27 @@ function OrderDetailModal({
 
 
 
+
+
+
+
               />
 
 
 
+
+
+
+
             </div>
+
+
+
+
+
+
+
+
 
 
 
@@ -5566,7 +11130,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
               <button className="btn-secondary" onClick={() => setIsReprogramming(false)}>Annuler</button>
+
+
+
+
 
 
 
@@ -5574,7 +11146,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                 {isPending ? <div className="animate-spin" /> : 'Confirmer la reprogrammation'}
+
+
+
+
 
 
 
@@ -5582,7 +11162,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
             </div>
+
+
+
+
 
 
 
@@ -5590,7 +11178,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
         ) : (
+
+
+
+
 
 
 
@@ -5598,7 +11194,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
             {/* LIFE CYCLE PROGRESS */}
+
+
+
+
 
 
 
@@ -5606,7 +11210,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, position: 'relative' }}>
+
+
+
+
 
 
 
@@ -5614,7 +11226,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                   const statuses = ['PENDING', 'CONFIRMED', 'PACKED', 'ON_DELIVERY', 'DELIVERED'];
+
+
+
+
 
 
 
@@ -5622,7 +11242,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                   const stepIndex = i;
+
+
+
+
 
 
 
@@ -5630,7 +11258,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                   const isCurrent = stepIndex === currentIndex && order.status !== 'CANCELLED';
+
+
+
+
 
 
 
@@ -5642,7 +11278,19 @@ function OrderDetailModal({
 
 
 
+
+
+
+
+
+
+
+
                   return (
+
+
+
+
 
 
 
@@ -5650,7 +11298,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                       <div style={{
+
+
+
+
 
 
 
@@ -5658,7 +11314,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                         background: isCancelled ? '#FEE2E2' : (isCompleted || isCurrent ? 'var(--orange)' : 'white'),
+
+
+
+
 
 
 
@@ -5666,7 +11330,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
+
+
+
+
 
 
 
@@ -5674,11 +11346,23 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                         transition: 'all 0.3s'
 
 
 
+
+
+
+
                       }}>
+
+
+
+
 
 
 
@@ -5686,7 +11370,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                       </div>
+
+
+
+
 
 
 
@@ -5694,7 +11386,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                         fontSize: 9, fontWeight: 800, marginTop: 6,
+
+
+
+
 
 
 
@@ -5702,7 +11402,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                         textTransform: 'uppercase', letterSpacing: '0.05em'
+
+
+
+
 
 
 
@@ -5710,7 +11418,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                         {s === 'ON_DELIVERY' ? 'Livraison' : s === 'DELIVERED' ? 'Livré' : s === 'PACKED' ? 'Emballé' : s === 'CONFIRMED' ? 'Confirmé' : 'Attente'}
+
+
+
+
 
 
 
@@ -5718,7 +11434,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                       {/* Connecting line */}
+
+
+
+
 
 
 
@@ -5726,7 +11450,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                         <div style={{
+
+
+
+
 
 
 
@@ -5734,7 +11466,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                           background: stepIndex < currentIndex ? 'var(--orange)' : 'var(--line)',
+
+
+
+
 
 
 
@@ -5742,7 +11482,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                         }} />
+
+
+
+
 
 
 
@@ -5750,7 +11498,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                     </div>
+
+
+
+
 
 
 
@@ -5758,7 +11514,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                 })}
+
+
+
+
 
 
 
@@ -5766,11 +11530,23 @@ function OrderDetailModal({
 
 
 
+
+
+
+
             </div>
 
 
 
+
+
+
+
             <div>
+
+
+
+
 
 
 
@@ -5778,7 +11554,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                 {isEditing ? (
+
+
+
+
 
 
 
@@ -5786,7 +11570,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                     <div className="form-row" style={{ gridColumn: '1 / -1' }}>
+
+
+
+
 
 
 
@@ -5794,7 +11586,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                       <input className="field-input-sm" value={editData.customerName} onChange={e => setEditData({ ...editData, customerName: e.target.value })} />
+
+
+
+
 
 
 
@@ -5802,7 +11602,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                     <div className="form-row">
+
+
+
+
 
 
 
@@ -5810,7 +11618,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                       <input className="field-input-sm" value={editData.customerPhone} onChange={e => setEditData({ ...editData, customerPhone: e.target.value })} />
+
+
+
+
 
 
 
@@ -5818,7 +11634,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                     <div className="form-row">
+
+
+
+
 
 
 
@@ -5826,7 +11650,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                       <input className="field-input-sm" value={editData.customerPhone2} onChange={e => setEditData({ ...editData, customerPhone2: e.target.value })} />
+
+
+
+
 
 
 
@@ -5834,7 +11666,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                     <div className="form-row">
+
+
+
+
 
 
 
@@ -5842,7 +11682,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                       <select className="field-input-sm" value={editData.commune} onChange={e => setEditData({ ...editData, commune: e.target.value })}>
+
+
+
+
 
 
 
@@ -5850,11 +11698,23 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                       </select>
 
 
 
+
+
+
+
                     </div>
+
+
+
+
 
 
 
@@ -5862,7 +11722,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                       <label className="field-label-sm">FRAIS LIVR.</label>
+
+
+
+
 
 
 
@@ -5870,7 +11738,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                     </div>
+
+
+
+
 
 
 
@@ -5878,7 +11754,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                       <label className="field-label-sm">ADRESSE / EMPLACEMENT</label>
+
+
+
+
 
 
 
@@ -5886,7 +11770,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                     </div>
+
+
+
+
 
 
 
@@ -5894,7 +11786,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                 ) : (
+
+
+
+
 
 
 
@@ -5902,7 +11802,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                     <div style={{ fontWeight: 600, fontSize: 15 }}>{order.customerName}</div>
+
+
+
+
 
 
 
@@ -5910,7 +11818,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                     {order.customerPhone2 && <div className="cell-muted">{order.customerPhone2}</div>}
+
+
+
+
 
 
 
@@ -5918,7 +11834,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                     {order.commune && <div style={{ marginTop: 4, color: 'var(--orange)', fontWeight: 600, fontSize: 12 }}>{order.commune}</div>}
+
+
+
+
 
 
 
@@ -5926,7 +11850,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                       <div style={{ marginTop: 8, padding: '4px 8px', background: 'var(--blue-soft)', color: 'var(--blue)', borderRadius: 6, fontSize: 11, fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+
+
+
+
 
 
 
@@ -5934,7 +11866,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                         <span>SOLDER PAR : {order.paymentMethod.toUpperCase()}</span>
+
+
+
+
 
 
 
@@ -5942,7 +11882,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                     )}
+
+
+
+
 
 
 
@@ -5950,7 +11898,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                 )}
+
+
+
+
 
 
 
@@ -5962,7 +11918,19 @@ function OrderDetailModal({
 
 
 
+
+
+
+
+
+
+
+
               <div style={{ marginTop: 14 }}>
+
+
+
+
 
 
 
@@ -5970,7 +11938,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                   {order.items.map((item: any, i: number) => {
+
+
+
+
 
 
 
@@ -5978,7 +11954,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                     return (
+
+
+
+
 
 
 
@@ -5986,7 +11970,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                         key={i}
+
+
+
+
 
 
 
@@ -5994,7 +11986,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                         image={item.image || fallbackImg}
+
+
+
+
 
 
 
@@ -6002,7 +12002,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                         name={item.name}
+
+
+
+
 
 
 
@@ -6010,7 +12018,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                         price={formatPrice(item.price * item.qty)}
+
+
+
+
 
 
 
@@ -6018,7 +12034,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                       />
+
+
+
+
 
 
 
@@ -6026,7 +12050,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                   })}
+
+
+
+
 
 
 
@@ -6034,7 +12066,19 @@ function OrderDetailModal({
 
 
 
+
+
+
+
               </div>
+
+
+
+
+
+
+
+
 
 
 
@@ -6046,11 +12090,23 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                 <DetailCard>
 
 
 
+
+
+
+
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+
+
+
+
 
 
 
@@ -6058,7 +12114,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                   </div>
+
+
+
+
 
 
 
@@ -6066,11 +12130,23 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                     <span>Livraison</span><span>{formatPrice(order.deliveryFee || 0)}</span>
 
 
 
+
+
+
+
                   </div>
+
+
+
+
 
 
 
@@ -6078,7 +12154,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, color: 'var(--green)' }}>
+
+
+
+
 
 
 
@@ -6086,7 +12170,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                     </div>
+
+
+
+
 
 
 
@@ -6094,7 +12186,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                   <div style={{ borderTop: '1px solid var(--line)', paddingTop: 8, display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 16 }}>
+
+
+
+
 
 
 
@@ -6102,7 +12202,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                   </div>
+
+
+
+
 
 
 
@@ -6110,7 +12218,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
               </div>
+
+
+
+
 
 
 
@@ -6122,7 +12238,19 @@ function OrderDetailModal({
 
 
 
+
+
+
+
+
+
+
+
             <div>
+
+
+
+
 
 
 
@@ -6130,7 +12258,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                 <StatusBadge status={order.status} />
+
+
+
+
 
 
 
@@ -6138,11 +12274,23 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                   Créée le {formatDay(order.createdAt)}
 
 
 
+
+
+
+
                 </div>
+
+
+
+
 
 
 
@@ -6154,7 +12302,19 @@ function OrderDetailModal({
 
 
 
+
+
+
+
+
+
+
+
               <div style={{ marginTop: 14 }}>
+
+
+
+
 
 
 
@@ -6162,11 +12322,23 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}>
 
 
 
+
+
+
+
                     <StaffRow
+
+
+
+
 
 
 
@@ -6174,7 +12346,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                       value={order.commercialName}
+
+
+
+
 
 
 
@@ -6182,7 +12362,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                       icon={<Users size={12} />}
+
+
+
+
 
 
 
@@ -6190,7 +12378,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                     <StaffRow
+
+
+
+
 
 
 
@@ -6198,7 +12394,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                       value={collectors.join(', ')}
+
+
+
+
 
 
 
@@ -6206,7 +12410,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                       icon={<ArrowLeftRight size={12} />}
+
+
+
+
 
 
 
@@ -6214,7 +12426,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                     <StaffRow
+
+
+
+
 
 
 
@@ -6222,7 +12442,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                       value={order.packedByName}
+
+
+
+
 
 
 
@@ -6230,11 +12458,23 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                       icon={<Package size={12} />}
 
 
 
+
+
+
+
                     />
+
+
+
+
 
 
 
@@ -6242,7 +12482,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                       label="Livreur"
+
+
+
+
 
 
 
@@ -6250,7 +12498,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                       phone={findPhone(order.deliverymanName, order.deliverymanId)}
+
+
+
+
 
 
 
@@ -6258,7 +12514,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                     />
+
+
+
+
 
 
 
@@ -6266,11 +12530,27 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                 </DetailCard>
 
 
 
+
+
+
+
               </div>
+
+
+
+
+
+
+
+
 
 
 
@@ -6282,7 +12562,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                 <div style={{ marginTop: 14 }}>
+
+
+
+
 
 
 
@@ -6290,7 +12578,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                     {isEditing ? (
+
+
+
+
 
 
 
@@ -6298,7 +12594,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                     ) : (
+
+
+
+
 
 
 
@@ -6306,7 +12610,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                     )}
+
+
+
+
 
 
 
@@ -6314,7 +12626,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                 </div>
+
+
+
+
 
 
 
@@ -6326,7 +12646,19 @@ function OrderDetailModal({
 
 
 
+
+
+
+
+
+
+
+
               {isEditing && (
+
+
+
+
 
 
 
@@ -6334,7 +12666,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                   <DetailCard label="Note de livraison">
+
+
+
+
 
 
 
@@ -6342,11 +12682,23 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                   </DetailCard>
 
 
 
+
+
+
+
                 </div>
+
+
+
+
 
 
 
@@ -6358,7 +12710,19 @@ function OrderDetailModal({
 
 
 
+
+
+
+
+
+
+
+
               <div style={{ marginTop: 14 }}>
+
+
+
+
 
 
 
@@ -6366,11 +12730,23 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                   {(() => {
 
 
 
+
+
+
+
                     const formatAction = (action: string) => {
+
+
+
+
 
 
 
@@ -6382,7 +12758,19 @@ function OrderDetailModal({
 
 
 
+
+
+
+
+
+
+
+
                       // Status mapping
+
+
+
+
 
 
 
@@ -6390,7 +12778,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                         'PENDING': 'En attente',
+
+
+
+
 
 
 
@@ -6398,7 +12794,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                         'PACKED': 'Emballée',
+
+
+
+
 
 
 
@@ -6406,7 +12810,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                         'DELIVERED': 'Livrée',
+
+
+
+
 
 
 
@@ -6414,7 +12826,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                         'RETURNED': 'Retournée',
+
+
+
+
 
 
 
@@ -6422,11 +12842,27 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                         'TO_PROCESS': 'À traiter'
 
 
 
+
+
+
+
                       };
+
+
+
+
+
+
+
+
 
 
 
@@ -6442,7 +12878,19 @@ function OrderDetailModal({
 
 
 
+
+
+
+
+
+
+
+
                       // Clean up "Statut → STATUS par NAME"
+
+
+
+
 
 
 
@@ -6450,7 +12898,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                         const parts = action.split(' ');
+
+
+
+
 
 
 
@@ -6458,11 +12914,23 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                         const frStatus = statusMap[status] || status;
 
 
 
+
+
+
+
                         formatted = `Statut : ${frStatus}`;
+
+
+
+
 
 
 
@@ -6474,11 +12942,31 @@ function OrderDetailModal({
 
 
 
+
+
+
+
+
+
+
+
                       return formatted;
 
 
 
+
+
+
+
                     };
+
+
+
+
+
+
+
+
 
 
 
@@ -6490,7 +12978,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                       const lower = action.toLowerCase();
+
+
+
+
 
 
 
@@ -6498,7 +12994,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                       if (lower.includes('annulée') || lower.includes('cancelled')) return 'var(--red)';
+
+
+
+
 
 
 
@@ -6506,7 +13010,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                       if (lower.includes('emballée') || lower.includes('packed')) return 'var(--blue)';
+
+
+
+
 
 
 
@@ -6514,7 +13026,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                       return 'inherit';
+
+
+
+
 
 
 
@@ -6526,7 +13046,19 @@ function OrderDetailModal({
 
 
 
+
+
+
+
+
+
+
+
                     return (
+
+
+
+
 
 
 
@@ -6534,7 +13066,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                         {history.length === 0 ? (
+
+
+
+
 
 
 
@@ -6542,7 +13082,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                         ) : (
+
+
+
+
 
 
 
@@ -6550,7 +13098,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                             const actionText = formatAction(h.action);
+
+
+
+
 
 
 
@@ -6562,7 +13118,19 @@ function OrderDetailModal({
 
 
 
+
+
+
+
+
+
+
+
                             return (
+
+
+
+
 
 
 
@@ -6570,7 +13138,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                                 {i < history.length - 1 && (
+
+
+
+
 
 
 
@@ -6578,7 +13154,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                                 )}
+
+
+
+
 
 
 
@@ -6586,7 +13170,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                                   width: 12, height: 12, borderRadius: '50%',
+
+
+
+
 
 
 
@@ -6594,7 +13186,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                                   border: '2px solid white', marginTop: 3, zIndex: 1,
+
+
+
+
 
 
 
@@ -6602,7 +13202,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                                 }} />
+
+
+
+
 
 
 
@@ -6610,7 +13218,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                                   <div style={{
+
+
+
+
 
 
 
@@ -6618,7 +13234,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                                     fontWeight: 700,
+
+
+
+
 
 
 
@@ -6626,7 +13250,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                                     lineHeight: 1.2
+
+
+
+
 
 
 
@@ -6634,11 +13266,23 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                                     <span style={{ color: actionColor !== 'inherit' ? actionColor : undefined }}>{actionText}</span>
 
 
 
+
+
+
+
                                   </div>
+
+
+
+
 
 
 
@@ -6646,7 +13290,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                                     <span style={{ fontSize: 11, color: 'var(--brown-soft)', fontWeight: 600 }}>{h.byName}</span>
+
+
+
+
 
 
 
@@ -6654,7 +13306,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                                   </div>
+
+
+
+
 
 
 
@@ -6662,7 +13322,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                               </div>
+
+
+
+
 
 
 
@@ -6670,7 +13338,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                           })
+
+
+
+
 
 
 
@@ -6678,7 +13354,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                       </div>
+
+
+
+
 
 
 
@@ -6686,7 +13370,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
                   })()}
+
+
+
+
 
 
 
@@ -6694,7 +13386,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
               </div>
+
+
+
+
 
 
 
@@ -6702,7 +13402,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
           </div>
+
+
+
+
 
 
 
@@ -6710,7 +13418,15 @@ function OrderDetailModal({
 
 
 
+
+
+
+
       </Modal>
+
+
+
+
 
 
 
@@ -6718,11 +13434,27 @@ function OrderDetailModal({
 
 
 
+
+
+
+
   );
 
 
 
+
+
+
+
 }
+
+
+
+
+
+
+
+
 
 
 
@@ -6734,7 +13466,15 @@ function StaffRow({ label, value, phone, icon }: { label: string; value?: string
 
 
 
+
+
+
+
   if (!value || value === '—') return null;
+
+
+
+
 
 
 
@@ -6742,7 +13482,15 @@ function StaffRow({ label, value, phone, icon }: { label: string; value?: string
 
 
 
+
+
+
+
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+
+
+
+
 
 
 
@@ -6750,11 +13498,23 @@ function StaffRow({ label, value, phone, icon }: { label: string; value?: string
 
 
 
+
+
+
+
         {icon}
 
 
 
+
+
+
+
       </div>
+
+
+
+
 
 
 
@@ -6762,7 +13522,15 @@ function StaffRow({ label, value, phone, icon }: { label: string; value?: string
 
 
 
+
+
+
+
         <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--brown-soft)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>{label}</div>
+
+
+
+
 
 
 
@@ -6770,7 +13538,15 @@ function StaffRow({ label, value, phone, icon }: { label: string; value?: string
 
 
 
+
+
+
+
           {value}
+
+
+
+
 
 
 
@@ -6778,7 +13554,15 @@ function StaffRow({ label, value, phone, icon }: { label: string; value?: string
 
 
 
+
+
+
+
         </div>
+
+
+
+
 
 
 
@@ -6786,11 +13570,23 @@ function StaffRow({ label, value, phone, icon }: { label: string; value?: string
 
 
 
+
+
+
+
     </div>
 
 
 
+
+
+
+
   );
+
+
+
+
 
 
 
@@ -6802,7 +13598,19 @@ function StaffRow({ label, value, phone, icon }: { label: string; value?: string
 
 
 
+
+
+
+
+
+
+
+
 function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPending, onPreviewImage, products = [] }: { order: any; mode?: 'duplicate' | 'edit'; onClose: () => void; onConfirm: (data: any) => void; isPending: boolean; onPreviewImage: (url: string | null) => void; products?: any[] }) {
+
+
+
+
 
 
 
@@ -6810,7 +13618,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
   const getDefaultDeliveryDate = () => {
+
+
+
+
 
 
 
@@ -6818,7 +13634,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
     const target = new Date(now);
+
+
+
+
 
 
 
@@ -6826,11 +13650,23 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
     if (target.getDay() === 0) target.setDate(target.getDate() + 1);
 
 
 
+
+
+
+
     return target.toISOString().split('T')[0];
+
+
+
+
 
 
 
@@ -6842,7 +13678,19 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
+
+
+
+
   const [formData, setFormData] = useState(() => {
+
+
+
+
 
 
 
@@ -6850,7 +13698,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
     const initialItems = (order.items || []).map((item: any, idx: number) => ({
+
+
+
+
 
 
 
@@ -6858,7 +13714,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
       productId: item.productId,
+
+
+
+
 
 
 
@@ -6866,7 +13730,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
       name: item.name,
+
+
+
+
 
 
 
@@ -6874,7 +13746,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
       color: item.color,
+
+
+
+
 
 
 
@@ -6882,7 +13762,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
       price: item.price,
+
+
+
+
 
 
 
@@ -6890,7 +13778,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
       image: getImageUrl(item.image),
+
+
+
+
 
 
 
@@ -6898,7 +13794,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
       originalPrice: item.isGift ? (item.originalPrice || item.price) : undefined
+
+
+
+
 
 
 
@@ -6906,7 +13810,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
     return {
+
+
+
+
 
 
 
@@ -6914,7 +13826,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
       customerPhone: order.customerPhone,
+
+
+
+
 
 
 
@@ -6922,7 +13842,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
       customerLocation: order.customerLocation || '',
+
+
+
+
 
 
 
@@ -6930,7 +13858,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
       deliveryFee: order.deliveryFee || 0,
+
+
+
+
 
 
 
@@ -6938,7 +13874,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
       type: mode === 'duplicate' ? 'Echange' : (order.type || 'Standard'),
+
+
+
+
 
 
 
@@ -6946,7 +13890,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
       items: initialItems as any[],
+
+
+
+
 
 
 
@@ -6954,7 +13906,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
       deliveryDate: getDefaultDeliveryDate()
+
+
+
+
 
 
 
@@ -6962,7 +13922,19 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
   });
+
+
+
+
+
+
+
+
 
 
 
@@ -6974,7 +13946,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
   const [productSearch, setProductSearch] = useState('');
+
+
+
+
 
 
 
@@ -6982,7 +13962,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+
+
+
 
 
 
@@ -6990,7 +13978,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
   const [selectedProductForVariant, setSelectedProductForVariant] = useState<any>(null);
+
+
+
+
 
 
 
@@ -6998,7 +13994,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
   const [selectedQty, setSelectedQty] = useState(1);
+
+
+
+
 
 
 
@@ -7006,7 +14010,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
   const [colorFilter, setColorFilter] = useState('all');
+
+
+
+
 
 
 
@@ -7018,7 +14030,19 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
+
+
+
+
   // Debounce search
+
+
+
+
 
 
 
@@ -7026,11 +14050,23 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
     const timer = setTimeout(() => { setDebouncedSearch(productSearch); setCatalogPage(1); }, 300);
 
 
 
+
+
+
+
     return () => clearTimeout(timer);
+
+
+
+
 
 
 
@@ -7042,7 +14078,19 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
+
+
+
+
   // Fetch products from API
+
+
+
+
 
 
 
@@ -7050,7 +14098,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
     queryKey: ['catalog-products', debouncedSearch, selectedCategory, catalogPage],
+
+
+
+
 
 
 
@@ -7058,7 +14114,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
       const params = new URLSearchParams({ page: String(catalogPage) });
+
+
+
+
 
 
 
@@ -7066,12 +14130,25 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
       if (selectedCategory) params.set('category', selectedCategory);
 
 
 
+
+
+
+
       params.set('allStatus', 'true');
+
       const res = await fetch(`/api/products/search?${params}`);
+
+
+
+
 
 
 
@@ -7079,7 +14156,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
       return res.json();
+
+
+
+
 
 
 
@@ -7087,11 +14172,27 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
     staleTime: 30_000,
 
 
 
+
+
+
+
   });
+
+
+
+
+
+
+
+
 
 
 
@@ -7103,7 +14204,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
   const catalogTotalPages = catalogData?.totalPages || 1;
+
+
+
+
 
 
 
@@ -7115,7 +14224,19 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
+
+
+
+
   // Identify unique product IDs from original order items in the cart
+
+
+
+
 
 
 
@@ -7123,7 +14244,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
     const ids = (formData.items || [])
+
+
+
+
 
 
 
@@ -7131,11 +14260,23 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
       .filter(Boolean);
 
 
 
+
+
+
+
     return Array.from(new Set(ids));
+
+
+
+
 
 
 
@@ -7147,7 +14288,19 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
+
+
+
+
   // Fetch full product details (including variants) for the items in the cart
+
+
+
+
 
 
 
@@ -7155,7 +14308,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
     queryKey: ['cart-products-details', cartProductIds.join(',')],
+
+
+
+
 
 
 
@@ -7163,7 +14324,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
       if (cartProductIds.length === 0) return { products: [] };
+
+
+
+
 
 
 
@@ -7171,7 +14340,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
       if (!res.ok) throw new Error('Erreur');
+
+
+
+
 
 
 
@@ -7179,7 +14356,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
     },
+
+
+
+
 
 
 
@@ -7187,11 +14372,27 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
     staleTime: 60_000,
 
 
 
+
+
+
+
   });
+
+
+
+
+
+
+
+
 
 
 
@@ -7207,7 +14408,19 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
+
+
+
+
   // Auto-focus search when overlay closes
+
+
+
+
 
 
 
@@ -7215,7 +14428,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
     if (!selectedProductForVariant) searchInputRef.current?.focus();
+
+
+
+
 
 
 
@@ -7227,7 +14448,19 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
+
+
+
+
   // Sync total when items change
+
+
+
+
 
 
 
@@ -7235,7 +14468,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
     if (!isTotalManuallySet) {
+
+
+
+
 
 
 
@@ -7243,11 +14484,23 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
       setFormData(prev => ({ ...prev, total: calculatedTotal }));
 
 
 
+
+
+
+
     }
+
+
+
+
 
 
 
@@ -7259,7 +14512,19 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
+
+
+
+
   const addItemWithVariant = () => {
+
+
+
+
 
 
 
@@ -7267,7 +14532,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
     const newItem = {
+
+
+
+
 
 
 
@@ -7275,7 +14548,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
       productId: selectedProductForVariant.id,
+
+
+
+
 
 
 
@@ -7283,7 +14564,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
       name: selectedProductForVariant.name,
+
+
+
+
 
 
 
@@ -7291,7 +14580,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
       color: selectedVariant.color,
+
+
+
+
 
 
 
@@ -7299,7 +14596,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
       price: selectedProductForVariant.basePrice || Number(selectedProductForVariant.price),
+
+
+
+
 
 
 
@@ -7307,7 +14612,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
       image: getImageUrl(selectedProductForVariant.images?.[0]?.dataUrl || selectedProductForVariant.images?.[0]?.url)
+
+
+
+
 
 
 
@@ -7315,7 +14628,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
     setFormData(prev => ({ ...prev, items: [...prev.items, newItem] }));
+
+
+
+
 
 
 
@@ -7323,7 +14644,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
     setSelectedVariant(null);
+
+
+
+
 
 
 
@@ -7331,7 +14660,19 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
   };
+
+
+
+
+
+
+
+
 
 
 
@@ -7343,11 +14684,27 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
     setFormData(prev => ({ ...prev, items: prev.items.filter(i => i.id !== id) }));
 
 
 
+
+
+
+
   };
+
+
+
+
+
+
+
+
 
 
 
@@ -7359,7 +14716,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
     setFormData((prev: any) => ({
+
+
+
+
 
 
 
@@ -7367,7 +14732,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
       items: prev.items.map((item: any) => {
+
+
+
+
 
 
 
@@ -7375,7 +14748,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
           const isCurrentlyGift = !!item.isGift;
+
+
+
+
 
 
 
@@ -7383,7 +14764,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
             ...item,
+
+
+
+
 
 
 
@@ -7391,7 +14780,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
             price: isCurrentlyGift ? (item.originalPrice || 0) : 0,
+
+
+
+
 
 
 
@@ -7399,7 +14796,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
           };
+
+
+
+
 
 
 
@@ -7407,7 +14812,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
         return item;
+
+
+
+
 
 
 
@@ -7415,11 +14828,27 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
     }));
 
 
 
+
+
+
+
   };
+
+
+
+
+
+
+
+
 
 
 
@@ -7431,7 +14860,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
     setFormData(prev => ({
+
+
+
+
 
 
 
@@ -7439,7 +14876,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
       items: prev.items.map(i => i.id === id ? { ...i, qty: Math.max(1, i.qty + delta) } : i)
+
+
+
+
 
 
 
@@ -7447,7 +14892,19 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
   };
+
+
+
+
+
+
+
+
 
 
 
@@ -7459,7 +14916,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
     const product = catalogProducts.find((p: any) => p.id === productId);
+
+
+
+
 
 
 
@@ -7467,11 +14932,23 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
     const variant = product.variants?.find((v: any) => v.size === size && v.color === color);
 
 
 
+
+
+
+
     return variant ? variant.stock : product.stock;
+
+
+
+
 
 
 
@@ -7483,7 +14960,19 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
+
+
+
+
   return (
+
+
+
+
 
 
 
@@ -7491,7 +14980,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
       isOpen={true}
+
+
+
+
 
 
 
@@ -7499,7 +14996,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
       title={mode === 'duplicate' ? "Créer une commande d'échange" : "Modifier la commande"}
+
+
+
+
 
 
 
@@ -7507,7 +15012,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
       footer={
+
+
+
+
 
 
 
@@ -7515,7 +15028,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
           <button
+
+
+
+
 
 
 
@@ -7523,7 +15044,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
             style={{ height: 42, borderRadius: 10, padding: '0 24px', fontSize: 13, fontWeight: 700 }}
+
+
+
+
 
 
 
@@ -7531,7 +15060,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
           >
+
+
+
+
 
 
 
@@ -7539,7 +15076,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
           </button>
+
+
+
+
 
 
 
@@ -7547,7 +15092,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
             className="btn-orange"
+
+
+
+
 
 
 
@@ -7555,7 +15108,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
             onClick={() => onConfirm(formData)}
+
+
+
+
 
 
 
@@ -7563,7 +15124,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
           >
+
+
+
+
 
 
 
@@ -7571,7 +15140,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
           </button>
+
+
+
+
 
 
 
@@ -7579,7 +15156,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
       }
+
+
+
+
 
 
 
@@ -7587,7 +15172,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
-      <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr 340px', gap: 0, height: '70vh', position: 'relative', margin: '-24px' }}>
+
+
+
+
+      <div className="order-modal-grid">
+
+
+
+
 
 
 
@@ -7595,7 +15188,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
         <div style={{ background: 'white', padding: 24, borderRight: '1px solid var(--line)', overflowY: 'auto' }}>
+
+
+
+
 
 
 
@@ -7603,7 +15204,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
             <div style={{ width: 4, height: 16, background: 'var(--orange)', borderRadius: 2 }}></div>
+
+
+
+
 
 
 
@@ -7611,7 +15220,19 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
           </div>
+
+
+
+
+
+
+
+
 
 
 
@@ -7623,7 +15244,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
             <div className="form-row">
+
+
+
+
 
 
 
@@ -7631,7 +15260,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+
+
+
+
 
 
 
@@ -7639,7 +15276,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                   const typeColors: Record<string, { bg: string, text: string }> = {
+
+
+
+
 
 
 
@@ -7647,7 +15292,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                     'Reprogrammé': { bg: '#EEF2FF', text: '#4F46E5' },
+
+
+
+
 
 
 
@@ -7655,7 +15308,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                     'Recuperation': { bg: '#F0FDF4', text: '#16A34A' },
+
+
+
+
 
 
 
@@ -7663,11 +15324,23 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                   };
 
 
 
+
+
+
+
                   const isActive = formData.type === t;
+
+
+
+
 
 
 
@@ -7679,7 +15352,19 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
+
+
+
+
                   return (
+
+
+
+
 
 
 
@@ -7687,7 +15372,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                       key={t}
+
+
+
+
 
 
 
@@ -7695,7 +15388,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                       style={{
+
+
+
+
 
 
 
@@ -7703,7 +15404,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                         border: isActive ? `1.5px solid ${colors.text}` : '1.5px solid var(--line)',
+
+
+
+
 
 
 
@@ -7711,7 +15420,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                         color: isActive ? colors.text : 'var(--brown-soft)',
+
+
+
+
 
 
 
@@ -7719,7 +15436,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                         transition: 'all 0.2s',
+
+
+
+
 
 
 
@@ -7727,7 +15452,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                       }}
+
+
+
+
 
 
 
@@ -7735,7 +15468,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                       {t}
+
+
+
+
 
 
 
@@ -7743,7 +15484,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                   );
+
+
+
+
 
 
 
@@ -7751,11 +15500,27 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               </div>
 
 
 
+
+
+
+
             </div>
+
+
+
+
+
+
+
+
 
 
 
@@ -7767,7 +15532,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               <div className="form-row" style={{ animation: 'fadeIn 0.3s' }}>
+
+
+
+
 
 
 
@@ -7775,7 +15548,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 <input
+
+
+
+
 
 
 
@@ -7783,7 +15564,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                   value={formData.exchangeReason}
+
+
+
+
 
 
 
@@ -7791,7 +15580,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                   style={{ border: '1.5px solid var(--orange-soft)', background: 'var(--orange-soft)', borderRadius: 8, fontWeight: 600 }}
+
+
+
+
 
 
 
@@ -7799,11 +15596,23 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 />
 
 
 
+
+
+
+
               </div>
+
+
+
+
 
 
 
@@ -7815,7 +15624,19 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
+
+
+
+
             <div className="form-row">
+
+
+
+
 
 
 
@@ -7823,11 +15644,23 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               <input
 
 
 
+
+
+
+
                 className="field-input"
+
+
+
+
 
 
 
@@ -7835,7 +15668,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 onChange={e => setFormData({ ...formData, customerName: e.target.value })}
+
+
+
+
 
 
 
@@ -7843,7 +15684,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               />
+
+
+
+
 
 
 
@@ -7855,7 +15704,19 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
+
+
+
+
             <div className="form-row">
+
+
+
+
 
 
 
@@ -7863,7 +15724,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               <div style={{ position: 'relative' }}>
+
+
+
+
 
 
 
@@ -7871,11 +15740,23 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 <input
 
 
 
+
+
+
+
                   className="field-input"
+
+
+
+
 
 
 
@@ -7883,7 +15764,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                   onChange={e => setFormData({ ...formData, customerPhone: e.target.value })}
+
+
+
+
 
 
 
@@ -7891,11 +15780,23 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 />
 
 
 
+
+
+
+
               </div>
+
+
+
+
 
 
 
@@ -7907,7 +15808,19 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
+
+
+
+
             <div className="form-row">
+
+
+
+
 
 
 
@@ -7915,7 +15828,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               <div style={{ position: 'relative' }}>
+
+
+
+
 
 
 
@@ -7923,7 +15844,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 <input
+
+
+
+
 
 
 
@@ -7931,7 +15860,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                   value={formData.customerPhone2}
+
+
+
+
 
 
 
@@ -7939,7 +15876,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                   style={{ paddingLeft: 36, background: 'var(--cream)', borderRadius: 8 }}
+
+
+
+
 
 
 
@@ -7947,7 +15892,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               </div>
+
+
+
+
 
 
 
@@ -7959,7 +15912,19 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
+
+
+
+
             <div className="form-row">
+
+
+
+
 
 
 
@@ -7967,11 +15932,23 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               <select
 
 
 
+
+
+
+
                 className="field-input"
+
+
+
+
 
 
 
@@ -7979,7 +15956,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 onChange={e => {
+
+
+
+
 
 
 
@@ -7987,7 +15972,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                   const newFee = DELIVERY_FEES[newCommune] || 0;
+
+
+
+
 
 
 
@@ -7995,7 +15988,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 }}
+
+
+
+
 
 
 
@@ -8003,7 +16004,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               >
+
+
+
+
 
 
 
@@ -8011,7 +16020,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               </select>
+
+
+
+
 
 
 
@@ -8023,7 +16040,19 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
+
+
+
+
             <div className="form-row">
+
+
+
+
 
 
 
@@ -8031,7 +16060,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               <input type="number" className="field-input" value={formData.deliveryFee} onChange={e => setFormData({ ...formData, deliveryFee: parseInt(e.target.value) || 0 })} style={{ background: 'var(--cream)', borderRadius: 8, fontWeight: 700 }} />
+
+
+
+
 
 
 
@@ -8043,7 +16080,19 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
+
+
+
+
             <div className="form-row">
+
+
+
+
 
 
 
@@ -8051,7 +16100,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               <input
+
+
+
+
 
 
 
@@ -8059,7 +16116,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 className="field-input"
+
+
+
+
 
 
 
@@ -8067,7 +16132,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 onChange={e => setFormData({ ...formData, deliveryDate: e.target.value })}
+
+
+
+
 
 
 
@@ -8075,11 +16148,27 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               />
 
 
 
+
+
+
+
             </div>
+
+
+
+
+
+
+
+
 
 
 
@@ -8091,7 +16180,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               <label className="field-label-sm">ADRESSE DÉTAILLÉE</label>
+
+
+
+
 
 
 
@@ -8099,7 +16196,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 className="field-input"
+
+
+
+
 
 
 
@@ -8107,7 +16212,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 onChange={e => setFormData({ ...formData, customerLocation: e.target.value })}
+
+
+
+
 
 
 
@@ -8115,7 +16228,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 placeholder="Ex: Riviera Palmeraie, Rue I52..."
+
+
+
+
 
 
 
@@ -8123,7 +16244,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
             </div>
+
+
+
+
 
 
 
@@ -8131,7 +16260,19 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
         </div>
+
+
+
+
+
+
+
+
 
 
 
@@ -8143,7 +16284,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
         <div style={{ background: 'var(--cream)', padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+
+
+
 
 
 
@@ -8151,7 +16300,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+
+
+
+
 
 
 
@@ -8159,11 +16316,23 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               <label style={{ fontSize: 11, fontWeight: 800, color: 'var(--ink)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Catalogue Produits</label>
 
 
 
+
+
+
+
             </div>
+
+
+
+
 
 
 
@@ -8171,7 +16340,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               {catalogData?.total || 0} ARTICLES
+
+
+
+
 
 
 
@@ -8179,11 +16356,27 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
             </div>
 
 
 
+
+
+
+
           </div>
+
+
+
+
+
+
+
+
 
 
 
@@ -8195,7 +16388,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
             <Search style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: 'var(--brown-soft)' }} size={18} />
+
+
+
+
 
 
 
@@ -8203,7 +16404,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               ref={searchInputRef}
+
+
+
+
 
 
 
@@ -8211,7 +16420,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               className="field-input"
+
+
+
+
 
 
 
@@ -8219,7 +16436,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               placeholder="Rechercher un produit..."
+
+
+
+
 
 
 
@@ -8227,7 +16452,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               onChange={e => setProductSearch(e.target.value)}
+
+
+
+
 
 
 
@@ -8235,7 +16468,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 if (e.key === 'Enter' && catalogProducts.length === 1) {
+
+
+
+
 
 
 
@@ -8243,7 +16484,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                   setSelectedProductForVariant(p);
+
+
+
+
 
 
 
@@ -8251,7 +16500,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                   setSelectedQty(1);
+
+
+
+
 
 
 
@@ -8259,7 +16516,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               }}
+
+
+
+
 
 
 
@@ -8267,7 +16532,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
             {productSearch && (
+
+
+
+
 
 
 
@@ -8275,7 +16548,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 onClick={() => setProductSearch('')}
+
+
+
+
 
 
 
@@ -8283,7 +16564,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               >
+
+
+
+
 
 
 
@@ -8291,7 +16580,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               </button>
+
+
+
+
 
 
 
@@ -8299,7 +16596,19 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
           </div>
+
+
+
+
+
+
+
+
 
 
 
@@ -8311,7 +16620,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
             <button
+
+
+
+
 
 
 
@@ -8319,7 +16636,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               style={{
+
+
+
+
 
 
 
@@ -8327,7 +16652,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 background: !selectedCategory ? 'var(--ink)' : 'white',
+
+
+
+
 
 
 
@@ -8335,7 +16668,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 whiteSpace: 'nowrap', cursor: 'pointer'
+
+
+
+
 
 
 
@@ -8343,7 +16684,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
             >
+
+
+
+
 
 
 
@@ -8351,7 +16700,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
             </button>
+
+
+
+
 
 
 
@@ -8359,7 +16716,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               <button
+
+
+
+
 
 
 
@@ -8367,7 +16732,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 onClick={() => { setSelectedCategory(cat.id); setCatalogPage(1); }}
+
+
+
+
 
 
 
@@ -8375,7 +16748,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                   padding: '5px 12px', fontSize: 11, fontWeight: 700, borderRadius: 20, border: '1px solid var(--line)',
+
+
+
+
 
 
 
@@ -8383,7 +16764,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                   color: selectedCategory === cat.id ? 'white' : 'var(--brown-soft)',
+
+
+
+
 
 
 
@@ -8391,7 +16780,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 }}
+
+
+
+
 
 
 
@@ -8399,7 +16796,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 {cat.name}
+
+
+
+
 
 
 
@@ -8407,11 +16812,27 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
             ))}
 
 
 
+
+
+
+
           </div>
+
+
+
+
+
+
+
+
 
 
 
@@ -8423,7 +16844,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'white', borderRadius: 12, border: '1px dashed var(--line-2)', padding: 32, textAlign: 'center' }}>
+
+
+
+
 
 
 
@@ -8431,7 +16860,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               <div style={{ fontSize: 11, color: 'var(--brown-soft)', marginTop: 4 }}>
+
+
+
+
 
 
 
@@ -8439,11 +16876,23 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               </div>
 
 
 
+
+
+
+
             </div>
+
+
+
+
 
 
 
@@ -8451,7 +16900,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10, overflowY: 'auto', flex: 1, padding: 4 }}>
+
+
+
+
 
 
 
@@ -8459,7 +16916,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 <ProductCard
+
+
+
+
 
 
 
@@ -8467,7 +16932,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                   product={p}
+
+
+
+
 
 
 
@@ -8475,7 +16948,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                   onAdd={(p) => {
+
+
+
+
 
 
 
@@ -8483,7 +16964,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                     setSelectedVariant(p.variants?.length > 0 ? null : { size: 'Standard', color: 'Standard' });
+
+
+
+
 
 
 
@@ -8491,7 +16980,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                   }}
+
+
+
+
 
 
 
@@ -8499,7 +16996,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               ))}
+
+
+
+
 
 
 
@@ -8507,7 +17012,19 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
           )}
+
+
+
+
+
+
+
+
 
 
 
@@ -8519,7 +17036,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
           {catalogTotalPages > 1 && (
+
+
+
+
 
 
 
@@ -8527,7 +17052,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               <button
+
+
+
+
 
 
 
@@ -8535,7 +17068,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 onClick={() => setCatalogPage(p => p - 1)}
+
+
+
+
 
 
 
@@ -8543,7 +17084,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               >
+
+
+
+
 
 
 
@@ -8551,7 +17100,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               </button>
+
+
+
+
 
 
 
@@ -8559,7 +17116,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 {catalogPage} <span style={{ color: '#8E8E93', fontWeight: 400 }}>/ {catalogTotalPages}</span>
+
+
+
+
 
 
 
@@ -8567,7 +17132,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               <button
+
+
+
+
 
 
 
@@ -8575,7 +17148,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 onClick={() => setCatalogPage(p => p + 1)}
+
+
+
+
 
 
 
@@ -8583,7 +17164,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               >
+
+
+
+
 
 
 
@@ -8591,7 +17180,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               </button>
+
+
+
+
 
 
 
@@ -8599,11 +17196,27 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
           )}
 
 
 
+
+
+
+
         </div>
+
+
+
+
+
+
+
+
 
 
 
@@ -8615,7 +17228,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
         <div style={{ background: 'var(--cream-2)', padding: 20, display: 'flex', flexDirection: 'column' }}>
+
+
+
+
 
 
 
@@ -8623,7 +17244,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
             <div style={{ width: 3, height: 14, background: 'var(--brown)', borderRadius: 2 }}></div>
+
+
+
+
 
 
 
@@ -8631,11 +17260,27 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
             <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 700, color: 'var(--brown-soft)' }}>{formData.items.length} ITÉMS</span>
 
 
 
+
+
+
+
           </div>
+
+
+
+
+
+
+
+
 
 
 
@@ -8647,7 +17292,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
             {formData.items.length === 0 ? (
+
+
+
+
 
 
 
@@ -8655,7 +17308,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 <div style={{ width: 48, height: 48, borderRadius: 12, background: 'var(--cream)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+
+
+
+
 
 
 
@@ -8663,7 +17324,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 </div>
+
+
+
+
 
 
 
@@ -8671,7 +17340,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 <div style={{ fontSize: 11, color: 'var(--brown-soft)', marginTop: 4, lineHeight: 1.4 }}>Sélectionnez des articles<br />dans le catalogue.</div>
+
+
+
+
 
 
 
@@ -8679,7 +17356,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
             ) : (
+
+
+
+
 
 
 
@@ -8687,7 +17372,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 <div key={item.id} style={{ background: 'white', padding: 10, borderRadius: 10, border: '1px solid var(--line-2)', position: 'relative', display: 'flex', gap: 10, boxShadow: 'var(--shadow-sm)' }}>
+
+
+
+
 
 
 
@@ -8695,11 +17388,23 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                     {item.image ? <img src={item.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Package size={20} color="var(--brown-soft)" />}
 
 
 
+
+
+
+
                   </div>
+
+
+
+
 
 
 
@@ -8707,7 +17412,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                     <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</div>
+
+
+
+
 
 
 
@@ -8715,7 +17428,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                       {(() => {
+
+
+
+
 
 
 
@@ -8723,7 +17444,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                           || catalogProducts?.find((p: any) => p.id === item.productId)
+
+
+
+
 
 
 
@@ -8731,7 +17460,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                         return item.productId && productObj?.variants?.length > 0 ? (
+
+
+
+
 
 
 
@@ -8739,7 +17476,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                             <select
+
+
+
+
 
 
 
@@ -8747,7 +17492,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                               onChange={(e) => {
+
+
+
+
 
 
 
@@ -8755,7 +17508,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                 const matchingVariant = productObj.variants.find(
+
+
+
+
 
 
 
@@ -8763,7 +17524,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                 ) || productObj.variants.find((v: any) => v.size === newSize);
+
+
+
+
 
 
 
@@ -8771,7 +17540,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                 if (matchingVariant) {
+
+
+
+
 
 
 
@@ -8779,7 +17556,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                     ...prev,
+
+
+
+
 
 
 
@@ -8787,7 +17572,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                       ...it,
+
+
+
+
 
 
 
@@ -8795,7 +17588,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                       color: matchingVariant.color,
+
+
+
+
 
 
 
@@ -8803,7 +17604,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                     } : it)
+
+
+
+
 
 
 
@@ -8811,11 +17620,23 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                 }
 
 
 
+
+
+
+
                               }}
+
+
+
+
 
 
 
@@ -8823,7 +17644,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                 fontSize: 10,
+
+
+
+
 
 
 
@@ -8831,7 +17660,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                 color: 'var(--ink)',
+
+
+
+
 
 
 
@@ -8839,7 +17676,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                 border: '1px solid var(--line)',
+
+
+
+
 
 
 
@@ -8847,7 +17692,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                 padding: '2px 4px',
+
+
+
+
 
 
 
@@ -8855,7 +17708,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                 cursor: 'pointer'
+
+
+
+
 
 
 
@@ -8863,7 +17724,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                             >
+
+
+
+
 
 
 
@@ -8871,7 +17740,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                 <option key={size} value={size}>{size}</option>
+
+
+
+
 
 
 
@@ -8879,7 +17756,19 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                             </select>
+
+
+
+
+
+
+
+
 
 
 
@@ -8891,7 +17780,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                               value={item.color}
+
+
+
+
 
 
 
@@ -8899,7 +17796,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                 const newColor = e.target.value;
+
+
+
+
 
 
 
@@ -8907,7 +17812,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                   (v: any) => v.size === item.size && v.color === newColor
+
+
+
+
 
 
 
@@ -8915,7 +17828,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                 
+
+
+
+
 
 
 
@@ -8923,7 +17844,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                   setFormData((prev: any) => ({
+
+
+
+
 
 
 
@@ -8931,7 +17860,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                     items: prev.items.map((it: any) => it.id === item.id ? {
+
+
+
+
 
 
 
@@ -8939,7 +17876,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                       size: matchingVariant.size,
+
+
+
+
 
 
 
@@ -8947,7 +17892,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                       variantId: matchingVariant.id
+
+
+
+
 
 
 
@@ -8955,7 +17908,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                   }));
+
+
+
+
 
 
 
@@ -8963,7 +17924,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                               }}
+
+
+
+
 
 
 
@@ -8971,7 +17940,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                 fontSize: 10,
+
+
+
+
 
 
 
@@ -8979,7 +17956,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                 color: 'var(--ink)',
+
+
+
+
 
 
 
@@ -8987,7 +17972,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                 border: '1px solid var(--line)',
+
+
+
+
 
 
 
@@ -8995,7 +17988,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                 padding: '2px 4px',
+
+
+
+
 
 
 
@@ -9003,7 +18004,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                 cursor: 'pointer'
+
+
+
+
 
 
 
@@ -9011,7 +18020,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                             >
+
+
+
+
 
 
 
@@ -9019,7 +18036,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                 <option key={color} value={color}>{color}</option>
+
+
+
+
 
 
 
@@ -9027,11 +18052,23 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                             </select>
 
 
 
+
+
+
+
                           </>
+
+
+
+
 
 
 
@@ -9039,7 +18076,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                           <>
+
+
+
+
 
 
 
@@ -9047,7 +18092,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                               <div style={{ display: 'flex', gap: 4 }}>
+
+
+
+
 
 
 
@@ -9055,7 +18108,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                   type="text"
+
+
+
+
 
 
 
@@ -9063,7 +18124,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                   value={item.size}
+
+
+
+
 
 
 
@@ -9071,7 +18140,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                     const val = e.target.value;
+
+
+
+
 
 
 
@@ -9079,7 +18156,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                       ...prev,
+
+
+
+
 
 
 
@@ -9087,7 +18172,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                     }));
+
+
+
+
 
 
 
@@ -9095,7 +18188,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                   style={{
+
+
+
+
 
 
 
@@ -9103,7 +18204,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                     fontSize: 10,
+
+
+
+
 
 
 
@@ -9111,7 +18220,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                     color: 'var(--ink)',
+
+
+
+
 
 
 
@@ -9119,7 +18236,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                     border: '1px solid var(--line)',
+
+
+
+
 
 
 
@@ -9127,7 +18252,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                     padding: '2px 4px',
+
+
+
+
 
 
 
@@ -9135,11 +18268,23 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                   }}
 
 
 
+
+
+
+
                                 />
+
+
+
+
 
 
 
@@ -9147,7 +18292,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                   type="text"
+
+
+
+
 
 
 
@@ -9155,7 +18308,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                   value={item.color}
+
+
+
+
 
 
 
@@ -9163,7 +18324,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                     const val = e.target.value;
+
+
+
+
 
 
 
@@ -9171,7 +18340,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                       ...prev,
+
+
+
+
 
 
 
@@ -9179,11 +18356,23 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                     }));
 
 
 
+
+
+
+
                                   }}
+
+
+
+
 
 
 
@@ -9191,7 +18380,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                     width: 60,
+
+
+
+
 
 
 
@@ -9199,7 +18396,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                     fontWeight: 700,
+
+
+
+
 
 
 
@@ -9207,7 +18412,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                     background: 'var(--cream)',
+
+
+
+
 
 
 
@@ -9215,7 +18428,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                     borderRadius: 6,
+
+
+
+
 
 
 
@@ -9223,7 +18444,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                     outline: 'none'
+
+
+
+
 
 
 
@@ -9231,7 +18460,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                 />
+
+
+
+
 
 
 
@@ -9239,7 +18476,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                             ) : (
+
+
+
+
 
 
 
@@ -9247,7 +18492,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                 <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--brown-soft)', background: 'var(--cream)', padding: '1px 6px', borderRadius: 4 }}>{item.size || 'Standard'}</span>
+
+
+
+
 
 
 
@@ -9255,7 +18508,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                             )}
+
+
+
+
 
 
 
@@ -9263,7 +18524,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                         );
+
+
+
+
 
 
 
@@ -9271,7 +18540,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                       {(!item.productId || !(products?.find((p: any) => p.id === item.productId) || catalogProducts?.find((p: any) => p.id === item.productId) || cartProductsDetails?.find((p: any) => p.id === item.productId))?.variants?.length) && !item.isCustom && (
+
+
+
+
 
 
 
@@ -9279,7 +18556,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                       )}
+
+
+
+
 
 
 
@@ -9287,7 +18572,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                         <span style={{ fontSize: 9, fontWeight: 800, color: 'white', background: 'var(--red)', padding: '1px 6px', borderRadius: 4, display: 'flex', alignItems: 'center', gap: 2 }}>
+
+
+
+
 
 
 
@@ -9295,7 +18588,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                         </span>
+
+
+
+
 
 
 
@@ -9303,7 +18604,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                     </div>
+
+
+
+
 
 
 
@@ -9311,7 +18620,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+
+
+
+
 
 
 
@@ -9319,7 +18636,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                           <input
+
+
+
+
 
 
 
@@ -9327,7 +18652,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                             value={item.price}
+
+
+
+
 
 
 
@@ -9335,7 +18668,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                             onChange={(e) => {
+
+
+
+
 
 
 
@@ -9343,7 +18684,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                               setFormData((prev: any) => ({
+
+
+
+
 
 
 
@@ -9351,7 +18700,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                                 items: prev.items.map((it: any) => it.id === item.id ? { ...it, price: newPrice } : it)
+
+
+
+
 
 
 
@@ -9359,7 +18716,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                             }}
+
+
+
+
 
 
 
@@ -9367,7 +18732,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                               width: 70,
+
+
+
+
 
 
 
@@ -9375,7 +18748,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                               fontWeight: 800,
+
+
+
+
 
 
 
@@ -9383,7 +18764,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                               background: item.isGift ? 'rgba(0,0,0,0.03)' : 'var(--cream)',
+
+
+
+
 
 
 
@@ -9391,7 +18780,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                               borderRadius: 6,
+
+
+
+
 
 
 
@@ -9399,7 +18796,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                               textAlign: 'right',
+
+
+
+
 
 
 
@@ -9407,7 +18812,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                               opacity: item.isGift ? 0.6 : 1,
+
+
+
+
 
 
 
@@ -9415,7 +18828,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                             }}
+
+
+
+
 
 
 
@@ -9423,7 +18844,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                           <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--orange)', opacity: item.isGift ? 0.6 : 1 }}>FCFA</span>
+
+
+
+
 
 
 
@@ -9431,7 +18860,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                         <button 
+
+
+
+
 
 
 
@@ -9439,11 +18876,23 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                           type="button"
 
 
 
+
+
+
+
                           style={{
+
+
+
+
 
 
 
@@ -9451,7 +18900,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                             fontWeight: 700,
+
+
+
+
 
 
 
@@ -9459,11 +18916,23 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                             background: item.isGift ? '#F2F2F7' : 'var(--orange-soft)',
 
 
 
+
+
+
+
                             border: 'none',
+
+
+
+
 
 
 
@@ -9471,7 +18940,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                             borderRadius: 6,
+
+
+
+
 
 
 
@@ -9479,11 +18956,23 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                             transition: 'all 0.15s ease'
 
 
 
+
+
+
+
                           }}
+
+
+
+
 
 
 
@@ -9491,7 +18980,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                           {item.isGift ? 'Cadeau ✓' : 'Offrir'}
+
+
+
+
 
 
 
@@ -9499,7 +18996,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                       </div>
+
+
+
+
 
 
 
@@ -9507,7 +19012,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                         <button onClick={() => updateItemQty(item.id, -1)} style={{ width: 22, height: 22, borderRadius: 4, background: 'white', border: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ink)' }}><Minus size={12} /></button>
+
+
+
+
 
 
 
@@ -9515,7 +19028,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                           type="number"
+
+
+
+
 
 
 
@@ -9523,7 +19044,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                           onChange={(e) => {
+
+
+
+
 
 
 
@@ -9531,7 +19060,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                             setFormData((prev: any) => ({
+
+
+
+
 
 
 
@@ -9539,7 +19076,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                               items: prev.items.map((it: any) => it.id === item.id ? { ...it, qty: newQty } : it)
+
+
+
+
 
 
 
@@ -9547,7 +19092,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                           }}
+
+
+
+
 
 
 
@@ -9555,7 +19108,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                             width: 28,
+
+
+
+
 
 
 
@@ -9563,7 +19124,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                             background: 'transparent',
+
+
+
+
 
 
 
@@ -9571,7 +19140,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                             fontSize: 11,
+
+
+
+
 
 
 
@@ -9579,7 +19156,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                             color: 'var(--ink)',
+
+
+
+
 
 
 
@@ -9587,7 +19172,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                             MozAppearance: 'textfield'
+
+
+
+
 
 
 
@@ -9595,7 +19188,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                         />
+
+
+
+
 
 
 
@@ -9603,7 +19204,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                       </div>
+
+
+
+
 
 
 
@@ -9611,7 +19220,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                   </div>
+
+
+
+
 
 
 
@@ -9619,7 +19236,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                     onClick={() => removeItem(item.id)}
+
+
+
+
 
 
 
@@ -9627,7 +19252,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                   >
+
+
+
+
 
 
 
@@ -9635,7 +19268,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                   </button>
+
+
+
+
 
 
 
@@ -9643,7 +19284,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               ))
+
+
+
+
 
 
 
@@ -9651,7 +19300,19 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
           </div>
+
+
+
+
+
+
+
+
 
 
 
@@ -9663,7 +19324,19 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
             <div style={{ position: 'absolute', top: -20, right: -20, width: 100, height: 100, background: 'rgba(255,255,255,0.03)', borderRadius: '50%' }}></div>
+
+
+
+
+
+
+
+
 
 
 
@@ -9675,7 +19348,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               <div>
+
+
+
+
 
 
 
@@ -9683,11 +19364,23 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 <div style={{ fontSize: 14, fontWeight: 700, color: 'white', fontFamily: 'var(--font-mono)', marginTop: 2 }}>{formatPrice(formData.items.reduce((sum, i) => sum + (i.price * i.qty), 0))}</div>
 
 
 
+
+
+
+
               </div>
+
+
+
+
 
 
 
@@ -9695,7 +19388,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 <button
+
+
+
+
 
 
 
@@ -9703,7 +19404,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                     setFormData(prev => ({ ...prev, total: 0 }));
+
+
+
+
 
 
 
@@ -9711,7 +19420,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                   }}
+
+
+
+
 
 
 
@@ -9719,7 +19436,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 >
+
+
+
+
 
 
 
@@ -9727,7 +19452,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 </button>
+
+
+
+
 
 
 
@@ -9735,7 +19468,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                   <button
+
+
+
+
 
 
 
@@ -9743,7 +19484,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                     style={{ height: 'fit-content', background: 'var(--orange)', color: 'white', border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 10, fontWeight: 800, cursor: 'pointer', textTransform: 'uppercase' }}
+
+
+
+
 
 
 
@@ -9751,7 +19500,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                     Auto-fix
+
+
+
+
 
 
 
@@ -9759,7 +19516,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 )}
+
+
+
+
 
 
 
@@ -9767,7 +19532,19 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
             </div>
+
+
+
+
+
+
+
+
 
 
 
@@ -9779,7 +19556,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
             <div style={{ position: 'relative' }}>
+
+
+
+
 
 
 
@@ -9787,7 +19572,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 type="number"
+
+
+
+
 
 
 
@@ -9795,7 +19588,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 value={formData.total}
+
+
+
+
 
 
 
@@ -9803,7 +19604,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                   setFormData({ ...formData, total: parseInt(e.target.value) || 0 });
+
+
+
+
 
 
 
@@ -9811,7 +19620,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 }}
+
+
+
+
 
 
 
@@ -9819,7 +19636,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                   fontWeight: 800, color: 'white', fontSize: 32, background: 'rgba(255,255,255,0.05)', border: '2px solid var(--orange)',
+
+
+
+
 
 
 
@@ -9827,7 +19652,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
                 }}
+
+
+
+
 
 
 
@@ -9835,7 +19668,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
               <div style={{ position: 'absolute', right: 20, top: '50%', transform: 'translateY(-50%)', fontSize: 14, fontWeight: 800, color: 'var(--orange)' }}>CFA</div>
+
+
+
+
 
 
 
@@ -9843,7 +19684,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
           </div>
+
+
+
+
 
 
 
@@ -9855,7 +19704,19 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
+
+
+
+
         {/* VARIANT SELECTOR MODAL */}
+
+
+
+
 
 
 
@@ -9863,7 +19724,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
           product={selectedProductForVariant}
+
+
+
+
 
 
 
@@ -9871,7 +19740,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
           onAdd={addItemWithVariant}
+
+
+
+
 
 
 
@@ -9879,7 +19756,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
           setSizeFilter={setSizeFilter}
+
+
+
+
 
 
 
@@ -9887,7 +19772,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
           setColorFilter={setColorFilter}
+
+
+
+
 
 
 
@@ -9895,7 +19788,15 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
           setSelectedVariant={setSelectedVariant}
+
+
+
+
 
 
 
@@ -9903,11 +19804,23 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
           setModalQty={setSelectedQty}
 
 
 
+
+
+
+
           setPreviewImage={onPreviewImage}
+
+
+
+
 
 
 
@@ -9919,7 +19832,19 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
+
+
+
+
       </div>
+
+
+
+
 
 
 
@@ -9927,11 +19852,23 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
 
 
+
+
+
+
   );
 
 
 
+
+
+
+
 }
+
+
+
+
 
 
 

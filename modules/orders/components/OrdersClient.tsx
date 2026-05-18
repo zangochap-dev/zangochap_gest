@@ -6,7 +6,7 @@ import { TableCard, StatusBadge, EmptyState, DetailCard, ItemLine, InfoBanner, S
 import Modal from "@/components/Modal";
 import { useToast } from "@/components/Toast";
 import { updateOrderStatus, duplicateOrder, deleteOrder, createOrder, addOrderHistoryEntry, updateOrderDetails, assignOrderToDeliveryman, reprogramOrder } from "@/modules/orders/actions";
-import { formatPrice, formatDay, formatDate, CATEGORIES, COMMUNES, STATUS_LABELS } from "@/lib/constants";
+import { formatPrice, formatDay, formatDate, CATEGORIES, COMMUNES, STATUS_LABELS, DELIVERY_FEES } from "@/lib/constants";
 import { getImageUrl } from "@/lib/utils";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, Eye, Package, Trash2, Minus, Search, X, ChevronLeft, ChevronRight, RefreshCw, Copy, Edit3, Maximize, AlertTriangle, Phone, Save, Edit2, Download, MessageCircle, Printer, Truck, Check, ArrowLeftRight, Ban, Users, Calendar, CreditCard } from "lucide-react";
@@ -1909,20 +1909,52 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
 
             <div className="form-row">
               <label className="field-label-sm">NOM DU CLIENT</label>
-              <input className="field-input" value={formData.customerName} readOnly style={{ background: 'var(--cream-2)', borderRadius: 8, cursor: 'not-allowed', color: 'var(--brown-soft)' }} />
+              <input
+                className="field-input"
+                value={formData.customerName}
+                onChange={e => setFormData({ ...formData, customerName: e.target.value })}
+                style={{ background: 'var(--cream)', borderRadius: 8 }}
+              />
             </div>
 
             <div className="form-row">
               <label className="field-label-sm">NUMÉRO DE TÉLÉPHONE</label>
               <div style={{ position: 'relative' }}>
                 <Phone size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--brown-soft)' }} />
-                <input className="field-input" value={formData.customerPhone} readOnly style={{ paddingLeft: 36, background: 'var(--cream-2)', borderRadius: 8, cursor: 'not-allowed', color: 'var(--brown-soft)' }} />
+                <input
+                  className="field-input"
+                  value={formData.customerPhone}
+                  onChange={e => setFormData({ ...formData, customerPhone: e.target.value })}
+                  style={{ paddingLeft: 36, background: 'var(--cream)', borderRadius: 8 }}
+                />
+              </div>
+            </div>
+
+            <div className="form-row">
+              <label className="field-label-sm">TÉLÉPHONE 2 (OPTIONNEL)</label>
+              <div style={{ position: 'relative' }}>
+                <Phone size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--brown-soft)' }} />
+                <input
+                  className="field-input"
+                  value={formData.customerPhone2}
+                  onChange={e => setFormData({ ...formData, customerPhone2: e.target.value })}
+                  style={{ paddingLeft: 36, background: 'var(--cream)', borderRadius: 8 }}
+                />
               </div>
             </div>
 
             <div className="form-row">
               <label className="field-label-sm">ZONE DE LIVRAISON</label>
-              <select className="field-input" value={formData.commune} disabled style={{ background: 'var(--cream-2)', borderRadius: 8, cursor: 'not-allowed', color: 'var(--brown-soft)' }}>
+              <select
+                className="field-input"
+                value={formData.commune}
+                onChange={e => {
+                  const newCommune = e.target.value;
+                  const newFee = DELIVERY_FEES[newCommune] || 0;
+                  setFormData(prev => ({ ...prev, commune: newCommune, deliveryFee: newFee }));
+                }}
+                style={{ background: 'var(--cream)', borderRadius: 8, fontWeight: 700 }}
+              >
                 {Object.keys(COMMUNES).map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
@@ -1948,8 +1980,8 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
               <textarea
                 className="field-input"
                 value={formData.customerLocation}
-                readOnly
-                style={{ minHeight: 80, background: 'var(--cream-2)', borderRadius: 8, fontSize: 13, cursor: 'not-allowed', color: 'var(--brown-soft)' }}
+                onChange={e => setFormData({ ...formData, customerLocation: e.target.value })}
+                style={{ minHeight: 80, background: 'var(--cream)', borderRadius: 8, fontSize: 13 }}
                 placeholder="Ex: Riviera Palmeraie, Rue I52..."
               />
             </div>

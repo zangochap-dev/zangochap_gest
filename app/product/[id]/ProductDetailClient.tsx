@@ -24,13 +24,13 @@ export default function ProductDetailClient({ product }: { product: any }) {
   const availableColorsForSize = useMemo(() => {
     if (!selectedSize) return [];
     return product.variants
-      .filter((v: any) => v.size === selectedSize && v.stock > 0)
+      .filter((v: any) => v.size === selectedSize)
       .map((v: any) => v.color);
   }, [product.variants, selectedSize]);
 
   // Check if a size has ANY available color
   const isSizeAvailable = (size: string) => {
-    return product.variants.some((v: any) => v.size === size && v.stock > 0);
+    return product.variants.some((v: any) => v.size === size);
   };
 
   const currentVariant = useMemo(() => {
@@ -44,14 +44,6 @@ export default function ProductDetailClient({ product }: { product: any }) {
       return;
     }
     if (!currentVariant) return;
-    if (currentVariant.stock <= 0) {
-      showToast("Ce produit est en rupture de stock", "error");
-      return;
-    }
-    if (qty > currentVariant.stock) {
-      showToast(`Seulement ${currentVariant.stock} disponible(s) pour cette variante`, "error");
-      return;
-    }
 
     addToCart({
       productId: product.id,
@@ -188,17 +180,15 @@ export default function ProductDetailClient({ product }: { product: any }) {
               <div className="flex items-center border border-[#e0e0e0] h-[52px]">
                 <button className="w-11 h-full flex items-center justify-center text-[#1A1614] transition-colors hover:bg-[#f5f5f5]" onClick={() => setQty(Math.max(1, qty - 1))} aria-label="Moins"><Minus size={16} /></button>
                 <span className="w-9 text-center font-semibold text-[15px] border-x border-[#e0e0e0] h-full flex items-center justify-center">{qty}</span>
-                <button className="w-11 h-full flex items-center justify-center text-[#1A1614] transition-colors hover:bg-[#f5f5f5]" onClick={() => setQty(Math.min(currentVariant?.stock || 99, qty + 1))} aria-label="Plus"><Plus size={16} /></button>
+                <button className="w-11 h-full flex-shrink-0 flex items-center justify-center text-[#1A1614] transition-colors hover:bg-[#f5f5f5]" onClick={() => setQty(qty + 1)} aria-label="Plus"><Plus size={16} /></button>
               </div>
               <button 
                 className={`flex-1 h-[52px] text-white text-[12px] font-semibold tracking-[0.15em] flex items-center justify-center gap-2.5 transition-all duration-350 ease-out active:scale-95 ${added ? 'bg-[#2D8A4E]' : 'bg-[#1A1614] hover:bg-[#333] hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0'}`} 
                 onClick={handleAddToCart} 
-                disabled={!currentVariant || currentVariant.stock <= 0}
+                disabled={!currentVariant}
               >
                 {added ? (
                   <><Check size={18} /> AJOUTÉ</>
-                ) : currentVariant && currentVariant.stock <= 0 ? (
-                  <>RUPTURE DE STOCK</>
                 ) : (
                   <><ShoppingBag size={18} /> AJOUTER AU PANIER</>
                 )}

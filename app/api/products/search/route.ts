@@ -14,20 +14,36 @@ export async function GET(req: NextRequest) {
     const q = req.nextUrl.searchParams.get("q") || "";
     const page = parseInt(req.nextUrl.searchParams.get("page") || "1");
     const category = req.nextUrl.searchParams.get("category") || "";
+    const ids = req.nextUrl.searchParams.get("ids") || "";
+    const allStatus = req.nextUrl.searchParams.get("allStatus") === "true";
 
-    const where: any = {
-      status: { not: 'DRAFT' }
-    };
-
-    if (q) {
-      where.OR = [
-        { name: { contains: q, mode: 'insensitive' } },
-        { category: { name: { contains: q, mode: 'insensitive' } } },
-      ];
+    const where: any = {};
+    if (!allStatus) {
+      where.status = { not: 'DRAFT' };
     }
 
-    if (category) {
-      where.categoryId = category;
+    if (ids) {
+      where.id = { in: ids.split(",").filter(Boolean) };
+    } else {
+      if (q) {
+        const terms = q.trim().split(/\s+/).filter(Boolean);
+        if (terms.length > 0) {
+          where.AND = terms.map(term => ({
+            OR: [
+              { name: { contains: term, mode: 'insensitive' } },
+              { ref: { contains: term, mode: 'insensitive' } },
+              { category: { name: { contains: term, mode: 'insensitive' } } },
+              { supplier: { name: { contains: term, mode: 'insensitive' } } },
+              { variants: { some: { size: { contains: term, mode: 'insensitive' } } } },
+              { variants: { some: { color: { contains: term, mode: 'insensitive' } } } }
+            ]
+          }));
+        }
+      }
+
+      if (category) {
+        where.categoryId = category;
+      }
     }
 
     const [products, total, categoryList] = await Promise.all([
@@ -46,12 +62,12 @@ export async function GET(req: NextRequest) {
           variants: { select: { id: true, size: true, color: true, stock: true } },
         },
         orderBy: { name: 'asc' },
-        take: PAGE_SIZE,
-        skip: (page - 1) * PAGE_SIZE,
+        take: ids ? undefined : PAGE_SIZE,
+        skip: ids ? undefined : (page - 1) * PAGE_SIZE,
       }),
-      prisma.product.count({ where }),
+      ids ? prisma.product.count({ where }) : prisma.product.count({ where }),
       prisma.category.findMany({
-        where: { products: { some: { status: { not: 'DRAFT' } } } },
+        where: allStatus ? undefined : { products: { some: { status: { not: 'DRAFT' } } } },
         select: { id: true, name: true },
         orderBy: { name: 'asc' },
       }),
@@ -66,7 +82,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       products: JSON.parse(JSON.stringify(enrichedProducts)),
       total,
-      totalPages: Math.ceil(total / PAGE_SIZE),
+      totalPages: ids ? 1 : Math.ceil(total / PAGE_SIZE),
       page,
       categories: categoryList.map(c => ({ id: c.id, name: c.name })),
     });

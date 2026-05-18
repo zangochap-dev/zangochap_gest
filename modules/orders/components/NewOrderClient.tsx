@@ -430,7 +430,7 @@ export default function NewOrderClient({ products, user, categories }: NewOrderC
     }
     setItems(newItems);
   };
-  
+
   const toggleGift = (index: number) => {
     const newItems = [...items];
     const item = newItems[index];
@@ -537,11 +537,11 @@ Ne passez pas à côté de cette belle surprise !`;
 
         const order = res.order;
         showToast(`Commande ${order.ref} créée`, 'success');
-        
+
         // Close all modals
         setShowCheckout(false);
         setShowCustomItem(false);
-        
+
         // Clear persistence
         localStorage.removeItem('pos_cart_items');
         localStorage.removeItem('pos_cart_customer');
@@ -761,7 +761,7 @@ Ne passez pas à côté de cette belle surprise !`;
                         {item.isGift && (
                           <div style={{ background: 'var(--orange)', color: 'white', fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 10, textTransform: 'uppercase' }}>Cadeau</div>
                         )}
-                        <button 
+                        <button
                           onClick={() => toggleGift(idx)}
                           style={{
                             fontSize: 9,
@@ -1063,7 +1063,7 @@ Ne passez pas à côté de cette belle surprise !`;
               <div style={{ fontSize: 11, color: customImage ? 'var(--green)' : 'var(--red)', fontWeight: 700, marginBottom: 8 }}>
                 Obligatoire pour les articles personnalisés.
               </div>
-              
+
               <div style={{ display: 'flex', gap: 12 }}>
                 <div
                   onClick={() => document.getElementById('customImageInput')?.click()}
@@ -1127,14 +1127,14 @@ Ne passez pas à côté de cette belle surprise !`;
         >
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 10, maxHeight: '60vh', overflowY: 'auto', padding: 4 }}>
             {galleryImages.map((url, idx) => (
-              <div 
-                key={idx} 
+              <div
+                key={idx}
                 onClick={() => { setCustomImage(url); setShowGallery(false); }}
-                style={{ 
-                  aspectRatio: '1', 
-                  borderRadius: 8, 
-                  overflow: 'hidden', 
-                  cursor: 'pointer', 
+                style={{
+                  aspectRatio: '1',
+                  borderRadius: 8,
+                  overflow: 'hidden',
+                  cursor: 'pointer',
                   border: customImage === url ? '3px solid var(--orange)' : '1px solid var(--line)',
                   position: 'relative'
                 }}

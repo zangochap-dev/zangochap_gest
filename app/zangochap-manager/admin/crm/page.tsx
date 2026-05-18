@@ -6,19 +6,14 @@ import Topbar from "@/components/Topbar";
 export const dynamic = "force-dynamic";
 
 export default async function CRMPage() {
-  // Yesterday boundaries
-  const now = new Date();
-  const yesterdayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0);
-  const yesterdayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59, 999);
-
-  const [customers, yesterdayOrders] = await Promise.all([
+  const [customers, buyerOrders] = await Promise.all([
     prisma.customer.findMany({
       orderBy: { lastOrderAt: 'desc' },
     }),
     prisma.order.findMany({
       where: {
-        createdAt: { gte: yesterdayStart, lte: yesterdayEnd },
-        status: { notIn: ['CANCELLED', 'TO_PROCESS'] as any },
+        deletedAt: null,
+        status: { not: 'CANCELLED' as any },
       },
       select: {
         id: true,
@@ -37,6 +32,7 @@ export default async function CRMPage() {
         items: { select: { name: true, qty: true, price: true, size: true, color: true } },
       },
       orderBy: { createdAt: 'desc' },
+      take: 5000,
     }),
   ]);
 
@@ -45,7 +41,7 @@ export default async function CRMPage() {
       <Topbar title="Gestion" subtitle="Clients (CRM)" />
       <CRMClient
         initialCustomers={JSON.parse(JSON.stringify(customers))}
-        yesterdayBuyers={JSON.parse(JSON.stringify(yesterdayOrders))}
+        buyerOrders={JSON.parse(JSON.stringify(buyerOrders))}
       />
     </>
   );

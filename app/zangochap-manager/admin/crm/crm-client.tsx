@@ -15,15 +15,58 @@ import { useRouter } from "next/navigation";
 interface CRMClientProps {
   initialCustomers: any[];
   yesterdayBuyers?: any[];
+  buyerOrders?: any[];
 }
 
 type SortKey = 'name' | 'totalOrders' | 'totalSpent' | 'lastOrderAt' | 'commune';
 type SortDir = 'asc' | 'desc';
+type DatePreset = 'today' | 'yesterday' | 'week' | 'month' | 'custom' | 'all';
 const PAGE_SIZE = 25;
 
-export default function CRMClient({ initialCustomers, yesterdayBuyers = [] }: CRMClientProps) {
+function toLocalDateInputValue(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function getPresetRange(preset: DatePreset) {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const endToday = new Date(today);
+  endToday.setHours(23, 59, 59, 999);
+
+  if (preset === 'all') return { from: '', to: '' };
+  if (preset === 'yesterday') {
+    const y = new Date(today);
+    y.setDate(y.getDate() - 1);
+    return { from: toLocalDateInputValue(y), to: toLocalDateInputValue(y) };
+  }
+  if (preset === 'week') {
+    const w = new Date(today);
+    w.setDate(w.getDate() - 6);
+    return { from: toLocalDateInputValue(w), to: toLocalDateInputValue(endToday) };
+  }
+  if (preset === 'month') {
+    const m = new Date(today.getFullYear(), today.getMonth(), 1);
+    return { from: toLocalDateInputValue(m), to: toLocalDateInputValue(endToday) };
+  }
+  return { from: toLocalDateInputValue(today), to: toLocalDateInputValue(endToday) };
+}
+
+function isWithinRange(value: string | Date | null | undefined, from: string, to: string) {
+  if (!from && !to) return true;
+  if (!value) return false;
+  const ts = new Date(value).getTime();
+  if (from && ts < new Date(`${from}T00:00:00`).getTime()) return false;
+  if (to && ts > new Date(`${to}T23:59:59.999`).getTime()) return false;
+  return true;
+}
+
+export default function CRMClient({ initialCustomers, yesterdayBuyers = [], buyerOrders }: CRMClientProps) {
+  const allBuyerOrders = buyerOrders || yesterdayBuyers;
   const [search, setSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<'clients' | 'yesterday'>('clients');
+  const [activeTab, setActiveTab] = useState<'clients' | 'orders'>('clients');
   const [isPending, startTransition] = useTransition();
   const { showToast } = useToast();
   const router = useRouter();
@@ -36,6 +79,10 @@ export default function CRMClient({ initialCustomers, yesterdayBuyers = [] }: CR
   const [communeFilter, setCommuneFilter] = useState('all');
   const [ordersMin, setOrdersMin] = useState('');
   const [spentMin, setSpentMin] = useState('');
+  const todayRange = getPresetRange('today');
+  const [datePreset, setDatePreset] = useState<DatePreset>('today');
+  const [dateFrom, setDateFrom] = useState(todayRange.from);
+  const [dateTo, setDateTo] = useState(todayRange.to);
 
   // ── Pagination ──
   const [clientPage, setClientPage] = useState(1);
@@ -45,12 +92,31 @@ export default function CRMClient({ initialCustomers, yesterdayBuyers = [] }: CR
   const resetClientPage = () => setClientPage(1);
   const resetYesterdayPage = () => setYesterdayPage(1);
 
+  const applyDatePreset = (preset: DatePreset) => {
+    setDatePreset(preset);
+    if (preset !== 'custom') {
+      const range = getPresetRange(preset);
+      setDateFrom(range.from);
+      setDateTo(range.to);
+    }
+    resetClientPage();
+    resetYesterdayPage();
+  };
+
   // ── Communes list (derived) ──
   const communes = useMemo(() => {
     const set = new Set<string>();
     initialCustomers.forEach(c => { if (c.commune) set.add(c.commune); });
     return Array.from(set).sort();
   }, [initialCustomers]);
+
+  const ordersInSelectedRange = useMemo(() => {
+    return allBuyerOrders.filter((order: any) => isWithinRange(order.createdAt, dateFrom, dateTo));
+  }, [allBuyerOrders, dateFrom, dateTo]);
+
+  const orderedCustomerPhones = useMemo(() => {
+    return new Set(ordersInSelectedRange.map((order: any) => order.customerPhone).filter(Boolean));
+  }, [ordersInSelectedRange]);
 
   // ── Toggle sort ──
   const toggleSort = (key: SortKey) => {
@@ -71,7 +137,7 @@ export default function CRMClient({ initialCustomers, yesterdayBuyers = [] }: CR
   };
 
   // ── Filter + Sort + Paginate clients ──
-  const { paginatedClients, totalFilteredClients } = useMemo(() => {
+  const { paginatedClients, totalFilteredClients, allFilteredClients } = useMemo(() => {
     let result = [...initialCustomers];
 
     // Search
@@ -87,6 +153,11 @@ export default function CRMClient({ initialCustomers, yesterdayBuyers = [] }: CR
     // Commune filter
     if (communeFilter !== 'all') {
       result = result.filter(c => c.commune === communeFilter);
+    }
+
+    // Purchase date filter
+    if (datePreset !== 'all') {
+      result = result.filter(c => orderedCustomerPhones.has(c.phone));
     }
 
     // Min orders
@@ -116,14 +187,18 @@ export default function CRMClient({ initialCustomers, yesterdayBuyers = [] }: CR
 
     const total = result.length;
     const start = (clientPage - 1) * PAGE_SIZE;
-    return { paginatedClients: result.slice(start, start + PAGE_SIZE), totalFilteredClients: total };
-  }, [initialCustomers, search, communeFilter, ordersMin, spentMin, sortKey, sortDir, clientPage]);
+    return {
+      paginatedClients: result.slice(start, start + PAGE_SIZE),
+      totalFilteredClients: total,
+      allFilteredClients: result,
+    };
+  }, [initialCustomers, search, communeFilter, datePreset, orderedCustomerPhones, ordersMin, spentMin, sortKey, sortDir, clientPage]);
 
   const clientTotalPages = Math.ceil(totalFilteredClients / PAGE_SIZE);
 
-  // ── Yesterday filtering + pagination ──
+  // ── Orders filtering + pagination ──
   const { paginatedYesterday, totalFilteredYesterday, allFilteredYesterday } = useMemo(() => {
-    let result = [...yesterdayBuyers];
+    let result = [...ordersInSelectedRange];
     if (search) {
       const q = search.toLowerCase();
       result = result.filter(o =>
@@ -140,7 +215,7 @@ export default function CRMClient({ initialCustomers, yesterdayBuyers = [] }: CR
       totalFilteredYesterday: total,
       allFilteredYesterday: result
     };
-  }, [yesterdayBuyers, search, yesterdayPage]);
+  }, [ordersInSelectedRange, search, yesterdayPage]);
 
   const yesterdayTotalPages = Math.ceil(totalFilteredYesterday / PAGE_SIZE);
 
@@ -174,35 +249,23 @@ export default function CRMClient({ initialCustomers, yesterdayBuyers = [] }: CR
         o.status, o.commercialName || '', time,
       ].join(';');
     });
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
     const csvContent = '\uFEFF' + headers.join(';') + '\n' + rows.join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `achats_${yesterday.toISOString().split('T')[0]}.csv`;
+    link.download = `achats_${dateFrom || 'debut'}_${dateTo || 'fin'}.csv`;
     link.click();
     URL.revokeObjectURL(url);
     showToast(`${allFilteredYesterday.length} lignes exportées ✓`, 'success');
-  }, [allFilteredYesterday, showToast]);
+  }, [allFilteredYesterday, dateFrom, dateTo, showToast]);
 
-  // ── Export CRM Clients ──
+  // Export CRM Clients
   const exportClients = useCallback(() => {
-    // Export ALL filtered (not just current page)
-    let result = [...initialCustomers];
-    if (search) {
-      const q = search.toLowerCase();
-      result = result.filter(c => c.name.toLowerCase().includes(q) || c.phone.includes(q) || c.commune?.toLowerCase().includes(q));
-    }
-    if (communeFilter !== 'all') result = result.filter(c => c.commune === communeFilter);
-    if (ordersMin) { const min = parseInt(ordersMin); if (!isNaN(min)) result = result.filter(c => c.totalOrders >= min); }
-    if (spentMin) { const min = parseInt(spentMin); if (!isNaN(min)) result = result.filter(c => c.totalSpent >= min); }
+    if (allFilteredClients.length === 0) { showToast('Aucun client a exporter', 'error'); return; }
 
-    if (result.length === 0) { showToast('Aucun client à exporter', 'error'); return; }
-
-    const headers = ['Nom', 'Téléphone', 'Téléphone 2', 'Commune', 'Adresse', 'Commandes', 'Total Dépensé', 'Dernier Achat'];
-    const rows = result.map(c => [
+    const headers = ['Nom', 'Telephone', 'Telephone 2', 'Commune', 'Adresse', 'Commandes', 'Total Depense', 'Dernier Achat'];
+    const rows = allFilteredClients.map(c => [
       `"${c.name}"`, c.phone, c.phone2 || '', c.commune || '',
       `"${(c.location || '').replace(/"/g, '""')}"`,
       c.totalOrders, c.totalSpent,
@@ -217,14 +280,14 @@ export default function CRMClient({ initialCustomers, yesterdayBuyers = [] }: CR
     link.download = `clients_crm_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-    showToast(`${result.length} clients exportés ✓`, 'success');
-  }, [initialCustomers, search, communeFilter, ordersMin, spentMin, showToast]);
+    showToast(`${allFilteredClients.length} clients exportes`, 'success');
+  }, [allFilteredClients, showToast]);
 
   const totalRevenue = initialCustomers.reduce((sum, c) => sum + c.totalSpent, 0);
   const avgSpent = initialCustomers.length ? Math.round(totalRevenue / initialCustomers.length) : 0;
-  const yesterdayTotal = yesterdayBuyers.reduce((sum, o) => sum + o.total, 0);
+  const selectedOrdersTotal = ordersInSelectedRange.reduce((sum: number, o: any) => sum + Number(o.total || 0), 0);
 
-  const hasActiveFilters = communeFilter !== 'all' || ordersMin || spentMin;
+  const hasActiveFilters = communeFilter !== 'all' || datePreset !== 'today' || ordersMin || spentMin;
 
   // ── Pagination Component ──
   const Pagination = ({ page, totalPages, setPage }: { page: number; totalPages: number; setPage: (p: number) => void }) => {
@@ -259,7 +322,7 @@ export default function CRMClient({ initialCustomers, yesterdayBuyers = [] }: CR
         <StatCard label="Total Clients" value={initialCustomers.length} />
         <StatCard label="Chiffre d'Affaires" value={formatPrice(totalRevenue)} color="var(--orange)" />
         <StatCard label="Panier Moyen" value={formatPrice(avgSpent)} />
-        <StatCard label="Achats d'hier" value={`${yesterdayBuyers.length} cmd · ${formatPrice(yesterdayTotal)}`} color="var(--green)" />
+        <StatCard label="Achats période" value={`${ordersInSelectedRange.length} cmd · ${formatPrice(selectedOrdersTotal)}`} color="var(--green)" />
       </div>
 
       {/* TABS */}
@@ -267,8 +330,8 @@ export default function CRMClient({ initialCustomers, yesterdayBuyers = [] }: CR
         <button onClick={() => { setActiveTab('clients'); resetClientPage(); }} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer', background: activeTab === 'clients' ? 'white' : 'transparent', color: activeTab === 'clients' ? 'var(--ink)' : 'var(--brown-soft)', boxShadow: activeTab === 'clients' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none', transition: 'all 0.2s' }}>
           <UserIcon size={14} style={{ marginRight: 6, verticalAlign: -2 }} />Annuaire ({initialCustomers.length})
         </button>
-        <button onClick={() => { setActiveTab('yesterday'); resetYesterdayPage(); }} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer', background: activeTab === 'yesterday' ? 'white' : 'transparent', color: activeTab === 'yesterday' ? 'var(--orange)' : 'var(--brown-soft)', boxShadow: activeTab === 'yesterday' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none', transition: 'all 0.2s' }}>
-          <Calendar size={14} style={{ marginRight: 6, verticalAlign: -2 }} />Achats d'hier ({yesterdayBuyers.length})
+        <button onClick={() => { setActiveTab('orders'); resetYesterdayPage(); }} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer', background: activeTab === 'orders' ? 'white' : 'transparent', color: activeTab === 'orders' ? 'var(--orange)' : 'var(--brown-soft)', boxShadow: activeTab === 'orders' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none', transition: 'all 0.2s' }}>
+          <Calendar size={14} style={{ marginRight: 6, verticalAlign: -2 }} />Achats ({ordersInSelectedRange.length})
         </button>
       </div>
 
@@ -289,11 +352,60 @@ export default function CRMClient({ initialCustomers, yesterdayBuyers = [] }: CR
             <Download size={14} /> Export Clients
           </button>
         )}
-        {activeTab === 'yesterday' && (
+        {activeTab === 'orders' && (
           <button className="btn-orange" onClick={exportToExcel} style={{ height: 44, padding: '0 16px', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', fontSize: 12 }}>
             <Download size={14} /> Export Excel
           </button>
         )}
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '12px 0 14px', flexWrap: 'wrap' }}>
+        {[
+          { value: 'today', label: "Aujourd'hui" },
+          { value: 'yesterday', label: 'Hier' },
+          { value: 'week', label: '7 jours' },
+          { value: 'month', label: 'Ce mois' },
+          { value: 'custom', label: 'Personnalisé' },
+          { value: 'all', label: 'Tout' },
+        ].map(option => (
+          <button
+            key={option.value}
+            onClick={() => applyDatePreset(option.value as DatePreset)}
+            style={{
+              height: 34,
+              padding: '0 12px',
+              borderRadius: 8,
+              border: datePreset === option.value ? '1.5px solid var(--orange)' : '1px solid var(--line)',
+              background: datePreset === option.value ? 'var(--orange-soft)' : 'white',
+              color: datePreset === option.value ? 'var(--orange)' : 'var(--ink)',
+              fontSize: 12,
+              fontWeight: 800,
+              cursor: 'pointer',
+            }}
+          >
+            {option.label}
+          </button>
+        ))}
+
+        {datePreset === 'custom' && (
+          <>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={e => { setDateFrom(e.target.value); resetClientPage(); resetYesterdayPage(); }}
+              style={{ height: 34, borderRadius: 8, border: '1px solid var(--line)', padding: '0 10px', fontSize: 12, fontWeight: 700 }}
+            />
+            <input
+              type="date"
+              value={dateTo}
+              onChange={e => { setDateTo(e.target.value); resetClientPage(); resetYesterdayPage(); }}
+              style={{ height: 34, borderRadius: 8, border: '1px solid var(--line)', padding: '0 10px', fontSize: 12, fontWeight: 700 }}
+            />
+          </>
+        )}
+        <span style={{ marginLeft: 'auto', fontSize: 12, color: '#8E8E93', fontWeight: 700 }}>
+          {ordersInSelectedRange.length} commande(s)
+        </span>
       </div>
 
       {/* ADVANCED FILTERS (clients tab only) */}
@@ -324,7 +436,7 @@ export default function CRMClient({ initialCustomers, yesterdayBuyers = [] }: CR
 
           {hasActiveFilters && (
             <button
-              onClick={() => { setCommuneFilter('all'); setOrdersMin(''); setSpentMin(''); resetClientPage(); }}
+              onClick={() => { setCommuneFilter('all'); setOrdersMin(''); setSpentMin(''); applyDatePreset('today'); resetClientPage(); }}
               style={{ height: 36, padding: '0 12px', borderRadius: 8, border: '1px solid var(--line)', background: 'white', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, color: '#FF3B30' }}
             >
               <X size={12} /> Réinitialiser
@@ -413,15 +525,15 @@ export default function CRMClient({ initialCustomers, yesterdayBuyers = [] }: CR
         </>
       )}
 
-      {/* ──────── TAB: ACHATS D'HIER ──────── */}
-      {activeTab === 'yesterday' && (
+      {/* ──────── TAB: ACHATS PAR PERIODE ──────── */}
+      {activeTab === 'orders' && (
         <>
           <TableCard
-            title="Clients ayant acheté hier"
+            title="Clients ayant commandé"
             meta={`Page ${yesterdayPage}/${yesterdayTotalPages || 1} · ${totalFilteredYesterday} commande(s) · ${formatPrice(allFilteredYesterday.reduce((s: number, o: any) => s + o.total, 0))} CA`}
           >
             {paginatedYesterday.length === 0 ? (
-              <EmptyState icon="📅" title="Aucun achat hier" description="Aucune commande n'a été enregistrée hier." />
+              <EmptyState icon="Calendrier" title="Aucun achat" description="Aucune commande sur cette période." />
             ) : (
               <table>
                 <thead>

@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = 'force-dynamic';
@@ -15,7 +16,7 @@ export async function GET(req: NextRequest) {
   const endOfDay = new Date(date);
   endOfDay.setHours(23, 59, 59, 999);
 
-  let dateFilter: any;
+  let dateFilter: Prisma.OrderWhereInput;
   if (type === 'created') {
     dateFilter = { createdAt: { gte: startOfDay, lte: endOfDay } };
   } else {
@@ -53,7 +54,11 @@ export async function GET(req: NextRequest) {
         }
       } 
     },
-    orderBy: { commune: 'asc' },
+    orderBy: [
+      { commune: 'asc' },
+      { createdAt: 'asc' },
+      { id: 'asc' },
+    ],
   });
 
   return NextResponse.json(orders);

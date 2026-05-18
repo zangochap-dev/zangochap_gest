@@ -4,22 +4,43 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/Toast";
 import { toggleItemVerification } from "@/modules/logistics/verification/actions";
 import type { OrderWithItems } from "./types";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 const QUERY_KEY = "delivery-sheet";
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
 
 export function useVerificationData(date: string) {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const [verifyingOrderId, setVerifyingOrderId] = useState<string | null>(null);
   const [verifyingItemIds, setVerifyingItemIds] = useState<Set<string>>(new Set());
+  const orderSequenceRef = useRef<Map<string, number>>(new Map());
+  const sequenceDateRef = useRef(date);
 
   const { data: orders = [], isLoading } = useQuery<OrderWithItems[]>({
     queryKey: [QUERY_KEY, date],
     queryFn: async () => {
       const res = await fetch(`/api/delivery-sheet?date=${date}&type=created`);
       if (!res.ok) throw new Error("Erreur lors du chargement des données");
-      return res.json();
+      const nextOrders: OrderWithItems[] = await res.json();
+
+      if (sequenceDateRef.current !== date) {
+        sequenceDateRef.current = date;
+        orderSequenceRef.current.clear();
+      }
+
+      nextOrders.forEach(order => {
+        if (!orderSequenceRef.current.has(order.id)) {
+          orderSequenceRef.current.set(order.id, orderSequenceRef.current.size);
+        }
+      });
+
+      return [...nextOrders].sort(
+        (a, b) => (orderSequenceRef.current.get(a.id) ?? 0) - (orderSequenceRef.current.get(b.id) ?? 0)
+      );
     },
     refetchInterval: 3000,
     refetchOnWindowFocus: true,
@@ -43,9 +64,9 @@ export function useVerificationData(date: string) {
       await toggleItemVerification(itemId, !currentStatus);
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, date] });
       showToast(!currentStatus ? "Article vérifié ✓" : "Vérification annulée", "success");
-    } catch (e: any) {
+    } catch (e: unknown) {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, date] });
-      showToast(e.message || "Erreur lors de la vérification", "error");
+      showToast(getErrorMessage(e, "Erreur lors de la vérification"), "error");
     } finally {
       setVerifyingItemIds(prev => {
         const next = new Set(prev);
@@ -84,9 +105,9 @@ export function useVerificationData(date: string) {
         `Commande ${order.ref} : tous les articles marqués comme ${targetStatus ? "vérifiés ✓" : "non vérifiés"}`,
         "success"
       );
-    } catch (e: any) {
+    } catch (e: unknown) {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, date] });
-      showToast(e.message || "Erreur lors de la vérification de la commande", "error");
+      showToast(getErrorMessage(e, "Erreur lors de la vérification de la commande"), "error");
     } finally {
       setVerifyingOrderId(null);
       setVerifyingItemIds(prev => {

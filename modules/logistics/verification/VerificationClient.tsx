@@ -33,9 +33,11 @@ export default function VerificationClient() {
   };
 
   // ── Filters ──
+  const visibleOrders = useMemo(() => orders.filter(order => (order.items?.length || 0) > 0), [orders]);
+
   const filteredOrders = useMemo(() => {
     const q = search.toLowerCase();
-    return orders.filter(order => {
+    return visibleOrders.filter(order => {
       const matchesSearch =
         !q ||
         (order.ref || "").toLowerCase().includes(q) ||
@@ -53,14 +55,21 @@ export default function VerificationClient() {
 
       return matchesSearch && matchesStatus && matchesVerification;
     });
-  }, [orders, search, orderStatusFilter, verificationFilter]);
+  }, [visibleOrders, search, orderStatusFilter, verificationFilter]);
 
   // ── Stats ──
-  const totalOrders = orders.length;
-  const totalItems = useMemo(() => orders.reduce((s, o) => s + (o.items?.length || 0), 0), [orders]);
+  const totalOrders = visibleOrders.length;
+  const totalItems = useMemo(
+    () => visibleOrders.reduce((s, o) => s + (o.items?.reduce((itemSum, item) => itemSum + (item.qty || 0), 0) || 0), 0),
+    [visibleOrders]
+  );
   const checkedItemsCount = useMemo(
-    () => orders.reduce((s, o) => s + (o.items?.filter(i => i.isVerified).length || 0), 0),
-    [orders]
+    () =>
+      visibleOrders.reduce(
+        (s, o) => s + (o.items?.reduce((itemSum, item) => itemSum + (item.isVerified ? item.qty || 0 : 0), 0) || 0),
+        0
+      ),
+    [visibleOrders]
   );
   const progress = totalItems > 0 ? (checkedItemsCount / totalItems) * 100 : 0;
 
@@ -122,7 +131,7 @@ export default function VerificationClient() {
           <button className={filterBtnClass(verificationFilter === "checked")} onClick={() => setVerificationFilter("checked")}>Vérifiés</button>
         </div>
 
-        {orders.length > 0 && (
+        {visibleOrders.length > 0 && (
           <button
             className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 text-white hover:bg-gray-800 rounded-md text-sm font-bold transition-colors cursor-pointer"
             onClick={() => window.open(`/zangochap-manager/logistics/verification/print?date=${date}&type=created&autoprint=true`, '_blank')}
@@ -133,10 +142,10 @@ export default function VerificationClient() {
       </div>
 
       {/* STATS */}
-      {orders.length > 0 && (
+      {visibleOrders.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6 print:hidden">
           <StatCard label="Colis du jour" value={totalOrders} accent />
-          <StatCard label="Articles totaux" value={totalItems} />
+          <StatCard label="Articles du jour" value={totalItems} />
           <div className="bg-white rounded-md p-3 md:p-4 border border-gray-200 flex flex-col justify-center">
             <div className="flex justify-between items-center mb-1.5">
               <span className="text-xs font-semibold text-gray-500">Vérification terminée</span>
@@ -233,7 +242,7 @@ export default function VerificationClient() {
             <p className="text-sm text-gray-600 mt-1">Logistique & Vérification · Fiche de sortie du {formatDay(date)}</p>
           </div>
           <div className="text-right">
-            <div className="text-xs font-semibold text-gray-600">{totalOrders} colis · {totalItems} articles</div>
+            <div className="text-xs font-semibold text-gray-600">{totalOrders} colis · {totalItems} articles du jour</div>
           </div>
         </div>
         <div className="h-0.5 bg-black w-full mb-6" />
@@ -241,7 +250,7 @@ export default function VerificationClient() {
 
       {/* ORDERS LIST */}
       <div className="w-full space-y-4 print:space-y-4">
-        {orders.length === 0 ? (
+        {visibleOrders.length === 0 ? (
           <EmptyState
             icon="📋"
             title={isLoading ? "Chargement..." : "Aucune donnée"}

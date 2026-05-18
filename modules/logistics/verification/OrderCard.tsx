@@ -22,8 +22,9 @@ export default function OrderCard({
   onPreview,
 }: OrderCardProps) {
   const orderItems = order.items || [];
-  const checkedCount = orderItems.filter(i => i.isVerified).length;
-  const isAllChecked = checkedCount === orderItems.length && orderItems.length > 0;
+  const totalQty = orderItems.reduce((sum, item) => sum + (item.qty || 0), 0);
+  const checkedCount = orderItems.reduce((sum, item) => sum + (item.isVerified ? item.qty || 0 : 0), 0);
+  const isAllChecked = orderItems.every(item => item.isVerified) && orderItems.length > 0;
 
   return (
     <div className="bg-white border border-gray-200 rounded-md overflow-hidden print:overflow-visible print:border-gray-300 print:break-inside-avoid animate-fade-in">
@@ -49,7 +50,7 @@ export default function OrderCard({
         <div className="flex flex-wrap items-center gap-2.5 md:gap-3">
           <StatusBadge status={order.status} />
           <div className={`text-xs font-bold ${isAllChecked ? "text-emerald-600" : "text-gray-500"}`}>
-            {checkedCount} / {orderItems.length} vérifié(s)
+            {checkedCount} / {totalQty} vérifié(s)
           </div>
           <button
             className="flex items-center gap-1 px-2.5 py-1 bg-white border border-gray-200 hover:border-emerald-50 hover:bg-emerald-50 text-gray-700 hover:text-emerald-600 rounded text-xs font-bold transition-all cursor-pointer print:hidden"

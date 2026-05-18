@@ -3,7 +3,7 @@
 import React, { useState, useTransition, useMemo } from "react";
 import { TableCard, EmptyState, StatCard, StatusBadge } from "@/components/UI";
 import { formatPrice, formatDate, COMMUNES } from "@/lib/constants";
-import { Truck, User, UserPlus, Clock, Search, X, Package, Check, Filter, MapPin, Calendar, LayoutGrid, List, Archive, TrendingUp, ChevronRight, FileText, Phone, Printer, CalendarClock } from "lucide-react";
+import { Truck, User, UserPlus, Clock, Search, X, Package, Check, Filter, MapPin, Calendar, LayoutGrid, List, Archive, TrendingUp, ChevronRight, FileText, Phone, Printer, CalendarClock, Download } from "lucide-react";
 import { assignOrderToDeliveryman, bulkAssignOrders, updateOrderStatus } from "@/modules/orders/actions";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/Toast";
@@ -209,6 +209,133 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
 
     return Object.values(sheets);
   }, [orders, deliverymen]);
+
+  const handleExportWord = (driverId?: string) => {
+    const sheetsToExport = driverId 
+      ? todaySheets.filter(s => s.driver.id === driverId)
+      : todaySheets;
+
+    if (sheetsToExport.length === 0) {
+      showToast("Aucune fiche à exporter", "error");
+      return;
+    }
+
+    let bodyContent = "";
+
+    sheetsToExport.forEach(({ driver, orders: driverOrders }, idx) => {
+      const totalAmount = driverOrders.reduce((s, o) => s + (o.total || 0) + (o.deliveryFee || 0) - (o.discount || 0), 0);
+      const totalProducts = driverOrders.reduce((s, o) => s + (o.total || 0) - (o.discount || 0), 0);
+      const totalDeliveryFee = driverOrders.reduce((s, o) => s + (o.deliveryFee || 0), 0);
+      const dateStr = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+      const byCommune: Record<string, any[]> = {};
+      driverOrders.forEach(o => {
+        const c = o.commune || 'Non défini';
+        if (!byCommune[c]) byCommune[c] = [];
+        byCommune[c].push(o);
+      });
+
+      let sheetHtml = `
+        <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1A1410;">
+          <h1 style="color: #D4541C; font-size: 24px; margin-bottom: 4px; border-bottom: 2px solid #D4541C; padding-bottom: 8px;">
+            Fiche de livraison — ${driver.name}
+          </h1>
+          <p style="font-size: 14px; color: #666; margin-top: 0; margin-bottom: 20px;">
+            <strong>Date :</strong> ${dateStr} | <strong>Téléphone :</strong> ${driver.phone || 'N/A'} | <strong>Total Colis :</strong> ${driverOrders.length}
+          </p>
+      `;
+
+      let globalIdx = 0;
+
+      Object.entries(byCommune).forEach(([commune, communeOrders]) => {
+        sheetHtml += `
+          <div style="margin-top: 20px; margin-bottom: 15px;">
+            <h2 style="font-size: 18px; color: #1A1410; background-color: #FAF6F1; padding: 6px 12px; border-left: 4px solid #D4541C; margin-bottom: 10px;">
+              📍 ${commune} (${communeOrders.length} colis)
+            </h2>
+            <table border="1" cellspacing="0" cellpadding="6" style="width: 100%; border-collapse: collapse; font-size: 12px; border-color: #DDD;">
+              <thead>
+                <tr style="background-color: #F8F9FA; font-weight: bold; text-align: left;">
+                  <th style="width: 30px; text-align: center;">N°</th>
+                  <th style="width: 60px;">Réf</th>
+                  <th>Client / Adresse</th>
+                  <th>Téléphone</th>
+                  <th>Articles</th>
+                  <th style="text-align: right; width: 80px;">Montant</th>
+                </tr>
+              </thead>
+              <tbody>
+        `;
+
+        communeOrders.forEach((o: any) => {
+          globalIdx++;
+          const itemsList = o.items?.map((item: any) => `${item.name} (${item.size}/${item.color}) ×${item.qty}`).join('<br>') || '';
+          sheetHtml += `
+                <tr>
+                  <td style="text-align: center;">${globalIdx}</td>
+                  <td style="font-family: monospace; font-weight: bold;">${o.ref?.split('-').pop()}</td>
+                  <td>
+                    <strong>${o.customerName}</strong>
+                    ${o.customerLocation ? `<br><span style="color: #555; font-size: 11px;">${o.customerLocation}</span>` : ''}
+                    ${o.deliveryNote ? `<br><span style="color: #D4541C; font-size: 11px;">Note: ${o.deliveryNote}</span>` : ''}
+                  </td>
+                  <td>
+                    ${o.customerPhone}
+                    ${o.customerPhone2 ? `<br><span style="color: #666;">${o.customerPhone2}</span>` : ''}
+                  </td>
+                  <td>${itemsList}</td>
+                  <td style="text-align: right; font-weight: bold;">${formatPrice((o.total || 0) - (o.discount || 0) + (o.deliveryFee || 0))}</td>
+                </tr>
+          `;
+        });
+
+        sheetHtml += `
+              </tbody>
+            </table>
+          </div>
+        `;
+      });
+
+      sheetHtml += `
+          <div style="margin-top: 30px; padding: 15px; background-color: #FAF6F1; border: 1px solid #E8DDD0; border-radius: 6px;">
+            <table style="width: 100%; font-size: 14px;">
+              <tr>
+                <td><strong>Total Colis :</strong> ${driverOrders.length}</td>
+                <td><strong>Total Produits :</strong> ${formatPrice(totalProducts)}</td>
+                <td><strong>Total Livraison :</strong> ${formatPrice(totalDeliveryFee)}</td>
+                <td style="text-align: right; font-size: 16px; color: #D4541C;"><strong>TOTAL À ENCAISSER : ${formatPrice(totalAmount)}</strong></td>
+              </tr>
+            </table>
+          </div>
+        </div>
+      `;
+
+      if (idx < sheetsToExport.length - 1) {
+        sheetHtml += `<br clear="all" style="page-break-before:always" />`;
+      }
+
+      bodyContent += sheetHtml;
+    });
+
+    const header = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+      <head><meta charset='utf-8'><title>Fiches de livraison</title></head><body>`;
+    const footer = `</body></html>`;
+    const fullHtml = header + bodyContent + footer;
+
+    const blob = new Blob([fullHtml], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = driverId 
+      ? `Fiche_Livraison_${sheetsToExport[0].driver.name.replace(/\s+/g, '_')}.doc`
+      : `Fiches_Livraison_Global.doc`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showToast("Fiche exportée en Word ✓", "success");
+  };
 
   return (
     <div className="content animate-fade-in">
@@ -594,9 +721,14 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
               <span style={{ fontWeight: 800, fontSize: 15 }}>Fiches de livraison du jour</span>
               <span className="count-badge active">{todaySheets.reduce((s, g) => s + g.orders.length, 0)} commandes</span>
             </div>
-            <button className="btn-orange" onClick={() => window.print()} style={{ gap: 8 }}>
-              <Printer size={14} /> Tout imprimer
-            </button>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button className="btn-secondary" onClick={() => handleExportWord()} style={{ gap: 8, borderColor: 'var(--blue)', color: 'var(--blue)' }}>
+                <Download size={14} /> Tout exporter Word
+              </button>
+              <button className="btn-orange" onClick={() => window.print()} style={{ gap: 8 }}>
+                <Printer size={14} /> Tout imprimer
+              </button>
+            </div>
           </div>
 
           {todaySheets.length === 0 ? (
@@ -628,14 +760,19 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
                       </div>
                     </div>
                     <div className="sheet-meta">
-                      <button className="btn-print-single no-print" onClick={() => {
-                        document.querySelectorAll('.delivery-sheet').forEach(el => el.classList.add('print-hidden'));
-                        document.getElementById(`sheet-${driver.id}`)?.classList.remove('print-hidden');
-                        window.print();
-                        document.querySelectorAll('.delivery-sheet').forEach(el => el.classList.remove('print-hidden'));
-                      }}>
-                        <Printer size={13} /> Imprimer
-                      </button>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }} className="no-print">
+                        <button className="btn-print-single" onClick={() => handleExportWord(driver.id)} style={{ background: '#EFF6FF', color: '#1D4ED8', borderColor: '#BFDBFE' }}>
+                          <Download size={13} /> Word
+                        </button>
+                        <button className="btn-print-single" onClick={() => {
+                          document.querySelectorAll('.delivery-sheet').forEach(el => el.classList.add('print-hidden'));
+                          document.getElementById(`sheet-${driver.id}`)?.classList.remove('print-hidden');
+                          window.print();
+                          document.querySelectorAll('.delivery-sheet').forEach(el => el.classList.remove('print-hidden'));
+                        }}>
+                          <Printer size={13} /> Imprimer
+                        </button>
+                      </div>
                       <div className="sheet-date">{new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div>
                       <div className="sheet-stats-row">
                         <span><strong>{driverOrders.length}</strong> colis</span>

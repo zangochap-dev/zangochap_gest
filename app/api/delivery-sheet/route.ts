@@ -36,10 +36,19 @@ export async function GET(req: NextRequest) {
   const orders = await prisma.order.findMany({
     where: {
       status: { notIn: ['CANCELLED', 'PENDING', 'TO_PROCESS', 'REPRO_DISPO'] },
+      deletedAt: null,
+      items: {
+        some: {
+          isDelivered: true,
+        },
+      },
       ...dateFilter
     },
     include: { 
       items: {
+        where: {
+          isDelivered: true,
+        },
         include: {
           product: {
             include: {

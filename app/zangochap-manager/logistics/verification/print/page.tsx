@@ -42,10 +42,19 @@ export default async function VerificationPrintPage({
     where: {
       status: { notIn: ['CANCELLED', 'PENDING', 'TO_PROCESS', 'REPRO_DISPO'] },
       deletedAt: null,
+      items: {
+        some: {
+          isDelivered: true,
+        },
+      },
       ...dateFilter
     },
     include: { 
-      items: true
+      items: {
+        where: {
+          isDelivered: true,
+        },
+      }
     },
     orderBy: { commune: 'asc' },
   });

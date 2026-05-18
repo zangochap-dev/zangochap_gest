@@ -2,12 +2,17 @@
 
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { getSession } from "../auth/actions";
-import { checkOrderAccess, getOrCreateDefaultWarehouse } from "./helpers";
-import { decrementStockForOrder, restoreStockForOrder, recordStockMovement } from "./stock";
+import { getSession } from "@/modules/auth/actions";
+import { checkOrderAccess } from "../helpers";
+import { decrementStockForOrder, restoreStockForOrder, restoreStockForOrderItem } from "./stock";
+
+type UpdateOrderStatusResult = {
+  success: true;
+  order: any;
+};
 
 // ============ UPDATE ORDER STATUS ============
-export async function updateOrderStatus(orderId: string, newStatus: string, note?: string) {
+export async function updateOrderStatus(orderId: string, newStatus: string, note?: string): Promise<UpdateOrderStatusResult> {
   const session = await getSession();
   if (!session) throw new Error("Non authentifié");
 
@@ -21,9 +26,6 @@ export async function updateOrderStatus(orderId: string, newStatus: string, note
     throw new Error("Accès refusé");
   }
 
-  // Commercials can now also mark as DELIVERED or PARTIALLY_DELIVERED if needed
-  const deliveryStatuses = ['DELIVERED', 'PARTIALLY_DELIVERED'];
-
   const statusLabels: Record<string, string> = {
     'PENDING': 'En attente',
     'CONFIRMED': 'Confirmée',
@@ -35,7 +37,11 @@ export async function updateOrderStatus(orderId: string, newStatus: string, note
     'EXCHANGED': 'Echange effectué',
     'REPROGRAMMED': 'Reprogrammée',
     'TO_PROCESS': 'À traiter',
-    'PARTIALLY_DELIVERED': 'Livrée partiellement'
+    'PARTIALLY_DELIVERED': 'Livrée partiellement',
+    'PARTIAL': 'Emballage partiel',
+    'UNAVAILABLE': 'Indisponible',
+    'ALTERNATIVE': 'Alternative proposée',
+    'PREPARING': 'En préparation'
   };
 
   const history = Array.isArray(order.history) ? [...(order.history as any[])] : [];
@@ -59,28 +65,41 @@ export async function updateOrderStatus(orderId: string, newStatus: string, note
     history,
   };
 
+  const normalizedStatus = newStatus.toUpperCase();
+  let updatedOrder: any = null;
+
   await prisma.$transaction(async (tx) => {
-    if (newStatus.toUpperCase() === 'PACKED') {
+    if (['PACKED', 'PARTIAL'].includes(normalizedStatus)) {
       updateData.packedBy = session.email;
       updateData.packedByName = session.name;
       updateData.packedAt = new Date();
+    }
+
+    if (normalizedStatus === 'PACKED') {
       await decrementStockForOrder(order, session, tx);
     }
 
     // Restore stock for non-shipping statuses
     const shippingStatuses = ['PACKED', 'ON_DELIVERY', 'DELIVERED', 'PARTIALLY_DELIVERED'];
-    if (!shippingStatuses.includes(newStatus.toUpperCase()) && order.stockDecremented) {
-      const type = newStatus.toUpperCase() === 'EXCHANGED' ? 'EXCHANGE' : 'RETURN';
+    if (!shippingStatuses.includes(normalizedStatus) && order.stockDecremented) {
+      const type = normalizedStatus === 'EXCHANGED' ? 'EXCHANGE' : 'RETURN';
       await restoreStockForOrder(order, session, type, tx);
       updateData.stockDecremented = false;
     }
 
-    await tx.order.update({
+    if (!['PACKED', 'PARTIAL', 'ON_DELIVERY', 'DELIVERED', 'PARTIALLY_DELIVERED'].includes(normalizedStatus)) {
+      updateData.packedBy = null;
+      updateData.packedByName = null;
+      updateData.packedAt = null;
+    }
+
+    updatedOrder = await tx.order.update({
       where: { id: orderId },
       data: {
         ...updateData,
-        returnReason: (newStatus.toUpperCase() === 'RETURNED' || newStatus.toUpperCase() === 'CANCELLED') ? note : undefined
+        returnReason: (normalizedStatus === 'RETURNED' || normalizedStatus === 'CANCELLED') ? note : undefined
       },
+      include: { items: true },
     });
   });
 
@@ -90,7 +109,7 @@ export async function updateOrderStatus(orderId: string, newStatus: string, note
   revalidatePath("/zangochap-manager/logistics/collection");
   revalidatePath("/zangochap-manager/dashboard");
   revalidatePath("/zangochap-rider");
-  return { success: true };
+  return { success: true, order: JSON.parse(JSON.stringify(updatedOrder)) };
 }
 
 // ============ PARTIAL DELIVERY ============
@@ -177,39 +196,14 @@ export async function markPartialDelivery(orderId: string, deliveredQuantities: 
 
     // Restore stock for returned items
     if (returnedQty > 0 && order.stockDecremented && item.productId) {
-      const variant = await prisma.productVariant.findFirst({
-        where: { productId: item.productId, size: item.size, color: item.color }
+      await restoreStockForOrderItem({
+        order,
+        item,
+        quantity: returnedQty,
+        session,
+        type: "RESTOCK",
+        reason: `Retour suite à livraison partielle (Qté: ${returnedQty})`,
       });
-
-      if (variant) {
-        const lastMovement = await prisma.stockMovement.findFirst({
-          where: { orderId: order.id, variantId: variant.id, type: 'SALE' },
-          orderBy: { createdAt: 'desc' }
-        });
-
-        const targetWarehouseId = lastMovement?.warehouseId || (await getOrCreateDefaultWarehouse()).id;
-
-        await prisma.productVariant.update({
-          where: { id: variant.id },
-          data: { stock: { increment: returnedQty } }
-        });
-
-        await prisma.stockLevel.upsert({
-          where: { variantId_warehouseId: { variantId: variant.id, warehouseId: targetWarehouseId } },
-          update: { quantity: { increment: returnedQty } },
-          create: { variantId: variant.id, warehouseId: targetWarehouseId, quantity: returnedQty }
-        });
-
-        await recordStockMovement({
-          variantId: variant.id,
-          warehouseId: targetWarehouseId,
-          type: 'RESTOCK',
-          quantity: returnedQty,
-          orderId: order.id,
-          session,
-          reason: `Retour suite à livraison partielle (Qté: ${returnedQty})`
-        });
-      }
     }
   }
 

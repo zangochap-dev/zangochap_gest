@@ -2,61 +2,30 @@
 
 import React, { useState, useMemo, useTransition, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { TableCard, StatusBadge, EmptyState, DetailCard, SectionLabel, LocationBadge } from "@/components/UI";
+import { TableCard } from "@/components/UI";
 import { useToast } from "@/components/Toast";
-import { addOrderHistoryEntry, updateOrderStatus } from "@/modules/orders/actions";
-import { formatDay } from "@/lib/constants";
+import { addOrderHistoryEntry } from "@/modules/orders/actions";
+import { updateOrderStatus } from "@/modules/orders/actions/status-actions";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Package, Check, ArrowLeftRight, X, Search, Edit2 } from "lucide-react";
-import { updateProductVariants } from "@/modules/products/actions";
-import { toggleItemVerification } from "@/modules/logistics/actions";
-import { useIsMobile } from "@/lib/hooks";
-import LogisticsMobileStyles from "../_components/LogisticsMobileStyles";
+import { Package, X, Search } from "lucide-react";
+import { toggleItemVerification } from "@/modules/logistics/verification/actions";
+import { useResponsiveMode } from "@/lib/hooks";
+import LogisticsMobileStyles from "@/modules/logistics/components/LogisticsMobileStyles";
 import { motion, AnimatePresence } from "framer-motion";
-import PackingOrderModal from "./_components/PackingOrderModal";
-import VariantsEditorModal from "./_components/VariantsEditorModal";
-import PackingItem from "./_components/PackingItem";
-
-// --- TYPES ---
-export interface PackingOrderItem {
-  id: string;
-  productId: string | null;
-  name: string;
-  size: string | null;
-  color: string | null;
-  image: string | null;
-  emoji: string | null;
-  isVerified: boolean;
-  isGift?: boolean;
-}
-
-export interface PackingOrder {
-  id: string;
-  ref: string;
-  status: string;
-  customerName: string;
-  commune: string | null;
-  commercialName: string | null;
-  packedByName: string | null;
-  createdAt: string;
-  items: PackingOrderItem[];
-  history: any[];
-}
-
-export interface ProductWithVariants {
-  id: string;
-  name: string;
-  variants: any[];
-}
-
-export interface PackingUser {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-}
+import PackingOrderModal from "./components/PackingOrderModal";
+import VariantsEditorModal from "./components/VariantsEditorModal";
+import PackingItem from "./components/PackingItem";
+import { PackingOrder, PackingOrderItem, PackingProductVariant, PackingUser, ProductWithVariants } from "./types";
 
 // --- HOOKS ---
+type DatePreset = 'today' | 'yesterday' | 'custom' | 'all';
+
+function toLocalDateInputValue(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
 
 /**
  * Hook pour la gestion du polling stabilisé
@@ -70,23 +39,35 @@ function usePackingPolling(initialOrders: PackingOrder[], savingCount: number) {
   }, [savingCount]);
 
   useEffect(() => {
+    if (savingCountRef.current === 0) {
+      setOrders(initialOrders);
+    }
+  }, [initialOrders]);
+
+  useEffect(() => {
     const controller = new AbortController();
-    
+
     const poll = async () => {
       try {
         // Ne pas rafraîchir si on est en train de sauvegarder
         if (savingCountRef.current > 0) return;
 
-        const res = await fetch('/api/orders/packing', { signal: controller.signal });
+        const res = await fetch('/api/orders/packing', {
+          cache: 'no-store',
+          signal: controller.signal,
+        });
         if (res.ok) {
           const json = await res.json();
-          setOrders(json.orders);
+          if (Array.isArray(json.orders)) {
+            setOrders(json.orders);
+          }
         }
-      } catch (e: any) {
-        if (e.name !== 'AbortError') console.error("Polling error", e);
+      } catch (e: unknown) {
+        if (e instanceof Error && e.name === 'AbortError') return;
       }
     };
 
+    poll();
     const interval = setInterval(poll, 20000);
     return () => {
       clearInterval(interval);
@@ -103,9 +84,11 @@ function usePackingPolling(initialOrders: PackingOrder[], savingCount: number) {
 function usePackingFilters(orders: PackingOrder[], products: ProductWithVariants[], searchParams: URLSearchParams) {
   const [filter, setFilter] = useState(searchParams.get('status') || 'CONFIRMED');
   const [search, setSearch] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const today = toLocalDateInputValue();
+  const [dateFrom, setDateFrom] = useState(today);
+  const [dateTo, setDateTo] = useState(today);
   const [warehouseFilter, setWarehouseFilter] = useState('all');
+  const [datePreset, setDatePreset] = useState<DatePreset>('today');
 
   // Indexation des variantes pour lookup O(1)
   const variantWarehouseMap = useMemo(() => {
@@ -113,7 +96,7 @@ function usePackingFilters(orders: PackingOrder[], products: ProductWithVariants
     products.forEach((p) => {
       p.variants?.forEach((v) => {
         const key = `${p.id}_${v.size}_${v.color}`;
-        map.set(key, v.stockLevels?.map((sl: any) => sl.warehouse?.name) || []);
+        map.set(key, v.stockLevels?.flatMap((sl) => sl.warehouse?.name ? [sl.warehouse.name] : []) || []);
       });
     });
     return map;
@@ -129,7 +112,7 @@ function usePackingFilters(orders: PackingOrder[], products: ProductWithVariants
 
   const filtered = useMemo(() => {
     const s = search.toLowerCase();
-    
+
     return orders
       .filter((o) => {
         // Filtre Statut / Alternative
@@ -167,20 +150,21 @@ function usePackingFilters(orders: PackingOrder[], products: ProductWithVariants
       });
   }, [orders, filter, search, timeRange, warehouseFilter, variantWarehouseMap]);
 
-  return { 
-    filter, setFilter, 
-    search, setSearch, 
-    dateFrom, setDateFrom, 
-    dateTo, setDateTo, 
+  return {
+    filter, setFilter,
+    search, setSearch,
+    dateFrom, setDateFrom,
+    dateTo, setDateTo,
     warehouseFilter, setWarehouseFilter,
-    filtered 
+    datePreset, setDatePreset,
+    filtered
   };
 }
 
-export default function PackingClient({ initialOrders, products, user }: { initialOrders: PackingOrder[], products: ProductWithVariants[], user: PackingUser }) {
+export default function PackingClient({ initialOrders, products }: { initialOrders: PackingOrder[], products: ProductWithVariants[], user: PackingUser }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const isMobile = useIsMobile();
+  const { isMobile, isReady: isViewportReady } = useResponsiveMode();
   const { showToast } = useToast();
   const [mounted, setMounted] = useState(false);
 
@@ -190,24 +174,17 @@ export default function PackingClient({ initialOrders, products, user }: { initi
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [packingNote, setPackingNote] = useState('');
   const [previewItem, setPreviewItem] = useState<{ url: string, name: string, size?: string | null, color?: string | null } | null>(null);
-  const [editingVariants, setEditingVariants] = useState<{ product: ProductWithVariants, variants: any[] } | null>(null);
+  const [editingVariants, setEditingVariants] = useState<{ product: ProductWithVariants, variants: PackingProductVariant[] } | null>(null);
   const [isPending, startTransition] = useTransition();
 
   // --- CUSTOM HOOKS ---
   const { orders, setOrders } = usePackingPolling(initialOrders, savingChecks.size);
-  const { 
-    filter, setFilter, search, setSearch, dateFrom, setDateFrom, dateTo, setDateTo, warehouseFilter, setWarehouseFilter, filtered 
+  const {
+    filter, setFilter, search, setSearch, dateFrom, setDateFrom, dateTo, setDateTo, warehouseFilter, setWarehouseFilter, datePreset, setDatePreset, filtered
   } = usePackingFilters(orders, products, searchParams);
 
   // Security for Hydration
   useEffect(() => { setMounted(true); }, []);
-
-  // Initialize dates
-  useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
-    setDateFrom(today);
-    setDateTo(today);
-  }, []);
 
   const selectedOrder = useMemo(() => orders.find(o => o.id === selectedOrderId), [orders, selectedOrderId]);
 
@@ -222,7 +199,7 @@ export default function PackingClient({ initialOrders, products, user }: { initi
     const set = new Set<string>();
     products.forEach((p) => {
       p.variants?.forEach((v) => {
-        v.stockLevels?.forEach((sl: any) => {
+        v.stockLevels?.forEach((sl) => {
           if (sl.warehouse?.name) set.add(sl.warehouse.name);
         });
       });
@@ -282,7 +259,7 @@ export default function PackingClient({ initialOrders, products, user }: { initi
           return next;
         });
       });
-  }, [showToast]);
+  }, [setOrders, showToast]);
 
   const handleMarkPacking = useCallback((orderId: string, status: string) => {
     const order = orders.find(o => o.id === orderId);
@@ -295,16 +272,19 @@ export default function PackingClient({ initialOrders, products, user }: { initi
 
     startTransition(async () => {
       try {
-        await updateOrderStatus(orderId, status, packingNote || undefined);
+        const result = await updateOrderStatus(orderId, status, packingNote || undefined);
         showToast('Statut mis à jour ✓', 'success');
-        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
+        setOrders(prev => prev.map(o => {
+          if (o.id !== orderId) return o;
+          return result?.order ? { ...o, ...result.order } : { ...o, status };
+        }));
         setSelectedOrderId(null);
         setPackingNote('');
-      } catch (e: any) {
+      } catch {
         showToast('Erreur lors du marquage', 'error');
       }
     });
-  }, [orders, packingNote, showToast]);
+  }, [orders, packingNote, setOrders, showToast]);
 
   const handleBulkMark = useCallback((status: string) => {
     if (selectedIds.size === 0) return;
@@ -312,15 +292,20 @@ export default function PackingClient({ initialOrders, products, user }: { initi
 
     startTransition(async () => {
       try {
-        await Promise.all(Array.from(selectedIds).map(id => updateOrderStatus(id, status)));
+        const results = await Promise.all(Array.from(selectedIds).map(id => updateOrderStatus(id, status)));
+        const updatedById = new Map(results.filter(result => result?.order).map(result => [result.order.id, result.order]));
         showToast(`${selectedIds.size} commandes mises à jour ✓`, 'success');
-        setOrders(prev => prev.map(o => selectedIds.has(o.id) ? { ...o, status } : o));
+        setOrders(prev => prev.map(o => {
+          const updated = updatedById.get(o.id);
+          if (updated) return { ...o, ...updated };
+          return selectedIds.has(o.id) ? { ...o, status } : o;
+        }));
         setSelectedIds(new Set());
-      } catch (e: any) {
+      } catch {
         showToast('Erreur lors du traitement groupé', 'error');
       }
     });
-  }, [selectedIds, showToast]);
+  }, [selectedIds, setOrders, showToast]);
 
   const handleProposeAlternative = useCallback((orderId: string, itemName: string) => {
     const alt = prompt(`Alternative pour "${itemName}" ?`);
@@ -333,35 +318,69 @@ export default function PackingClient({ initialOrders, products, user }: { initi
         setOrders(prev => prev.map(o => {
           if (o.id !== orderId) return o;
           const history = Array.isArray(o.history) ? [...o.history] : [];
-          history.push({ 
-            at: new Date().toISOString(), 
+          history.push({
+            at: new Date().toISOString(),
             action: `Alternative proposée pour "${itemName}" : ${alt}`,
             byName: "Système"
           });
           return { ...o, history };
         }));
-      } catch (e: any) {
+      } catch {
         showToast('Erreur lors de l\'enregistrement', 'error');
       }
     });
-  }, [showToast]);
+  }, [setOrders, showToast]);
 
   const handleEditStock = useCallback((product: ProductWithVariants) => {
     setEditingVariants({ product, variants: product.variants });
   }, []);
 
+  const applyDatePreset = useCallback((preset: DatePreset) => {
+    setDatePreset(preset);
+    if (preset === 'custom') return;
+    if (preset === 'all') {
+      setDateFrom('');
+      setDateTo('');
+      return;
+    }
+
+    const today = new Date();
+    const from = new Date(today);
+    if (preset === 'yesterday') from.setDate(today.getDate() - 1);
+
+    const to = preset === 'yesterday' ? from : today;
+    setDateFrom(toLocalDateInputValue(from));
+    setDateTo(toLocalDateInputValue(to));
+  }, [setDateFrom, setDatePreset, setDateTo]);
+
+  const handleDateFromChange = useCallback((value: string) => {
+    setDatePreset('custom');
+    setDateFrom(value);
+  }, [setDateFrom, setDatePreset]);
+
+  const handleDateToChange = useCallback((value: string) => {
+    setDatePreset('custom');
+    setDateTo(value);
+  }, [setDateTo, setDatePreset]);
+
   // --- RENDER ---
   const commonProps = {
     productMap,
     onEditStock: handleEditStock,
-    onPreviewImage: (url: string, name: string, size?: string | null, color?: string | null) => 
+    onPreviewImage: (url: string, name: string, size?: string | null, color?: string | null) =>
       setPreviewItem({ url, name, size, color }),
     onToggleCheckItem: toggleCheckItem,
   };
 
-  if (isMobile) {
+  const viewMotion = {
+    initial: { opacity: 0, y: 12, scale: 0.985 },
+    animate: { opacity: 1, y: 0, scale: 1 },
+    transition: { duration: 0.24, ease: [0.22, 1, 0.36, 1] },
+  } as const;
+
+  if (isViewportReady && isMobile) {
     return (
-      <div className="logistics-mobile-root">
+      <motion.div key="packing-mobile" className="logistics-mobile-root logistics-view-mobile" {...viewMotion}>
         <LogisticsMobileStyles />
         <div className="logistics-mobile-header">
           <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
@@ -398,25 +417,17 @@ export default function PackingClient({ initialOrders, products, user }: { initi
 
           <div style={{ display: 'flex', gap: 4, background: '#F2F2F7', padding: '2px', borderRadius: 10, marginBottom: 12 }}>
             {[
-              { label: 'Auj.', val: 'today' }, 
-              { label: 'Hier', val: 'yesterday' }, 
-              { label: '3J', val: '3days' }, 
+              { label: 'Auj.', val: 'today' },
+              { label: 'Hier', val: 'yesterday' },
+              { label: 'Perso', val: 'custom' },
               { label: 'Tout', val: 'all' }
             ].map(d => (
               <button
                 key={d.val}
-                onClick={() => {
-                  const dDate = new Date();
-                  if (d.val === 'yesterday') dDate.setDate(dDate.getDate() - 1);
-                  if (d.val === '3days') dDate.setDate(dDate.getDate() - 2);
-                  const str = dDate.toISOString().split('T')[0];
-                  
-                  if (d.val === 'all') { setDateFrom(''); setDateTo(''); }
-                  else { setDateFrom(str); setDateTo(new Date().toISOString().split('T')[0]); }
-                }}
-                style={{ 
+                onClick={() => applyDatePreset(d.val as DatePreset)}
+                style={{
                   flex: 1, fontSize: 10, fontWeight: 800, padding: '6px 0', borderRadius: 8, border: 'none',
-                  background: (dateFrom && d.val !== 'all') || (!dateFrom && d.val === 'all') ? 'white' : 'transparent',
+                  background: datePreset === d.val ? 'white' : 'transparent',
                   boxShadow: 'none'
                 }}
               >
@@ -424,6 +435,12 @@ export default function PackingClient({ initialOrders, products, user }: { initi
               </button>
             ))}
           </div>
+          {datePreset === 'custom' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+              <input type="date" className="filter-date" value={dateFrom} onChange={e => handleDateFromChange(e.target.value)} style={{ minWidth: 0, height: 36, borderRadius: 10, border: 'none', background: '#F2F2F7', fontSize: 11 }} />
+              <input type="date" className="filter-date" value={dateTo} onChange={e => handleDateToChange(e.target.value)} style={{ minWidth: 0, height: 36, borderRadius: 10, border: 'none', background: '#F2F2F7', fontSize: 11 }} />
+            </div>
+          )}
         </div>
 
         <div className="logistics-mobile-content">
@@ -470,30 +487,27 @@ export default function PackingClient({ initialOrders, products, user }: { initi
             product={editingVariants.product}
             variants={editingVariants.variants}
             onClose={() => setEditingVariants(null)}
-            onSave={async (vars) => {
-              try {
-                await updateProductVariants(editingVariants.product.id, vars);
-                showToast('Variantes mises à jour ✓', 'success');
-                setEditingVariants(null);
-                router.refresh();
-              } catch (e) { showToast('Erreur', 'error'); }
+            onSave={() => {
+              showToast('Stock mis a jour', 'success');
+              setEditingVariants(null);
+              router.refresh();
             }}
           />
         )}
 
         {mounted && previewItem !== null && createPortal(
-          <div 
-            className="lightbox-root" 
-            onClick={() => setPreviewItem(null)} 
-            style={{ 
-              position: 'fixed', 
-              inset: 0, 
-              zIndex: 999999, 
-              background: 'rgba(0,0,0,0.95)', 
+          <div
+            className="lightbox-root"
+            onClick={() => setPreviewItem(null)}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 999999,
+              background: 'rgba(0,0,0,0.95)',
               backdropFilter: 'blur(15px)',
-              display: 'flex', 
+              display: 'flex',
               flexDirection: 'column',
-              alignItems: 'center', 
+              alignItems: 'center',
               justifyContent: 'center',
               cursor: 'zoom-out',
               padding: '20px',
@@ -504,22 +518,22 @@ export default function PackingClient({ initialOrders, products, user }: { initi
               @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
               @keyframes zoomIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
             `}</style>
-            
+
             <div style={{ position: 'relative', maxWidth: '98vw', maxHeight: '95vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', animation: 'zoomIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)' }}>
-              <img 
-                src={previewItem.url} 
+              <img
+                src={previewItem.url}
                 alt="Preview"
-                style={{ 
+                style={{
                   display: 'block',
-                  maxWidth: '100%', 
-                  maxHeight: '80vh', 
-                  borderRadius: 16, 
+                  maxWidth: '100%',
+                  maxHeight: '80vh',
+                  borderRadius: 16,
                   border: '2px solid rgba(255,255,255,0.2)',
                   boxShadow: '0 50px 100px rgba(0,0,0,0.8)',
                   objectFit: 'contain'
-                }} 
+                }}
               />
-              
+
               <div style={{ marginTop: 24, textAlign: 'center', color: 'white' }}>
                 <h2 style={{ fontSize: 24, fontWeight: 900, marginBottom: 8, letterSpacing: '-0.02em' }}>{previewItem.name}</h2>
                 <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
@@ -540,12 +554,12 @@ export default function PackingClient({ initialOrders, products, user }: { initi
           </div>,
           document.body
         )}
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="content animate-fade-in">
+    <motion.div key="packing-desktop" className="content logistics-view-desktop" {...viewMotion}>
       <div className="filters-bar" style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', background: 'white', padding: '12px 16px', borderRadius: 12, marginBottom: 20, border: '1px solid var(--line)' }}>
         <div style={{ display: 'flex', gap: 4 }}>
           {[
@@ -569,12 +583,41 @@ export default function PackingClient({ initialOrders, products, user }: { initi
             <option value="all">Tous les entrepôts</option>
             {warehouses.map(w => <option key={w} value={w}>{w}</option>)}
           </select>
-          <input type="date" className="filter-date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-          <input type="date" className="filter-date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+          <div style={{ display: 'flex', gap: 4, background: 'var(--cream)', padding: 3, borderRadius: 10, border: '1px solid var(--line)' }}>
+            {[
+              { label: "Aujourd'hui", val: 'today' },
+              { label: 'Hier', val: 'yesterday' },
+              { label: 'Perso', val: 'custom' },
+              { label: 'Tout', val: 'all' },
+            ].map(d => (
+              <button key={d.val} className={`shortcut-btn ${datePreset === d.val ? 'active' : ''}`} onClick={() => applyDatePreset(d.val as DatePreset)}>
+                {d.label}
+              </button>
+            ))}
+          </div>
+          {datePreset === 'custom' && (
+            <>
+              <input type="date" className="filter-date" value={dateFrom} onChange={e => handleDateFromChange(e.target.value)} />
+              <input type="date" className="filter-date" value={dateTo} onChange={e => handleDateToChange(e.target.value)} />
+            </>
+          )}
         </div>
       </div>
 
-      <TableCard title={`${filtered.length} commande(s)`}>
+      <TableCard
+        title={`${filtered.length} commande(s)`}
+        actions={selectedIds.size > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span className="cell-muted">{selectedIds.size} sélectionnée(s)</span>
+            <button className="btn-secondary" onClick={() => handleBulkMark('PARTIAL')} disabled={isPending}>
+              Partiel
+            </button>
+            <button className="btn-orange" onClick={() => handleBulkMark('PACKED')} disabled={isPending}>
+              Emballé
+            </button>
+          </div>
+        )}
+      >
         <table>
           <thead>
             <tr>
@@ -614,18 +657,18 @@ export default function PackingClient({ initialOrders, products, user }: { initi
       />
 
       {mounted && previewItem !== null && createPortal(
-        <div 
-          className="lightbox-root" 
-          onClick={() => setPreviewItem(null)} 
-          style={{ 
-            position: 'fixed', 
-            inset: 0, 
-            zIndex: 999999, 
-            background: 'rgba(0,0,0,0.95)', 
+        <div
+          className="lightbox-root"
+          onClick={() => setPreviewItem(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 999999,
+            background: 'rgba(0,0,0,0.95)',
             backdropFilter: 'blur(15px)',
-            display: 'flex', 
+            display: 'flex',
             flexDirection: 'column',
-            alignItems: 'center', 
+            alignItems: 'center',
             justifyContent: 'center',
             cursor: 'zoom-out',
             padding: '20px',
@@ -636,22 +679,22 @@ export default function PackingClient({ initialOrders, products, user }: { initi
             @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
             @keyframes zoomIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
           `}</style>
-          
+
           <div style={{ position: 'relative', maxWidth: '98vw', maxHeight: '95vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', animation: 'zoomIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)' }}>
-            <img 
-              src={previewItem.url} 
+            <img
+              src={previewItem.url}
               alt="Preview"
-              style={{ 
+              style={{
                 display: 'block',
-                maxWidth: '100%', 
-                maxHeight: '80vh', 
-                borderRadius: 16, 
+                maxWidth: '100%',
+                maxHeight: '80vh',
+                borderRadius: 16,
                 border: '2px solid rgba(255,255,255,0.2)',
                 boxShadow: '0 50px 100px rgba(0,0,0,0.8)',
                 objectFit: 'contain'
-              }} 
+              }}
             />
-            
+
             {/* Infos de l'article en grand sous l'image */}
             <div style={{ marginTop: 24, textAlign: 'center', color: 'white' }}>
               <h2 style={{ fontSize: 24, fontWeight: 900, marginBottom: 8, letterSpacing: '-0.02em' }}>{previewItem.name}</h2>
@@ -687,23 +730,19 @@ export default function PackingClient({ initialOrders, products, user }: { initi
         </div>,
         document.body
       )}
-      
+
       {editingVariants && (
         <VariantsEditorModal
           product={editingVariants.product}
           variants={editingVariants.variants}
           onClose={() => setEditingVariants(null)}
-          onSave={async (vars) => {
-            try {
-              await updateProductVariants(editingVariants.product.id, vars);
-              showToast('Variantes mises à jour ✓', 'success');
-              setEditingVariants(null);
-              // Optimistically update products if needed, or refresh
-              router.refresh();
-            } catch (e) { showToast('Erreur', 'error'); }
+          onSave={() => {
+            showToast('Stock mis a jour', 'success');
+            setEditingVariants(null);
+            router.refresh();
           }}
         />
       )}
-    </div>
+    </motion.div>
   );
 }

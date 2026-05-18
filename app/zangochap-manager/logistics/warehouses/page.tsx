@@ -1,4 +1,4 @@
-import { getWarehouses } from "@/modules/logistics/warehouseActions";
+import { getWarehouses } from "@/modules/logistics/warehouses";
 import WarehouseClient from "./WarehouseClient";
 
 export default async function WarehousesPage() {

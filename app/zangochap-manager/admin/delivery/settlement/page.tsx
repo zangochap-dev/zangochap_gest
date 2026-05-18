@@ -1,6 +1,6 @@
 import React from 'react';
 import SettlementClient from './SettlementClient';
-import { getPendingSettlements, getSettlementHistory, getRiderSettlementStats } from '@/modules/orders/actions';
+import { getPendingSettlements, getSettlementHistory, getRiderSettlementStats } from "@/modules/orders/actions";
 import Topbar from '@/components/Topbar';
 
 export const metadata = {

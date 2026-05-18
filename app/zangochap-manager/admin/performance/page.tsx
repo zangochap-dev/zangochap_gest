@@ -1,6 +1,6 @@
 import React from 'react';
 import PerformanceClient from './PerformanceClient';
-import { getPerformanceStats } from '@/modules/orders/actions';
+import { getPerformanceStats } from "@/modules/orders/actions";
 
 export const metadata = {
   title: 'Performance - Zangochap Manager',

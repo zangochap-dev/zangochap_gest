@@ -1,9 +1,9 @@
 import React from "react";
-import prisma from "@/lib/prisma";
 import Topbar from "@/components/Topbar";
-import ToProcessClient from "./ToProcessClient";
+import ToProcessClient from "@/modules/orders/components/ToProcessClient";
 import { getSession } from "@/modules/auth/actions";
 import { redirect } from "next/navigation";
+import { getToProcessOrders } from "@/modules/orders/actions/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -11,11 +11,7 @@ export default async function ToProcessOrdersPage() {
   const user = await getSession();
   if (!user) redirect("/zangochap-manager");
 
-  const orders = await prisma.order.findMany({
-    where: { status: 'TO_PROCESS' },
-    orderBy: { createdAt: "asc" },
-    include: { items: true },
-  });
+  const orders = await getToProcessOrders();
 
   return (
     <>

@@ -1,21 +1,18 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { getPackingOrders } from "@/modules/logistics/packing/data";
+import { getSession } from "@/modules/auth/actions";
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const orders = await prisma.order.findMany({
-      where: {}, // Empty where to fetch everything
-      include: {
-        items: true
-      },
-      orderBy: { createdAt: 'desc' }
-    });
+    const user = await getSession();
+    if (!user) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
 
-    return NextResponse.json({ orders });
-  } catch (error) {
-    console.error("[PACKING_API_ERROR]", error);
+    const orders = await getPackingOrders();
+
+    return NextResponse.json({ orders: JSON.parse(JSON.stringify(orders)) });
+  } catch {
     return NextResponse.json({ error: "Failed to fetch orders" }, { status: 500 });
   }
 }

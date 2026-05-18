@@ -2,10 +2,10 @@
 
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { getSession } from "../auth/actions";
+import { getSession } from "@/modules/auth/actions";
 import { ensureAuth } from "@/lib/auth";
 import { uploadImage } from "@/lib/upload";
-import { checkOrderAccess, generateUniqueRef, upsertCustomerFromOrder } from "./helpers";
+import { checkOrderAccess, generateUniqueRef, upsertCustomerFromOrder } from "../helpers";
 import { restoreStockForOrder } from "./stock";
 
 // ============ GET ORDER ============

@@ -52,7 +52,7 @@ export default async function PackingDashboard({ user }: { user: any }) {
       <TableCard
         title="File d'attente — À emballer"
         meta={`${toPack.length} commande(s)`}
-        actions={<Link href="/logistics/packing" className="btn-primary-sm">Commencer →</Link>}
+        actions={<Link href="/zangochap-manager/logistics/packing" className="btn-primary-sm">Commencer →</Link>}
       >
         {toPack.length === 0 ? (
           <EmptyState icon="✓" title="Tout est emballé" description="La file est vide." />

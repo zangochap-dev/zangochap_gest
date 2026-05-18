@@ -2,32 +2,19 @@
 
 import prisma from "@/lib/prisma";
 import { ensureAuth } from "@/lib/auth";
-import { getSession } from "../auth/actions";
+import type { Prisma } from "@prisma/client";
+import {
+  emptySidebarCounts,
+  getSidebarCountsForUser,
+  type SidebarCountsUser,
+} from "@/modules/orders/actions/sidebar-counts";
 
 // ============ SIDEBAR COUNTS ============
-export async function getSidebarCounts(userId?: string) {
+export async function getSidebarCounts(user?: SidebarCountsUser | string) {
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const [ordersCount, packingCount, toProcessCount, deliveriesCount] = await Promise.all([
-      prisma.order.count({ where: { status: 'CONFIRMED' as any, createdAt: { gte: today } } }),
-      prisma.order.count({ where: { status: 'CONFIRMED' as any } }),
-      prisma.order.count({ where: { status: 'TO_PROCESS' as any } }),
-      userId
-        ? prisma.order.count({ where: { deliverymanId: userId, status: { notIn: ['DELIVERED', 'CANCELLED'] as any } } })
-        : Promise.resolve(0),
-    ]);
-
-    return {
-      orders: ordersCount,
-      packing: packingCount,
-      collection: packingCount,
-      toProcess: toProcessCount,
-      myDeliveries: deliveriesCount,
-    };
+    return getSidebarCountsForUser(typeof user === "string" ? { id: user } : user);
   } catch {
-    return { orders: 0, packing: 0, collection: 0, toProcess: 0, myDeliveries: 0 };
+    return emptySidebarCounts;
   }
 }
 
@@ -42,9 +29,8 @@ export async function getDashboardStats() {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
   // 1. Core Counts
-  const [todayOrders, totalOrders, monthOrders, productsCount] = await Promise.all([
+  const [todayOrders, monthOrders, productsCount] = await Promise.all([
     prisma.order.count({ where: { createdAt: { gte: todayStart } } }),
-    prisma.order.count(),
     prisma.order.count({ where: { createdAt: { gte: monthStart } } }),
     prisma.product.count()
   ]);
@@ -121,7 +107,7 @@ export async function getPerformanceStats(dateFrom?: string, dateTo?: string) {
   const start = dateFrom ? new Date(dateFrom) : new Date(now.getFullYear(), now.getMonth(), 1);
   const end = dateTo ? new Date(dateTo + 'T23:59:59') : new Date();
 
-  const whereDate: any = { gte: start, lte: end };
+  const whereDate: Prisma.DateTimeFilter = { gte: start, lte: end };
 
   // 1. COMMERCIALS
   const commercials = await prisma.user.findMany({
@@ -222,7 +208,7 @@ export async function getPerformanceStats(dateFrom?: string, dateTo?: string) {
 export async function getUserPerformanceDetails(userId: string, role: string, dateFrom?: string, dateTo?: string) {
   const start = dateFrom ? new Date(dateFrom) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
   const end = dateTo ? new Date(dateTo + 'T23:59:59') : new Date();
-  const whereDate: any = { gte: start, lte: end };
+  const whereDate: Prisma.DateTimeFilter = { gte: start, lte: end };
 
   if (role === 'COMMERCIAL') {
     const orders = await prisma.order.findMany({

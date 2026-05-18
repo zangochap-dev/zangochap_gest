@@ -29,7 +29,7 @@ import * as deliveryActions from "./delivery-actions";
 import * as settlementActions from "./settlement-actions";
 import * as analyticsActions from "./analytics-actions";
 import * as stockModule from "./stock";
-import * as helpers from "./helpers";
+import * as helpers from "../helpers";
 
 // ── Helpers (async wrappers for server-action compat) ──
 export async function generateUniqueRef(commune?: string, typePrefix?: string) {

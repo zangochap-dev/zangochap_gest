@@ -155,11 +155,12 @@ export default function ProductForm({
   const [sizeInput, setSizeInput] = useState('');
   const [colorInput, setColorInput] = useState('');
 
-  const [variants, setVariants] = useState<Array<{ size: string; color: string; stock: number; location: string }>>(
+  const [variants, setVariants] = useState<Array<{ id?: string; size: string; color: string; stock: number; location: string }>>(
     initialData?.variants?.map((v: any) => ({
+      id: v.id,
       size: v.size,
       color: v.color,
-      stock: v.stock,
+      stock: Math.max(0, Number(v.stock) || 0),
       location: v.location || ''
     })) || []
   );
@@ -234,7 +235,7 @@ export default function ProductForm({
     const newVariants = [...variants];
     newVariants[idx] = {
       ...newVariants[idx],
-      [field]: field === 'stock' ? (parseInt(value) || 0) : value
+      [field]: field === 'stock' ? Math.max(0, parseInt(value) || 0) : value
     };
     setVariants(newVariants);
   };

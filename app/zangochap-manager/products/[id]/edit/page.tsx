@@ -1,8 +1,8 @@
 import React from "react";
 import { getProductById } from "@/modules/products/actions";
-import { getWarehouses } from "@/modules/logistics/warehouseActions";
+import { getWarehouses } from "@/modules/logistics/warehouses";
 import { getCategories, getSuppliers } from "@/modules/settings/actions";
-import EditProductClient from "./EditProductClient";
+import EditProductClient from "@/modules/products/components/EditProductClient";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";

@@ -9,6 +9,7 @@ import { Prisma } from "@prisma/client";
 import { getOrCreateDefaultWarehouse } from "@/modules/orders/helpers";
 import { syncProductStock } from "@/lib/stock-sync";
 import { getBestAutomaticDiscount, CartItem } from "@/lib/promo-engine";
+import { setVariantWarehouseStock } from "@/modules/orders/actions/stock";
 
 
 function slugify(text: string) {
@@ -49,15 +50,15 @@ export async function getProducts(filters?: {
   const products = await prisma.product.findMany({
     where,
     orderBy: { createdAt: "desc" },
-    include: { 
+    include: {
       variants: {
         include: {
           stockLevels: {
             include: { warehouse: true }
           }
         }
-      }, 
-      images: { orderBy: { position: 'asc' } }, 
+      },
+      images: { orderBy: { position: 'asc' } },
       createdBy: true,
       category: true,
       subCategory: true,
@@ -71,15 +72,15 @@ export async function getProducts(filters?: {
 export async function getProductById(id: string) {
   const product = await prisma.product.findUnique({
     where: { id },
-    include: { 
+    include: {
       variants: {
         include: {
           stockLevels: {
             include: { warehouse: true }
           }
         }
-      }, 
-      images: { orderBy: { position: 'asc' } }, 
+      },
+      images: { orderBy: { position: 'asc' } },
       createdBy: true,
       category: true,
       subCategory: true,
@@ -132,7 +133,7 @@ export async function createProduct(data: {
     }
   }
 
-  const totalStock = data.variants.reduce((sum, v) => sum + v.stock, 0);
+  const totalStock = data.variants.reduce((sum, v) => sum + cleanStock(v.stock), 0);
   const mainLocation = data.variants.find(v => v.location)?.location || data.location || '';
   const slug = `${slugify(data.name)}-${Math.floor(Math.random() * 1000)}`;
 
@@ -187,7 +188,7 @@ export async function createProduct(data: {
         create: data.variants.map(v => ({
           size: v.size,
           color: v.color,
-          stock: v.stock,
+          stock: cleanStock(v.stock),
           location: v.location || '',
         })),
       },
@@ -201,7 +202,7 @@ export async function createProduct(data: {
   // Initialize stock levels in selected or default warehouse
   const targetWarehouseId = data.warehouseId || (await getOrCreateDefaultWarehouse()).id;
   await Promise.all(product.variants.map(v => {
-    const initialQty = data.variants.find(dv => dv.size === v.size && dv.color === v.color)?.stock || 0;
+    const initialQty = cleanStock(data.variants.find(dv => dv.size === v.size && dv.color === v.color)?.stock || 0);
     return prisma.stockLevel.create({
       data: {
         variantId: v.id,
@@ -227,13 +228,13 @@ export async function updateProductVariants(productId: string, variants: Array<{
   location?: string;
 }>) {
   await ensureAuth(["admin", "stock", "packing", "collection", "commercial"]);
-  
+
   await prisma.$transaction(async (tx) => {
     let defaultWarehouse = await tx.warehouse.findFirst({
-      where: { name: "Magasin Principal" }
+      where: { name: { in: ["Entrepôt Principal", "Entrepôt  principal", "Entrepot Principal", "Magasin Principal"] } }
     });
     if (!defaultWarehouse) {
-      defaultWarehouse = await tx.warehouse.create({ data: { name: "Magasin Principal" } });
+      defaultWarehouse = await tx.warehouse.create({ data: { name: "Entrepôt Principal", location: "Siège Zangochap" } });
     }
 
     const existingVariants = await tx.productVariant.findMany({ where: { productId } });
@@ -248,34 +249,252 @@ export async function updateProductVariants(productId: string, variants: Array<{
 
     for (const v of variants) {
       if (v.id && existingIds.includes(v.id)) {
-         await tx.productVariant.update({
-            where: { id: v.id },
-            data: { size: v.size, color: v.color, stock: v.stock, location: v.location || '' }
-         });
-         
-         const stockLvl = await tx.stockLevel.findFirst({ where: { variantId: v.id, warehouseId: defaultWarehouse.id }});
-         if (stockLvl) {
-            await tx.stockLevel.update({
-               where: { id: stockLvl.id },
-               data: { quantity: v.stock, position: v.location || null }
-            });
-         } else {
-            await tx.stockLevel.create({
-               data: { variantId: v.id, warehouseId: defaultWarehouse.id, quantity: v.stock, position: v.location || null }
-            });
-         }
+        await tx.productVariant.update({
+          where: { id: v.id },
+            data: { size: v.size, color: v.color, stock: cleanStock(v.stock), location: v.location || '' }
+        });
+
+        const stockLvl = await tx.stockLevel.findFirst({ where: { variantId: v.id, warehouseId: defaultWarehouse.id } });
+        if (stockLvl) {
+          await tx.stockLevel.update({
+            where: { id: stockLvl.id },
+            data: { quantity: cleanStock(v.stock), position: v.location || null }
+          });
+        } else {
+          await tx.stockLevel.create({
+            data: { variantId: v.id, warehouseId: defaultWarehouse.id, quantity: cleanStock(v.stock), position: v.location || null }
+          });
+        }
       } else {
-         const newVariant = await tx.productVariant.create({
-            data: { productId, size: v.size, color: v.color, stock: v.stock, location: v.location || '' }
-         });
-         await tx.stockLevel.create({
-            data: { variantId: newVariant.id, warehouseId: defaultWarehouse.id, quantity: v.stock, position: v.location || null }
-         });
+        const newVariant = await tx.productVariant.create({
+          data: { productId, size: v.size, color: v.color, stock: cleanStock(v.stock), location: v.location || '' }
+        });
+        await tx.stockLevel.create({
+          data: { variantId: newVariant.id, warehouseId: defaultWarehouse.id, quantity: cleanStock(v.stock), position: v.location || null }
+        });
       }
     }
   });
 
   // Synchronize stock totals
+  await syncProductStock(productId);
+
+  revalidatePath("/zangochap-manager/products");
+  revalidatePath("/zangochap-manager/logistics");
+  revalidatePath("/zangochap-manager/logistics/packing");
+  revalidatePath("/zangochap-manager/logistics/collection");
+  revalidatePath("/zangochap-manager/dashboard");
+  revalidatePath("/");
+  return { success: true };
+}
+
+// ============ GET PRODUCT VARIANTS BY ID ============
+export async function getProductVariantsById(productId: string) {
+  console.log("=== SERVER ACTION getProductVariantsById APPELÉE POUR ===", productId);
+  await ensureAuth(["admin", "stock", "packing", "collection", "commercial"]);
+
+  const variants = await prisma.productVariant.findMany({
+    where: { productId },
+    include: {
+      stockLevels: {
+        include: {
+          warehouse: true,
+        },
+      },
+    },
+    orderBy: { size: "asc" },
+  });
+
+  console.log("=== SERVER ACTION getProductVariantsById RÉSULTAT DB ===", variants);
+  return JSON.parse(JSON.stringify(variants));
+}
+
+// ============ UPDATE PRODUCT VARIANTS BY ID (DÉDIÉ & SANS DESTRUCTION) ============
+export async function updateProductVariantsById(productId: string, variants: Array<{
+  id?: string;
+  size: string;
+  color: string;
+  stock: number;
+  location?: string;
+}>) {
+  await ensureAuth(["admin", "stock", "packing", "collection", "commercial"]);
+
+  await prisma.$transaction(async (tx) => {
+    let defaultWarehouse = await tx.warehouse.findFirst({
+      where: { name: { in: ["Entrepôt Principal", "Entrepôt  principal", "Entrepot Principal", "Magasin Principal"] } }
+    });
+    if (!defaultWarehouse) {
+      defaultWarehouse = await tx.warehouse.create({ data: { name: "Entrepôt Principal", location: "Siège Zangochap" } });
+    }
+
+    const existingVariants = await tx.productVariant.findMany({ 
+      where: { productId },
+      include: { stockLevels: { include: { warehouse: true } } }
+    });
+    const existingIds = existingVariants.map(v => v.id);
+
+    // AUCUNE SUPPRESSION DESTRUCTIVE ICI (pas de deleteMany toDelete)
+
+    for (const v of variants) {
+      let targetVariantId = v.id;
+
+      if (targetVariantId && existingIds.includes(targetVariantId)) {
+        await tx.productVariant.update({
+          where: { id: targetVariantId },
+          data: { size: v.size, color: v.color, stock: cleanStock(v.stock), location: v.location || '' }
+        });
+      } else {
+        const newVariant = await tx.productVariant.create({
+          data: { productId, size: v.size, color: v.color, stock: cleanStock(v.stock), location: v.location || '' }
+        });
+        targetVariantId = newVariant.id;
+      }
+
+      const stockLvl = await tx.stockLevel.findFirst({ 
+        where: { variantId: targetVariantId, warehouseId: defaultWarehouse.id } 
+      });
+
+      if (stockLvl) {
+        await tx.stockLevel.update({
+          where: { id: stockLvl.id },
+          data: { quantity: cleanStock(v.stock), position: v.location || null }
+        });
+      } else {
+        await tx.stockLevel.create({
+          data: { variantId: targetVariantId, warehouseId: defaultWarehouse.id, quantity: cleanStock(v.stock), position: v.location || null }
+        });
+      }
+    }
+  });
+
+  // Synchronisation globale du stock total
+  await syncProductStock(productId);
+
+  revalidatePath("/zangochap-manager/products");
+  revalidatePath("/zangochap-manager/logistics");
+  revalidatePath("/zangochap-manager/logistics/packing");
+  revalidatePath("/zangochap-manager/logistics/collection");
+  revalidatePath("/zangochap-manager/dashboard");
+  revalidatePath("/");
+  return { success: true };
+}
+
+function cleanStock(value: number) {
+  return Math.max(0, Math.trunc(Number(value) || 0));
+}
+
+// ============ UPDATE VARIANT STOCK LEVELS (PACKING MODAL) ============
+export async function updateProductVariantStockLevels(productId: string, data: {
+  lowStockThreshold?: number;
+  variants: Array<{
+    id?: string;
+    size: string;
+    color: string;
+    stock?: number;
+    location?: string;
+    stockLevels?: Array<{
+      id?: string;
+      warehouseId?: string;
+      warehouseName?: string;
+      quantity: number;
+      position?: string;
+    }>;
+  }>;
+}) {
+  const session = await ensureAuth(["admin", "stock", "packing", "collection", "commercial"]);
+
+  await prisma.$transaction(async (tx) => {
+    const defaultWarehouse = await tx.warehouse.upsert({
+      where: { name: "Entrepôt Principal" },
+      update: {},
+      create: { name: "Entrepôt Principal", location: "Siège Zangochap" },
+    });
+
+    const existingVariants = await tx.productVariant.findMany({
+      where: { productId },
+      select: { id: true },
+    });
+    const existingIds = new Set(existingVariants.map((variant) => variant.id));
+
+    for (const variant of data.variants) {
+      const levels = variant.stockLevels?.length
+        ? variant.stockLevels
+        : [{
+          warehouseId: defaultWarehouse.id,
+          warehouseName: defaultWarehouse.name,
+          quantity: variant.stock || 0,
+          position: variant.location,
+        }];
+
+      const totalStock = levels.reduce((sum, level) => sum + cleanStock(level.quantity), 0);
+      const defaultLocation = levels.find((level) => level.position?.trim())?.position?.trim() || variant.location || "";
+      let variantId = variant.id;
+
+      if (variantId && existingIds.has(variantId)) {
+        await tx.productVariant.update({
+          where: { id: variantId },
+          data: {
+            size: variant.size,
+            color: variant.color,
+            stock: totalStock,
+            location: defaultLocation,
+          },
+        });
+      } else {
+        const created = await tx.productVariant.create({
+          data: {
+            productId,
+            size: variant.size,
+            color: variant.color,
+            stock: totalStock,
+            location: defaultLocation,
+          },
+        });
+        variantId = created.id;
+      }
+
+      for (const level of levels) {
+        const quantity = cleanStock(level.quantity);
+        let warehouseId = level.warehouseId;
+
+        if (!warehouseId) {
+          const warehouseName = level.warehouseName?.trim() || defaultWarehouse.name;
+          const warehouse = await tx.warehouse.upsert({
+            where: { name: warehouseName },
+            update: {},
+            create: { name: warehouseName },
+          });
+          warehouseId = warehouse.id;
+        }
+
+        await setVariantWarehouseStock({
+          variantId,
+          warehouseId,
+          newQuantity: quantity,
+          reason: "Edition stock depuis le modal packing",
+          session,
+        }, tx as any);
+
+        await tx.stockLevel.update({
+          where: {
+            variantId_warehouseId: {
+              variantId,
+              warehouseId,
+            },
+          },
+          data: { position: level.position?.trim() || null },
+        });
+      }
+    }
+
+    if (data.lowStockThreshold !== undefined) {
+      await tx.product.update({
+        where: { id: productId },
+        data: { lowStockThreshold: Math.max(0, Number(data.lowStockThreshold) || 0) },
+      });
+    }
+  });
+
   await syncProductStock(productId);
 
   revalidatePath("/zangochap-manager/products");
@@ -305,13 +524,13 @@ export async function updateProduct(id: string, data: Partial<{
   isPublished: boolean;
   isFeatured: boolean;
   isGift: boolean;
-  variants?: Array<{ size: string; color: string; stock: number; location: string }>;
+  variants?: Array<{ id?: string; size: string; color: string; stock: number; location: string }>;
   images?: Array<{ name: string; dataUrl: string }>;
   warehouseId?: string;
 }>) {
   await ensureAuth(["admin", "stock", "commercial"]);
   const updateData: any = { ...data };
-  
+
   // Remove UI-only fields and relation strings to prevent Prisma validation errors
   delete updateData.category;
   delete updateData.subCategory;
@@ -320,11 +539,11 @@ export async function updateProduct(id: string, data: Partial<{
   delete updateData.variants;
   delete updateData.images;
   delete updateData.warehouseId;
-  
+
   if (data.price) updateData.price = new Prisma.Decimal(data.price);
   if (data.oldPrice !== undefined) updateData.oldPrice = data.oldPrice ? new Prisma.Decimal(data.oldPrice) : null;
   if (data.isPublished !== undefined) updateData.status = data.isPublished ? 'PUBLISHED' : 'DRAFT';
-  
+
   // Handle Category & SubCategory
   if (data.category !== undefined) {
     if (data.category && data.category.trim() !== "") {
@@ -334,7 +553,7 @@ export async function updateProduct(id: string, data: Partial<{
         create: { name: data.category.trim(), slug: slugify(data.category) }
       });
       updateData.category = { connect: { id: cat.id } };
-      
+
       if (data.subCategory && data.subCategory.trim() !== "") {
         const subCatSlug = slugify(data.subCategory);
         const subCat = await prisma.subCategory.upsert({
@@ -368,35 +587,63 @@ export async function updateProduct(id: string, data: Partial<{
 
   // Handle Variants
   if (data.variants) {
-    // Delete existing variants
-    await prisma.productVariant.deleteMany({ where: { productId: id } });
-    
     const targetWarehouseId = data.warehouseId || (await getOrCreateDefaultWarehouse()).id;
-    
-    // Create new variants
+    const existingVariants = await prisma.productVariant.findMany({
+      where: { productId: id },
+      include: { stockLevels: true },
+    });
+
     for (const v of data.variants) {
-      const newVariant = await prisma.productVariant.create({
-        data: {
-          productId: id,
-          size: v.size,
-          color: v.color,
-          stock: v.stock,
-          location: v.location || '',
-        }
-      });
-      // Create stock level in targeted warehouse
-      await prisma.stockLevel.create({
-        data: {
-          variantId: newVariant.id,
+      const stock = cleanStock(v.stock);
+      const existing = (v.id && existingVariants.find(variant => variant.id === v.id))
+        || existingVariants.find(variant => variant.size === v.size && variant.color === v.color);
+
+      const targetVariant = existing
+        ? await prisma.productVariant.update({
+          where: { id: existing.id },
+          data: {
+            size: v.size,
+            color: v.color,
+            stock,
+            location: v.location || '',
+          }
+        })
+        : await prisma.productVariant.create({
+          data: {
+            productId: id,
+            size: v.size,
+            color: v.color,
+            stock,
+            location: v.location || '',
+          }
+        });
+
+      const otherWarehouseStock = existing
+        ? existing.stockLevels
+          .filter(level => level.warehouseId !== targetWarehouseId)
+          .reduce((sum, level) => sum + cleanStock(level.quantity), 0)
+        : 0;
+      const targetWarehouseStock = Math.max(0, stock - otherWarehouseStock);
+
+      await prisma.stockLevel.upsert({
+        where: {
+          variantId_warehouseId: {
+            variantId: targetVariant.id,
+            warehouseId: targetWarehouseId,
+          },
+        },
+        update: { quantity: targetWarehouseStock, position: v.location || null },
+        create: {
+          variantId: targetVariant.id,
           warehouseId: targetWarehouseId,
-          quantity: v.stock,
-          position: v.location || null
-        }
+          quantity: targetWarehouseStock,
+          position: v.location || null,
+        },
       });
     }
-    
+
     // Sync total stock
-    const totalStock = data.variants.reduce((sum, v) => sum + v.stock, 0);
+    const totalStock = data.variants.reduce((sum, v) => sum + cleanStock(v.stock), 0);
     updateData.stock = totalStock;
   }
 
@@ -409,7 +656,7 @@ export async function updateProduct(id: string, data: Partial<{
 
     // Delete old image records
     await prisma.productImage.deleteMany({ where: { productId: id } });
-    
+
     const imageUrls = [];
     for (const img of data.images) {
       if (img.dataUrl.startsWith('http')) {
@@ -419,7 +666,7 @@ export async function updateProduct(id: string, data: Partial<{
         imageUrls.push({ name: img.name, url });
       }
     }
-    
+
     updateData.images = {
       create: imageUrls
     };
@@ -447,6 +694,10 @@ export async function updateProduct(id: string, data: Partial<{
     where: { id },
     data: updateData,
   });
+
+  if (data.variants) {
+    await syncProductStock(id);
+  }
 
   revalidatePath("/zangochap-manager/products");
   revalidatePath("/");
@@ -512,7 +763,7 @@ export async function fixAllProductStocks() {
   revalidatePath("/zangochap-manager/products");
   revalidatePath("/zangochap-manager/dashboard");
   revalidatePath("/");
-  
+
   return { success: true, count: fixedCount };
 }
 

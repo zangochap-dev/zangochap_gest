@@ -8,7 +8,7 @@ import {
   Download, Calendar, Package, ChevronLeft, ChevronRight,
   ArrowUpDown, ArrowUp, ArrowDown, Filter, X
 } from "lucide-react";
-import { deleteCustomer } from "@/modules/crm/admin_actions";
+import { deleteCustomer } from "@/modules/crm/admin-actions";
 import { useToast } from "@/components/Toast";
 import { useRouter } from "next/navigation";
 

@@ -3,7 +3,7 @@ import prisma from "@/lib/prisma";
 import Topbar from "@/components/Topbar";
 import { TableCard, EmptyState, StatusBadge } from "@/components/UI";
 import { formatPrice } from "@/lib/constants";
-import ShortagesClient from "./ShortagesClient";
+import ShortagesClient from "@/modules/products/components/ShortagesClient";
 
 export const dynamic = "force-dynamic";
 

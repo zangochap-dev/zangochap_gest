@@ -30,6 +30,17 @@ export async function getTodayLabels() {
       labeledAt: true,
       labeledByName: true,
       createdAt: true,
+      items: {
+        select: {
+          id: true,
+          name: true,
+          qty: true,
+          image: true,
+          emoji: true,
+          size: true,
+          color: true,
+        },
+      },
     },
     orderBy: {
       createdAt: "asc",

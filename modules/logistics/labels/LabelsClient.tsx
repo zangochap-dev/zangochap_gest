@@ -4,6 +4,16 @@ import React, { useState, useTransition, useMemo } from "react";
 import { Printer, Check, CheckSquare, Square, Tag, RefreshCw, CheckCircle2, Repeat } from "lucide-react";
 import { toggleLabelStatus, checkAllLabels } from "./actions";
 
+interface OrderItemLabel {
+  id: string;
+  name: string;
+  qty: number;
+  image: string | null;
+  emoji: string | null;
+  size: string;
+  color: string;
+}
+
 interface OrderLabel {
   id: string;
   ref: string;
@@ -11,6 +21,7 @@ interface OrderLabel {
   labeledAt: Date | null;
   labeledByName: string | null;
   createdAt: Date;
+  items: OrderItemLabel[];
 }
 
 interface LabelsClientProps {
@@ -24,6 +35,7 @@ interface LabelsClientProps {
 export default function LabelsClient({ initialOrders, currentUser }: LabelsClientProps) {
   const [orders, setOrders] = useState<OrderLabel[]>(initialOrders);
   const [isPending, startTransition] = useTransition();
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   const totalCount = orders.length;
   const labeledCount = orders.filter((o) => o.isLabeled).length;
@@ -207,33 +219,69 @@ export default function LabelsClient({ initialOrders, currentUser }: LabelsClien
                 onClick={() => handleToggle(order.id, order.isLabeled)}
                 className={`label-tile ${order.isLabeled ? "labeled" : ""} ${isRepeat ? "repeated" : ""}`}
               >
-                <div className="label-ref-container">
-                  {display.prefix ? (
-                    <div className="label-ref-split">
-                      <span className="label-prefix">{display.prefix}</span>
-                      <span className="label-code">{display.code}</span>
-                    </div>
-                  ) : (
-                    <div className="label-ref">{order.ref}</div>
-                  )}
-                  {isRepeat && (
-                    <>
-                      <span className="repeat-badge labels-no-print" title={`Cette référence apparaît ${count} fois aujourd'hui`}>
-                        <Repeat size={12} /> x{count}
-                      </span>
-                      <span className="print-repeat-badge">[🔄 x{count}]</span>
-                    </>
-                  )}
+                <div className="label-tile-top">
+                  <div className="label-ref-container">
+                    {display.prefix ? (
+                      <div className="label-ref-split">
+                        <span className="label-prefix">{display.prefix}</span>
+                        <span className="label-code">{display.code}</span>
+                      </div>
+                    ) : (
+                      <div className="label-ref">{order.ref}</div>
+                    )}
+                    {isRepeat && (
+                      <>
+                        <span className="repeat-badge labels-no-print" title={`Cette référence apparaît ${count} fois aujourd'hui`}>
+                          <Repeat size={12} /> x{count}
+                        </span>
+                        <span className="print-repeat-badge">[🔄 x{count}]</span>
+                      </>
+                    )}
+                  </div>
+                  <div className="label-check-indicator labels-no-print">
+                    {order.isLabeled ? (
+                      <div className="label-checked-badge">
+                        <Check size={14} className="text-white" />
+                      </div>
+                    ) : (
+                      <div className="label-unchecked-box" />
+                    )}
+                  </div>
                 </div>
-                <div className="label-check-indicator labels-no-print">
-                  {order.isLabeled ? (
-                    <div className="label-checked-badge">
-                      <Check size={14} className="text-white" />
-                    </div>
-                  ) : (
-                    <div className="label-unchecked-box" />
-                  )}
-                </div>
+
+                {/* ITEMS DISPLAY (Web only, hidden during print) */}
+                {order.items && order.items.length > 0 && (
+                  <div className="label-items-list labels-no-print">
+                    {order.items.map((item) => (
+                      <div key={item.id} className="label-item-row">
+                        <div
+                          className="label-item-img-box"
+                          onClick={(e) => {
+                            if (item.image) {
+                              e.stopPropagation();
+                              setLightboxImage(item.image);
+                            }
+                          }}
+                          style={{ cursor: item.image ? "pointer" : "default" }}
+                        >
+                          {item.image ? (
+                            <img src={item.image} alt={item.name} className="label-item-img" />
+                          ) : (
+                            <span className="label-item-emoji">{item.emoji || "📦"}</span>
+                          )}
+                        </div>
+                        <div className="label-item-details">
+                          <div className="label-item-name">{item.name}</div>
+                          <div className="label-item-meta">
+                            {item.size !== "-" && <span>Taille: {item.size}</span>}
+                            {item.color !== "-" && <span>Couleur: {item.color}</span>}
+                          </div>
+                        </div>
+                        <div className="label-item-qty">x{item.qty}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -347,12 +395,94 @@ export default function LabelsClient({ initialOrders, currentUser }: LabelsClien
           border-radius: 16px;
           padding: 20px 24px;
           display: flex;
-          align-items: center;
-          justify-content: space-between;
+          flex-direction: column;
+          align-items: stretch;
+          gap: 16px;
           cursor: pointer;
           transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
           position: relative;
           overflow: hidden;
+        }
+
+        .label-tile-top {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          width: 100%;
+        }
+
+        .label-items-list {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          border-top: 1px dashed var(--line);
+          padding-top: 14px;
+        }
+
+        .label-item-row {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          background: var(--cream-2);
+          padding: 8px 12px;
+          border-radius: 12px;
+        }
+
+        .label-item-img-box {
+          width: 36px;
+          height: 36px;
+          border-radius: 8px;
+          overflow: hidden;
+          background: white;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          border: 1px solid var(--line);
+        }
+
+        .label-item-img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .label-item-emoji {
+          font-size: 20px;
+        }
+
+        .label-item-details {
+          flex: 1;
+          min-width: 0;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .label-item-name {
+          font-size: 13px;
+          font-weight: 700;
+          color: var(--ink);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .label-item-meta {
+          display: flex;
+          gap: 8px;
+          font-size: 11px;
+          color: var(--brown-soft);
+          font-weight: 600;
+        }
+
+        .label-item-qty {
+          font-size: 14px;
+          font-weight: 900;
+          color: var(--orange);
+          background: white;
+          padding: 2px 8px;
+          border-radius: 6px;
+          border: 1px solid var(--line);
         }
 
         .label-tile:hover {
@@ -598,7 +728,91 @@ export default function LabelsClient({ initialOrders, currentUser }: LabelsClien
             background: #eee !important;
           }
         }
+
+        /* === LIGHTBOX STYLES === */
+        .lightbox-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          height: 100vh;
+          background: rgba(0, 0, 0, 0.85);
+          backdrop-filter: blur(8px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 99999;
+          padding: 24px;
+          animation: fadeIn 0.2s ease-out;
+        }
+
+        .lightbox-content {
+          position: relative;
+          max-width: 90vw;
+          max-height: 90vh;
+          background: transparent;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .lightbox-img {
+          max-width: 100%;
+          max-height: 90vh;
+          object-fit: contain;
+          border-radius: 16px;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+          animation: scaleUp 0.2s ease-out;
+        }
+
+        .lightbox-close {
+          position: absolute;
+          top: -20px;
+          right: -20px;
+          width: 44px;
+          height: 44px;
+          background: white;
+          color: var(--ink);
+          border: none;
+          border-radius: 50%;
+          font-size: 20px;
+          font-weight: 900;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .lightbox-close:hover {
+          transform: scale(1.15) rotate(90deg);
+          background: var(--orange);
+          color: white;
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        @keyframes scaleUp {
+          from { transform: scale(0.9); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
+        }
       `}</style>
+
+      {/* LIGHTBOX MODAL */}
+      {lightboxImage && (
+        <div className="lightbox-overlay labels-no-print" onClick={() => setLightboxImage(null)}>
+          <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
+            <img src={lightboxImage} alt="Aperçu produit en grand" className="lightbox-img" />
+            <button className="lightbox-close" onClick={() => setLightboxImage(null)}>
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

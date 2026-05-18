@@ -293,6 +293,10 @@ model Order {
   hasIssue              Boolean @default(false)
   issueType             String?
 
+  isLabeled             Boolean   @default(false)
+  labeledAt             DateTime?
+  labeledByName         String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

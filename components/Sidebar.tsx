@@ -14,7 +14,7 @@ import {
   Upload, FileText, LogOut, ClipboardList,
   AlertTriangle, Settings, ChevronRight, ChevronLeft, History, Wallet, Warehouse,
   Image as ImageIcon, Menu, X, Bell, WifiOff,
-  CheckCircle, Plus
+  CheckCircle, Plus, Tag
 } from "lucide-react";
 
 interface SidebarProps {
@@ -50,7 +50,7 @@ const NAV_FOR_ROLE: Record<string, (counts: SidebarCounts) => NavSection[]> = {
   packing: (counts) => [
     { items: [{ label: 'Dashboard', href: '/zangochap-manager/dashboard', icon: <LayoutDashboard size={18} /> }, { label: 'Répertoire', href: '/zangochap-manager/directory', icon: <Users size={18} /> }] },
     { title: 'Commandes', items: [{ label: 'Toutes les commandes', href: '/zangochap-manager/orders', icon: <ShoppingBag size={18} />, badge: counts.orders }] },
-    { title: 'Logistique', items: [{ label: 'Emballage', href: '/zangochap-manager/logistics/packing', icon: <Package size={18} />, badge: counts.packing }, { label: 'Fiche vérification', href: '/zangochap-manager/logistics/verification', icon: <FileText size={18} /> }] },
+    { title: 'Logistique', items: [{ label: 'Emballage', href: '/zangochap-manager/logistics/packing', icon: <Package size={18} />, badge: counts.packing }, { label: 'Fiche vérification', href: '/zangochap-manager/logistics/verification', icon: <FileText size={18} /> }, { label: 'Étiquettes', href: '/zangochap-manager/logistics/labels', icon: <Tag size={18} /> }] },
     { title: 'Catalogue', items: [{ label: 'Tous les produits', href: '/zangochap-manager/products', icon: <Box size={18} /> }, { label: 'Ajouter un produit', href: '/zangochap-manager/products/new', icon: <ClipboardList size={18} /> }] },
   ],
   collection: (counts) => [
@@ -76,7 +76,8 @@ const NAV_FOR_ROLE: Record<string, (counts: SidebarCounts) => NavSection[]> = {
         { label: 'Emballage', href: '/zangochap-manager/logistics/packing', icon: <Package size={18} />, badge: counts.packing },
         { label: 'Collecte', href: '/zangochap-manager/logistics/collection', icon: <Truck size={18} />, badge: counts.collection },
         { label: 'Entrepôts', href: '/zangochap-manager/logistics/warehouses', icon: <Warehouse size={18} /> },
-        { label: 'Vérification', href: '/zangochap-manager/logistics/verification', icon: <CheckCircle size={18} /> }
+        { label: 'Vérification', href: '/zangochap-manager/logistics/verification', icon: <CheckCircle size={18} /> },
+        { label: 'Étiquettes', href: '/zangochap-manager/logistics/labels', icon: <Tag size={18} /> }
       ]
     },
     {

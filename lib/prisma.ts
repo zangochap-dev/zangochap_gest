@@ -39,6 +39,8 @@ declare global {
   var prisma: undefined | ReturnType<typeof prismaClientSingleton>;
 }
 
+// v6 reload for isLabeled schema sync
+delete (globalThis as any).prisma;
 const prisma = globalThis.prisma ?? prismaClientSingleton();
 
 export default prisma;

@@ -115,6 +115,7 @@ export default function Sidebar({ user, counts: initialCounts }: SidebarProps) {
   const [isOffline, setIsOffline] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [hasNewNotifications, setHasNewNotifications] = useState(false);
+  const [isNarrowDesktop, setIsNarrowDesktop] = useState(false);
 
   const defaultCounts: SidebarCounts = { orders: 0, packing: 0, collection: 0, toProcess: 0, myDeliveries: 0 };
 
@@ -135,19 +136,25 @@ export default function Sidebar({ user, counts: initialCounts }: SidebarProps) {
   const roleKey = user.role?.toLowerCase() || 'admin';
   const sections = useMemo(() => (NAV_FOR_ROLE[roleKey] || NAV_FOR_ROLE.admin)(counts), [roleKey, counts]);
   const roleLabel = ROLE_LABELS[user.role] || user.role;
+  const effectiveCollapsed = isCollapsed || isNarrowDesktop;
 
   // Track Online/Offline Status
   useEffect(() => {
     setMounted(true);
     setIsOffline(!navigator.onLine);
+    const narrowDesktopQuery = window.matchMedia("(min-width: 1024px) and (max-width: 1180px)");
+    const handleNarrowDesktopChange = () => setIsNarrowDesktop(narrowDesktopQuery.matches);
 
     const handleOnline = () => setIsOffline(false);
     const handleOffline = () => setIsOffline(true);
 
+    handleNarrowDesktopChange();
+    narrowDesktopQuery.addEventListener('change', handleNarrowDesktopChange);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
     return () => {
+      narrowDesktopQuery.removeEventListener('change', handleNarrowDesktopChange);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
@@ -200,13 +207,13 @@ export default function Sidebar({ user, counts: initialCounts }: SidebarProps) {
           fixed inset-y-0 left-0 z-[99999] w-[280px] bg-[#0F1115] text-white flex flex-col border-r border-white/5 transition-all duration-300 ease-in-out
           ${isMobileOpen ? 'translate-x-0 shadow-[20px_0_50px_rgba(0,0,0,0.5)]' : '-translate-x-full'}
           lg:translate-x-0 lg:static lg:h-screen lg:z-10
-          ${isCollapsed ? 'lg:w-[76px]' : 'lg:w-[260px]'}
+          ${effectiveCollapsed ? 'lg:w-[76px]' : 'lg:w-[260px]'}
         `}
       >
         <div className="p-5 flex justify-between items-center">
           <div className="flex items-center">
             <Link href="/zangochap-manager/dashboard" className="flex items-center">
-              {!isCollapsed ? (
+              {!effectiveCollapsed ? (
                 <img src="/logo.png" alt="ZANGOCHAP" width="140" height="40" className="h-auto block" />
               ) : (
                 <div className="w-10 h-10 bg-[#FF6B2C] rounded-xl flex items-center justify-center font-black text-[22px] text-white">Z</div>
@@ -249,7 +256,7 @@ export default function Sidebar({ user, counts: initialCounts }: SidebarProps) {
           <div className="flex flex-col gap-6">
             {sections.map((section, sIdx) => (
               <div key={sIdx}>
-                {section.title && !isCollapsed && (
+                {section.title && !effectiveCollapsed && (
                   <div className="text-[10px] font-extrabold uppercase text-white/25 px-3 mb-3 tracking-wider">
                     {section.title}
                   </div>
@@ -268,7 +275,7 @@ export default function Sidebar({ user, counts: initialCounts }: SidebarProps) {
                       >
                         <div className="flex items-center gap-3">
                           <span className={`flex items-center ${isActive ? 'opacity-100 text-[#FF6B2C]' : 'opacity-60'}`}>{item.icon}</span>
-                          {!isCollapsed && <span>{item.label}</span>}
+                          {!effectiveCollapsed && <span>{item.label}</span>}
                         </div>
                         {mounted && typeof item.badge === "number" && item.badge > 0 && (
                           <span className="bg-[#FF6B2C] text-white text-[10px] font-black px-1.5 py-0.5 rounded-md">
@@ -290,7 +297,7 @@ export default function Sidebar({ user, counts: initialCounts }: SidebarProps) {
               <div className="w-[38px] h-[38px] bg-[#FF6B2C] rounded-[10px] flex items-center justify-center font-extrabold text-[13px] text-white">
                 {user.initials}
               </div>
-              {!isCollapsed && (
+              {!effectiveCollapsed && (
                 <div className="flex-1 min-w-0">
                   <div className="text-[13px] font-bold text-white whitespace-nowrap overflow-hidden text-ellipsis">
                     {user.name}
@@ -301,7 +308,7 @@ export default function Sidebar({ user, counts: initialCounts }: SidebarProps) {
                 </div>
               )}
             </div>
-            {!isCollapsed && (
+            {!effectiveCollapsed && (
               <form action={logoutAction}>
                 <button
                   type="submit"
@@ -316,8 +323,8 @@ export default function Sidebar({ user, counts: initialCounts }: SidebarProps) {
             className="hidden lg:flex bg-transparent border-none text-white/20 text-[11px] font-bold p-[8px_12px] cursor-pointer items-center gap-2"
             onClick={() => setIsCollapsed(!isCollapsed)}
           >
-            {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-            {!isCollapsed && <span>Réduire</span>}
+            {effectiveCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+            {!effectiveCollapsed && <span>Réduire</span>}
           </button>
         </div>
       </aside>

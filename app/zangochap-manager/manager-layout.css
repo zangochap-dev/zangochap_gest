@@ -1,6 +1,6 @@
 .app-container {
   display: flex;
-  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   background: var(--cream);
 }
@@ -14,6 +14,12 @@
 @media (max-width: 1024px) {
   .main-content {
     padding-top: 60px;
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1180px) {
+  .main-scroll-area {
+    scrollbar-gutter: stable;
   }
 }
 .main-scroll-area {

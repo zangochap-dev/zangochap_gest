@@ -4689,3 +4689,248 @@
     height: auto !important;
   }
 }
+
+/* === GLOBAL SMALL-SCREEN ADAPTATION: TABLETS / NANO PCS === */
+@media (max-width: 1180px) {
+  :root {
+    --sidebar-w: 76px;
+  }
+
+  .content,
+  .cfg-page,
+  .settlements-container {
+    padding: 18px !important;
+    max-width: 100% !important;
+  }
+
+  .topbar {
+    padding: 12px 18px;
+    gap: 10px;
+  }
+
+  .topbar-search {
+    width: clamp(160px, 22vw, 240px);
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) !important;
+    gap: 10px;
+  }
+
+  .stat-card {
+    padding: 12px 14px;
+  }
+
+  .stat-value {
+    font-size: 24px;
+  }
+
+  .filters-bar,
+  .toolbar,
+  .filter-container,
+  .topbar-actions {
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+
+  .filters-bar > *,
+  .toolbar > *,
+  .filter-container > * {
+    min-width: 0;
+  }
+
+  .filter-spacer {
+    display: none;
+  }
+
+  .filter-select,
+  .filter-date,
+  .filter-chip,
+  .shortcut-btn {
+    min-height: 36px;
+  }
+
+  .table-card {
+    max-width: 100%;
+  }
+
+  .table-head {
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .table-wrap,
+  .promo-table-wrap,
+  .returned-table-wrap {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  table {
+    min-width: max-content;
+  }
+
+  thead th,
+  tbody td {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .action-btn {
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+  }
+
+  .modal,
+  .modal-content-new,
+  .modal-content-new.large,
+  .modal-content-new.xl {
+    max-width: min(96vw, 980px) !important;
+  }
+
+  .modal-body,
+  .modal-body-new {
+    max-height: calc(100dvh - 150px);
+    overflow-y: auto;
+  }
+
+  .form-grid,
+  .reports-grid,
+  .rider-settlements-layout,
+  .modal-sections,
+  .product-detail-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .pos-layout {
+    grid-template-columns: 1fr 340px !important;
+  }
+
+  .pos-sidebar {
+    width: 340px;
+  }
+
+  .pos-products-grid {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)) !important;
+  }
+
+  .pos-checkout-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .variants-editor-grid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .content,
+  .cfg-page,
+  .settlements-container {
+    padding: 14px !important;
+  }
+
+  .topbar {
+    flex-wrap: wrap;
+  }
+
+  .topbar-search {
+    width: 100%;
+    order: 3;
+  }
+
+  .stats-grid,
+  .stats-grid-compact,
+  .modal-summary-grid,
+  .reports-grid,
+  .settle-grid,
+  .team-grid,
+  .productsGrid,
+  .media-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .filters-bar,
+  .toolbar,
+  .filter-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .filters-bar > input,
+  .filters-bar > select,
+  .filters-bar > button,
+  .toolbar > input,
+  .toolbar > select,
+  .toolbar > button,
+  .filter-container > input,
+  .filter-container > select,
+  .filter-container > button {
+    width: 100% !important;
+  }
+
+  .modal-footer,
+  .modal-footer-new {
+    flex-wrap: wrap;
+  }
+
+  .modal-footer button,
+  .modal-footer-new button {
+    flex: 1 1 160px;
+    justify-content: center;
+  }
+
+  .pos-layout,
+  .pos-container {
+    grid-template-columns: 1fr !important;
+  }
+
+  .pos-sidebar {
+    width: 100% !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .content,
+  .cfg-page,
+  .settlements-container {
+    padding: 12px !important;
+  }
+
+  .filters-bar,
+  .toolbar,
+  .filter-container {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-card {
+    padding: 12px;
+  }
+
+  .table-head {
+    padding: 12px;
+  }
+
+  .modal,
+  .modal-content-new,
+  .modal-content-new.large,
+  .modal-content-new.xl,
+  .modal-content-new.full {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    max-height: 100dvh !important;
+    border-radius: 0 !important;
+  }
+
+  .modal-container {
+    padding: 0 !important;
+  }
+
+  .modal-body,
+  .modal-body-new {
+    max-height: calc(100dvh - 126px);
+  }
+}

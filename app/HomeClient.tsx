@@ -15,13 +15,13 @@ export default function HomeClient({ products, categories, latestPromo }: {
   categories: Category[],
   latestPromo: any
 }) {
-  const flashSales = useMemo(() => 
+  const flashSales = useMemo(() =>
     products.filter((p: Product) => p.oldPrice && Number(p.oldPrice) > Number(p.price)).slice(0, 4)
-  , [products]);
-  
-  const newArrivals = useMemo(() => 
+    , [products]);
+
+  const newArrivals = useMemo(() =>
     products.slice(0, 24)
-  , [products]);
+    , [products]);
 
   const containerVars = {
     hidden: { opacity: 0 },

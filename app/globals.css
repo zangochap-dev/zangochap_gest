@@ -1106,6 +1106,69 @@
     align-items: center;
   }
 
+  .action-menu {
+    position: relative;
+    display: inline-flex;
+  }
+
+  .table-card:has(.action-menu[open]),
+  .table-wrap:has(.action-menu[open]) {
+    overflow: visible;
+  }
+
+  tbody tr:has(.action-menu[open]) {
+    position: relative;
+    z-index: 20;
+  }
+
+  .action-menu summary {
+    display: inline-flex;
+    list-style: none;
+  }
+
+  .action-menu summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .action-menu-panel {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    z-index: 30;
+    min-width: 180px;
+    padding: 6px;
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    box-shadow: 0 12px 28px rgba(26, 20, 16, 0.16);
+  }
+
+  .action-menu-item {
+    width: 100%;
+    min-height: 34px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 9px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--brown);
+    font-size: 12px;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .action-menu-item:hover {
+    background: var(--cream);
+    color: var(--ink);
+  }
+
+  .action-menu-item.danger {
+    color: var(--red);
+  }
+
   /* ============= EMPTY STATE ============= */
   .empty {
     text-align: center;

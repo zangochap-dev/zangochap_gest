@@ -994,7 +994,7 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
                               <button className="action-btn" title="Modifier" onClick={() => setOrderToEdit(order)}>
                                 <Edit3 size={14} />
                               </button>
-                              <button className="action-btn" title="Dupliquer" onClick={() => setOrderToDuplicate(order)}>
+                              <button className="action-btn" title="Créer un échange" onClick={() => setOrderToDuplicate(order)}>
                                 <Copy size={14} />
                               </button>
                               <button className="action-btn" title="Supprimer" onClick={() => handleDelete(order.id)} style={{ color: 'var(--red)' }}>
@@ -1729,7 +1729,7 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
       commune: order.commune || '',
       deliveryFee: order.deliveryFee || 0,
       notes: order.notes || '',
-      type: 'Standard',
+      type: mode === 'duplicate' ? 'Echange' : (order.type || 'Standard'),
       total: initialItems.reduce((sum: number, i: any) => sum + (Number(i.price) * Number(i.qty)), 0),
       items: initialItems as any[],
       exchangeReason: '',
@@ -1828,7 +1828,7 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
     <Modal
       isOpen={true}
       onClose={onClose}
-      title={mode === 'duplicate' ? "Dupliquer la commande" : "Modifier la commande"}
+      title={mode === 'duplicate' ? "Créer une commande d'échange" : "Modifier la commande"}
       full
       footer={
         <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', padding: '4px 0' }}>
@@ -1845,7 +1845,7 @@ function OrderFormModal({ order, mode = 'duplicate', onClose, onConfirm, isPendi
             onClick={() => onConfirm(formData)}
             disabled={isPending || formData.items.length === 0}
           >
-            {isPending ? <div className="animate-spin" /> : <><Check size={18} /> {mode === 'duplicate' ? 'Dupliquer' : 'Enregistrer'}</>}
+            {isPending ? <div className="animate-spin" /> : <><Check size={18} /> {mode === 'duplicate' ? "Créer l'échange" : 'Enregistrer'}</>}
           </button>
         </div>
       }

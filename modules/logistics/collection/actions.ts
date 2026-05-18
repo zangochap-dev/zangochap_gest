@@ -79,14 +79,16 @@ export async function markCollection(input: unknown) {
 
     if (status !== "collected" || !effectiveProductId) return;
 
-    const variant = orderItem
-      ? await tx.productVariant.findFirst({
-          where: {
-            productId: effectiveProductId,
-            size: orderItem.size,
-            color: orderItem.color,
-          },
-        })
+    const variant = orderItem?.variantId
+      ? await tx.productVariant.findUnique({ where: { id: orderItem.variantId } })
+      : orderItem
+        ? await tx.productVariant.findFirst({
+            where: {
+              productId: effectiveProductId,
+              size: orderItem.size,
+              color: orderItem.color,
+            },
+          })
       : null;
 
     if (!variant) {
@@ -144,14 +146,25 @@ export async function getItemsToCollect() {
 async function notifyOrderIfFullyAvailable(orderId: string) {
   const updatedOrder = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { items: { include: { product: true } } },
+    include: {
+      items: {
+        include: {
+          product: { include: { variants: true } },
+        },
+      },
+    },
   });
 
   if (!updatedOrder || updatedOrder.status !== "CONFIRMED") return;
 
   const allAvailable = updatedOrder.items.every((item) => {
     if (!item.productId) return true;
-    return (item.product?.stock || 0) > 0;
+    const requestedQty = Number(item.qty) || 1;
+    const variant = item.variantId
+      ? item.product?.variants.find((v: any) => v.id === item.variantId)
+      : item.product?.variants.find((v: any) => v.size === item.size && v.color === item.color);
+    if (variant) return Number(variant.stock || 0) >= requestedQty;
+    return Number(item.product?.stock || 0) >= requestedQty;
   });
   if (!allAvailable) return;
 

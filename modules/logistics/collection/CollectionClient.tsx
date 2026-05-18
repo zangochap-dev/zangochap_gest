@@ -126,8 +126,11 @@ export default function CollectionClient({ toCollect, user, categories = [], war
       const hasUnavailable = isUnavailableAction(latestAction);
       const hasAlternative = isAlternativeAction(latestAction);
 
-      const variant = tc.product.variants.find((v: any) => v.size === tc.item.size && v.color === tc.item.color);
-      const isOutOfStock = variant ? variant.stock <= 0 : tc.product.stock <= 0;
+      const variant = tc.item.variantId
+        ? tc.product.variants.find((v: any) => v.id === tc.item.variantId)
+        : tc.product.variants.find((v: any) => v.size === tc.item.size && v.color === tc.item.color);
+      const requestedQty = Number(tc.item.qty) || 1;
+      const isOutOfStock = variant ? Number(variant.stock || 0) < requestedQty : Number(tc.product.stock || 0) < requestedQty;
       const isProcessed = !!latestLog;
 
       if (!isProcessed && !isOutOfStock) return false;

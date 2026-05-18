@@ -29,19 +29,24 @@ export async function getDashboardStats() {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
   // 1. Core Counts
-  const [todayOrders, monthOrders, productsCount] = await Promise.all([
-    prisma.order.count({ where: { createdAt: { gte: todayStart } } }),
-    prisma.order.count({ where: { createdAt: { gte: monthStart } } }),
-    prisma.product.count()
+  const [todayOrders, monthOrders, productsCount, toProcessCount, packingQueueCount] = await Promise.all([
+    prisma.order.count({ where: { deletedAt: null, createdAt: { gte: todayStart } } }),
+    prisma.order.count({ where: { deletedAt: null, createdAt: { gte: monthStart } } }),
+    prisma.product.count(),
+    prisma.order.count({ where: { deletedAt: null, status: 'TO_PROCESS' } }),
+    prisma.order.count({ where: { deletedAt: null, status: 'CONFIRMED' } }),
   ]);
 
   // 2. Revenue (Delivered only)
   const deliveredOrders = await prisma.order.findMany({
-    where: { status: 'DELIVERED' },
+    where: { deletedAt: null, status: 'DELIVERED' },
     select: { total: true, createdAt: true, commune: true, commercialName: true }
   });
 
   const totalRevenue = deliveredOrders.reduce((sum, o) => sum + o.total, 0);
+  const todayRevenue = deliveredOrders
+    .filter(o => new Date(o.createdAt) >= todayStart)
+    .reduce((sum, o) => sum + o.total, 0);
 
   // 3. Top Communes
   const communeMap: Record<string, number> = {};
@@ -68,13 +73,14 @@ export async function getDashboardStats() {
 
   // 5. Recent Activity
   const recentOrders = await prisma.order.findMany({
+    where: { deletedAt: null },
     orderBy: { createdAt: 'desc' },
     take: 8,
     include: { items: true }
   });
 
   // 6. Conversions & Trends
-  const allOrdersCount = await prisma.order.count();
+  const allOrdersCount = await prisma.order.count({ where: { deletedAt: null } });
   const conversionRate = allOrdersCount > 0 ? Math.round((deliveredOrders.length / allOrdersCount) * 100) : 0;
 
   const outOfStockCount = await prisma.product.count({
@@ -87,11 +93,51 @@ export async function getDashboardStats() {
     }
   });
 
+  const activeOrders = await prisma.order.findMany({
+    where: {
+      deletedAt: null,
+      status: { in: ['CONFIRMED', 'TO_PROCESS', 'PENDING', 'PARTIAL'] },
+    },
+    include: { items: true },
+    orderBy: { createdAt: 'desc' },
+    take: 500,
+  });
+
+  const productIds = Array.from(
+    new Set(activeOrders.flatMap(order => order.items.map(item => item.productId)).filter(Boolean)),
+  ) as string[];
+
+  const productsForCollection = productIds.length
+    ? await prisma.product.findMany({
+        where: { id: { in: productIds } },
+        include: { variants: true },
+      })
+    : [];
+  const productMap = new Map(productsForCollection.map(product => [product.id, product]));
+
+  const collectionQueueCount = activeOrders.reduce((count, order) => {
+    return count + order.items.filter(item => {
+      if (!item.productId) return false;
+      const product = productMap.get(item.productId);
+      if (!product) return false;
+      const requestedQty = Number(item.qty) || 1;
+      const variant = item.variantId
+        ? product.variants.find(v => v.id === item.variantId)
+        : product.variants.find(v => v.size === item.size && v.color === item.color);
+      if (variant) return Number(variant.stock || 0) < requestedQty;
+      return Number(product.stock || 0) < requestedQty;
+    }).length;
+  }, 0);
+
   return {
     todayOrders,
+    todayRevenue,
     totalRevenue,
     conversionRate,
     outOfStockCount,
+    toProcessCount,
+    packingQueueCount,
+    collectionQueueCount,
     topCommunes,
     leaderboard,
     recentOrders,
@@ -116,7 +162,7 @@ export async function getPerformanceStats(dateFrom?: string, dateTo?: string) {
       id: true,
       name: true,
       orders: {
-        where: { createdAt: whereDate },
+        where: { deletedAt: null, createdAt: whereDate },
         select: { total: true, status: true },
       },
     },
@@ -137,7 +183,7 @@ export async function getPerformanceStats(dateFrom?: string, dateTo?: string) {
 
   const packingStats = await Promise.all(packers.map(async p => {
     const orders = await prisma.order.findMany({
-      where: { packedBy: p.email, packedAt: whereDate },
+      where: { deletedAt: null, packedBy: p.email, packedAt: whereDate },
       select: { status: true }
     });
     return {
@@ -177,7 +223,7 @@ export async function getPerformanceStats(dateFrom?: string, dateTo?: string) {
   });
   const deliveryStats = await Promise.all(deliverymen.map(async d => {
     const orders = await prisma.order.findMany({
-      where: { deliverymanId: d.id, createdAt: whereDate },
+      where: { deletedAt: null, deliverymanId: d.id, createdAt: whereDate },
       select: { status: true }
     });
     return {
@@ -212,7 +258,7 @@ export async function getUserPerformanceDetails(userId: string, role: string, da
 
   if (role === 'COMMERCIAL') {
     const orders = await prisma.order.findMany({
-      where: { commercialId: userId, createdAt: whereDate },
+      where: { deletedAt: null, commercialId: userId, createdAt: whereDate },
       orderBy: { createdAt: 'desc' },
       take: 50,
       include: { items: true }
@@ -222,7 +268,7 @@ export async function getUserPerformanceDetails(userId: string, role: string, da
 
   if (role === 'LIVREUR') {
     const orders = await prisma.order.findMany({
-      where: { deliverymanId: userId, createdAt: whereDate },
+      where: { deletedAt: null, deliverymanId: userId, createdAt: whereDate },
       orderBy: { createdAt: 'desc' },
       take: 50
     });
@@ -242,7 +288,7 @@ export async function getUserPerformanceDetails(userId: string, role: string, da
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return { orders: [] };
     const orders = await prisma.order.findMany({
-      where: { packedBy: user.email, packedAt: whereDate },
+      where: { deletedAt: null, packedBy: user.email, packedAt: whereDate },
       orderBy: { packedAt: 'desc' },
       take: 50
     });

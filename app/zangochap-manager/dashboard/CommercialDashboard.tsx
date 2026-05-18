@@ -14,6 +14,7 @@ export default async function CommercialDashboard({ user }: { user: any }) {
 
   const myOrders = await prisma.order.findMany({
     where: {
+      deletedAt: null,
       OR: [
         { commercialId: user.id },
         { commercialName: user.name },

@@ -48,8 +48,6 @@ export default function VariantSelectionModal({
     setSelectedVariant(null);
   };
 
-  const maxQty = selectedVariant ? Math.max(0, Number(selectedVariant.stock) || 0) : 0;
-
   return (
     <Modal
       isOpen={true}
@@ -81,12 +79,12 @@ export default function VariantSelectionModal({
           <div className="pos-qty-control large" style={{ background: 'var(--cream-2)', borderRadius: 12, padding: '4px 8px' }}>
             <button onClick={() => setModalQty(Math.max(1, modalQty - 1))} className="qty-btn"><Minus size={18} /></button>
             <span style={{ minWidth: 40, textAlign: 'center', fontWeight: 800, fontSize: 16 }}>{modalQty}</span>
-            <button onClick={() => setModalQty(maxQty > 0 ? Math.min(maxQty, modalQty + 1) : modalQty)} className="qty-btn" disabled={!selectedVariant || modalQty >= maxQty}><Plus size={18} /></button>
+            <button onClick={() => setModalQty(modalQty + 1)} className="qty-btn" disabled={!selectedVariant}><Plus size={18} /></button>
           </div>
           <button
             className="pos-checkout-btn"
             style={{ flex: 1, margin: 0, height: 50, borderRadius: 14, fontSize: 15 }}
-            disabled={!selectedVariant || maxQty <= 0 || modalQty > maxQty}
+            disabled={!selectedVariant}
             onClick={onAdd}
           >
             <Plus size={20} /> Ajouter au panier
@@ -163,11 +161,9 @@ export default function VariantSelectionModal({
                         <button
                           key={v.id}
                           className={`pos-variant-card-mini ${isActive ? 'active' : ''} ${isOos ? 'oos' : ''}`}
-                          disabled={isOos}
                           onClick={() => {
-                            if (isOos) return;
                             setSelectedVariant(v);
-                            setModalQty(Math.min(Math.max(1, modalQty), Math.max(1, v.stock)));
+                            setModalQty(Math.max(1, modalQty));
                           }}
                         >
                           <div className="v-card-top">
@@ -175,7 +171,7 @@ export default function VariantSelectionModal({
                             {isActive && <Check size={12} className="v-card-check" />}
                           </div>
                           <div className={`v-card-stock ${isOos ? 'out' : isLow ? 'low' : ''}`}>
-                            {isOos ? 'Rupture' : `${v.stock} dispo.`}
+                            {isOos ? 'Rupture - collecte' : `${v.stock} dispo.`}
                           </div>
                           {isActive && <div className="v-card-active-border"></div>}
                         </button>

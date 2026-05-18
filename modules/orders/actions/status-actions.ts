@@ -186,6 +186,7 @@ export async function markPartialDelivery(orderId: string, deliveredQuantities: 
           emoji: item.emoji,
           image: item.image,
           productId: item.productId,
+          variantId: item.variantId,
           isCustom: item.isCustom,
           isGift: item.isGift,
           isDelivered: false,

@@ -77,6 +77,7 @@ export default function CartPageClient({ communes = [] }: { communes?: Commune[]
           discount: discount.amount,
           items: cart.map(item => ({
             productId: item.productId,
+            variantId: item.variantId,
             name: item.name,
             size: item.size,
             color: item.color,

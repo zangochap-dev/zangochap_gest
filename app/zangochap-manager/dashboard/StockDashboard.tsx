@@ -2,6 +2,7 @@ import React from "react";
 import prisma from "@/lib/prisma";
 import { StatCard, TableCard, StatusBadge, SectionLabel, EmptyState } from "@/components/UI";
 import { formatPrice, formatDay } from "@/lib/constants";
+import Topbar from "@/components/Topbar";
 import "./dashboard.css";
 
 export default async function StockDashboard({ user }: { user: any }) {
@@ -23,7 +24,9 @@ export default async function StockDashboard({ user }: { user: any }) {
   const myProductsToday = myProducts.filter(p => new Date(p.createdAt) >= today);
 
   return (
-    <div className="content animate-fade-in">
+    <>
+      <Topbar title="Bord" subtitle="stock" />
+      <div className="content animate-fade-in">
       <SectionLabel>Mes statistiques personnelles</SectionLabel>
       <div className="stats-grid">
         <StatCard label="Produits ajoutés (jour)" value={myProductsToday.length} trend={`${myProducts.length} au total`} accent />
@@ -40,7 +43,7 @@ export default async function StockDashboard({ user }: { user: any }) {
 
       <TableCard
         title="Catalogue produits"
-        actions={<a href="/products/new" className="btn-orange">+ Ajouter un produit</a>}
+        actions={<a href="/zangochap-manager/products/new" className="btn-orange">+ Ajouter un produit</a>}
       >
         {products.length === 0 ? (
           <EmptyState icon="📦" title="Aucun produit" description="Commencez par ajouter un produit." />
@@ -76,6 +79,7 @@ export default async function StockDashboard({ user }: { user: any }) {
           </table>
         )}
       </TableCard>
-    </div>
+      </div>
+    </>
   );
 }

@@ -3,6 +3,8 @@ import prisma from "@/lib/prisma";
 import { StatCard, TableCard, StatusBadge, SectionLabel, EmptyState } from "@/components/UI";
 import { formatPrice, formatDay } from "@/lib/constants";
 import Link from "next/link";
+import Topbar from "@/components/Topbar";
+import "./dashboard.css";
 
 export default async function PackingDashboard({ user }: { user: any }) {
   const today = new Date();
@@ -10,14 +12,14 @@ export default async function PackingDashboard({ user }: { user: any }) {
 
   // Orders to pack (confirmed)
   const toPack = await prisma.order.findMany({
-    where: { status: 'CONFIRMED' },
+    where: { deletedAt: null, status: 'CONFIRMED' },
     include: { items: true },
     orderBy: { createdAt: 'asc' },
   });
 
   // My packed orders
   const myPacked = await prisma.order.findMany({
-    where: { packedByName: user.name, status: { in: ['PACKED', 'PARTIAL', 'DELIVERED'] } },
+    where: { deletedAt: null, packedByName: user.name, status: { in: ['PACKED', 'PARTIAL', 'DELIVERED'] } },
     include: { items: true },
     orderBy: { packedAt: 'desc' },
   });
@@ -26,10 +28,12 @@ export default async function PackingDashboard({ user }: { user: any }) {
   const myPartial = myPacked.filter(o => o.status === 'PARTIAL');
 
   // Total queue
-  const allPacked = await prisma.order.count({ where: { status: { in: ['PACKED', 'PARTIAL'] } } });
+  const allPacked = await prisma.order.count({ where: { deletedAt: null, status: { in: ['PACKED', 'PARTIAL'] } } });
 
   return (
-    <div className="content animate-fade-in">
+    <>
+      <Topbar title="Bord" subtitle="emballage" />
+      <div className="content animate-fade-in">
       <SectionLabel>Mes statistiques personnelles</SectionLabel>
       <div className="stats-grid">
         <StatCard label="Emballé (jour)" value={myPackedToday.length} trend={`${myPacked.length} au total`} accent />
@@ -88,6 +92,7 @@ export default async function PackingDashboard({ user }: { user: any }) {
           </table>
         )}
       </TableCard>
-    </div>
+      </div>
+    </>
   );
 }

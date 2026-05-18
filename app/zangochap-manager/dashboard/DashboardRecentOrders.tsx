@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { TableCard, StatusBadge, EmptyState } from "@/components/UI";
 import { formatPrice, formatDate } from "@/lib/constants";
 import { Eye, Printer, MessageSquare } from "lucide-react";
@@ -11,6 +11,7 @@ import "./dashboard.css";
 
 export default function DashboardRecentOrders({ orders }: { orders: any[] }) {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const visibleOrders = useMemo(() => orders.filter(order => !order.deletedAt), [orders]);
 
   const handleWhatsApp = (order: any) => {
     const totalAmount = Number(order.total || 0) + Number(order.deliveryFee || 0) - Number(order.discount || 0);
@@ -61,7 +62,7 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
           </Link>
         }
       >
-        {orders.length === 0 ? (
+        {visibleOrders.length === 0 ? (
           <EmptyState icon="📦" title="Aucune commande" description="Le pipeline est vide." />
         ) : (
           <div className="table-wrap">
@@ -80,7 +81,7 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
                 </tr>
               </thead>
               <tbody>
-                {orders.map(order => (
+                {visibleOrders.map(order => (
                   <tr key={order.id}>
                     <td>
                       <div className="cell-mono cell-price-orange" style={{ color: 'var(--ink)' }}>{order.ref}</div>

@@ -6,7 +6,7 @@ import { getSession } from "@/modules/auth/actions";
 import { ensureAuth } from "@/lib/auth";
 import { uploadImage } from "@/lib/upload";
 import { checkOrderAccess, generateUniqueRef, upsertCustomerFromOrder } from "../helpers";
-import { restoreStockForOrder } from "./stock";
+import { decrementStockForOrder, restoreStockForOrder } from "./stock";
 
 // ============ GET ORDER ============
 export async function getOrder(id: string) {
@@ -23,6 +23,7 @@ export async function getOrder(id: string) {
 
 // ============ CREATE ORDER ============
 export async function createOrder(data: {
+  ref?: string;
   customerId?: string;
   customerName: string;
   customerPhone: string;
@@ -57,17 +58,34 @@ export async function createOrder(data: {
 }) {
   const session = await getSession();
 
-  // Process images & resolve product IDs
+  // Process images & resolve product IDs. Rupture items remain orderable:
+  // they are collected/restocked before packing decrements stock.
   const processedItems = [];
 
   for (const item of data.items) {
+    if (item.isCustom && !item.image) {
+      throw new Error("Une image est obligatoire pour chaque article personnalisé.");
+    }
+
     if (item.image && item.image.startsWith('data:image')) {
       item.image = await uploadImage(item.image, `order-item-${Date.now()}`);
     }
 
-    // Custom items: no product creation — stored directly as OrderItem
+    // Custom items: no product creation; stored directly as OrderItem.
     const productId = item.isCustom ? null : (item.productId || null);
-    const variantId = item.isCustom ? null : (item.variantId || null);
+    let variantId = item.isCustom ? null : (item.variantId || null);
+
+    if (!variantId && productId && item.size && item.color) {
+      const variant = await prisma.productVariant.findFirst({
+        where: {
+          productId,
+          size: item.size,
+          color: item.color,
+        },
+        select: { id: true },
+      });
+      variantId = variant?.id || null;
+    }
 
     processedItems.push({
       ...item,
@@ -91,7 +109,9 @@ export async function createOrder(data: {
   // ATOMIC RETRY LOOP: handles concurrency collisions on 'ref'
   let order;
   for (let attempt = 0; attempt < 10; attempt++) {
-    const ref = await generateUniqueRef(data.commune || undefined, data.type);
+    const ref = data.ref && attempt === 0
+      ? data.ref
+      : await generateUniqueRef(data.commune || undefined, data.type);
     try {
       order = await prisma.order.create({
         data: {
@@ -123,7 +143,7 @@ export async function createOrder(data: {
               color: item.color,
               qty: Number(item.qty),
               price: Number(item.price),
-              emoji: item.emoji || '📦',
+              emoji: item.emoji || 'P',
               image: item.image || null,
               productId: item.productId,
               variantId: item.variantId,
@@ -149,6 +169,9 @@ export async function createOrder(data: {
     } catch (e: any) {
       // P2002 is Prisma code for Unique constraint violation
       const isRefCollision = e.code === 'P2002' && e.meta?.target?.includes('ref');
+      if (data.ref && isRefCollision) {
+        throw new Error(`La référence ${data.ref} existe déjà.`);
+      }
       if (isRefCollision && attempt < 9) {
         console.log(`Ref collision detected on ${ref}, retrying... (attempt ${attempt + 1})`);
         continue;
@@ -241,7 +264,19 @@ export async function updateOrderDetails(orderId: string, data: any) {
 
   try {
     await prisma.$transaction(async (tx) => {
-      await tx.order.update({ where: { id: orderId }, data: { ...sanitized, history } });
+      const shouldReconcileStock = !!(data.items && Array.isArray(data.items) && order.stockDecremented);
+      if (shouldReconcileStock) {
+        await restoreStockForOrder(order, session, 'ADJUSTMENT', tx);
+      }
+
+      await tx.order.update({
+        where: { id: orderId },
+        data: {
+          ...sanitized,
+          history,
+          ...(shouldReconcileStock ? { stockDecremented: false } : {}),
+        },
+      });
 
       // Handle Items update if provided
       if (data.items && Array.isArray(data.items)) {
@@ -257,6 +292,10 @@ export async function updateOrderDetails(orderId: string, data: any) {
 
         // Process images for new items and Upsert
         for (const item of data.items) {
+          if (item.isCustom && !item.image) {
+            throw new Error("Une image est obligatoire pour chaque article personnalisé.");
+          }
+
           let imageUrl = item.image;
           if (imageUrl && imageUrl.startsWith('data:image')) {
             imageUrl = await uploadImage(imageUrl, `order-item-${Date.now()}`);
@@ -291,6 +330,15 @@ export async function updateOrderDetails(orderId: string, data: any) {
             });
           }
         }
+
+        if (shouldReconcileStock) {
+          const updatedOrder = await tx.order.findUnique({
+            where: { id: order.id },
+            include: { items: true },
+          });
+          if (!updatedOrder) throw new Error("Commande introuvable après mise à jour");
+          await decrementStockForOrder(updatedOrder, session, tx);
+        }
       }
     });
     revalidatePath("/zangochap-manager/orders");
@@ -319,13 +367,20 @@ export async function duplicateOrder(orderId: string, data: any) {
   const original = await prisma.order.findUnique({ where: { id: orderId } });
   if (!original) throw new Error("Commande originale introuvable");
 
-  let finalNotes = data.notes || "";
-  if (data.type === 'Echange' && data.exchangeReason) {
-    finalNotes = `MOTIF ÉCHANGE: ${data.exchangeReason}${finalNotes ? `\n---\n${finalNotes}` : ''}`;
+  const baseNotes = String(data.notes || "").trim();
+  let finalNotes = baseNotes;
+  let exchangeRef: string | undefined;
+  if (data.type === 'Echange') {
+    const originalRef = String(original.ref || "").replace(/^ECHANGE/i, "");
+    exchangeRef = `ECHANGE${originalRef}`;
+    const exchangeLines = [`ECHANGE - Commande originale: ${original.ref}`];
+    if (data.exchangeReason) exchangeLines.push(`MOTIF ECHANGE: ${data.exchangeReason}`);
+    finalNotes = `${exchangeLines.join("\n")}${baseNotes ? `\n---\n${baseNotes}` : ''}`;
   }
 
   const newOrder = await createOrder({
     ...data,
+    ref: exchangeRef,
     notes: finalNotes || `Dupliquée depuis ${original.ref}`,
   });
 

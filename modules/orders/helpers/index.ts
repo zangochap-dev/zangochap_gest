@@ -43,23 +43,18 @@ export async function generateUniqueRef(commune?: string, typePrefix?: string) {
     ? `${normalize(typePrefix)}${communePrefix}`
     : communePrefix;
 
-  // Find the highest existing sequence GLOBALLY to ensure numeric uniqueness across prefixes
-  // We look at the most recent orders to find the last used number
-  const lastOrders = await prisma.order.findMany({
-    orderBy: { createdAt: 'desc' },
-    take: 20,
-    select: { ref: true }
+  // Find the highest existing sequence globally so an exchange created from
+  // PL0588 becomes ECHANGEPL0589, not ECHANGEPL0588.
+  const existingRefs = await prisma.order.findMany({
+    select: { ref: true },
   });
 
   let maxSequence = 0;
-  for (const o of lastOrders) {
+  for (const o of existingRefs) {
     const match = o.ref.match(/(\d{4})$/);
     if (match) {
       const num = parseInt(match[1], 10);
-      if (num > maxSequence) {
-        maxSequence = num;
-        break; // We take the most recent one as the base
-      }
+      if (num > maxSequence) maxSequence = num;
     }
   }
 

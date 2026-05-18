@@ -178,7 +178,8 @@ export default function NewOrderClient({ products, user, categories }: NewOrderC
             qty: i.qty,
             size: i.size,
             color: i.color,
-            emoji: i.emoji || '📦',
+            emoji: i.emoji || 'P',
+            variantId: i.variantId,
             isCustom: i.isCustom,
             image: i.image
           })));
@@ -321,13 +322,14 @@ export default function NewOrderClient({ products, user, categories }: NewOrderC
     } else {
       setItems([...items, {
         productId: selectingProduct.id,
+        variantId: selectedVariant.id,
         name: selectingProduct.name,
         price: selectingProduct.isGift ? 0 : Number(selectingProduct.price),
         originalPrice: Number(selectingProduct.price),
         qty: Number(modalQty),
         size: selectedVariant.size,
         color: selectedVariant.color,
-        emoji: selectingProduct.emoji || '📦',
+        emoji: selectingProduct.emoji || 'P',
         isGift: !!selectingProduct.isGift,
         image: getImageUrl(selectingProduct.images?.[0]?.dataUrl || selectingProduct.images?.[0]?.url)
       }]);
@@ -352,18 +354,19 @@ export default function NewOrderClient({ products, user, categories }: NewOrderC
     } else {
       setItems([...items, {
         productId: product.id,
+        variantId: variant.id,
         name: product.name,
         price: product.isGift ? 0 : Number(product.price),
         originalPrice: Number(product.price),
         qty: 1,
         size: variant.size,
         color: variant.color,
-        emoji: product.emoji || '📦',
+        emoji: product.emoji || 'P',
         isGift: !!product.isGift,
         image: getImageUrl(product.images?.[0]?.dataUrl || product.images?.[0]?.url)
       }]);
     }
-    showToast(`${product.name} (${variant.size}/${variant.color}) ajouté ✓`, 'success');
+    showToast(`${product.name} (${variant.size}/${variant.color}) ajouté`, 'success');
   };
 
   const addToCartDirect = (product: any) => {
@@ -381,7 +384,7 @@ export default function NewOrderClient({ products, user, categories }: NewOrderC
         qty: 1,
         size: '',
         color: '',
-        emoji: product.emoji || '📦',
+        emoji: product.emoji || 'P',
         isGift: !!product.isGift,
         image: getImageUrl(product.images?.[0]?.dataUrl || product.images?.[0]?.url)
       }]);
@@ -394,15 +397,20 @@ export default function NewOrderClient({ products, user, categories }: NewOrderC
       showToast('Nom et prix requis', 'error');
       return;
     }
+    if (!customImage) {
+      showToast("Ajoutez une image pour l'article personnalisé", 'error');
+      return;
+    }
     setItems(prev => [...prev, {
-      productId: 'custom_' + Date.now(),
+      productId: null,
+      variantId: null,
       name: customName,
       price: parseInt(customPrice),
       qty: parseInt(customQty) || 1,
       size: customSize || 'Standard',
       color: customColor || 'Standard',
-      emoji: '✨',
-      image: customImage || undefined,
+      emoji: 'P',
+      image: customImage,
       isCustom: true,
       desc: customDesc,
     }]);
@@ -450,19 +458,19 @@ export default function NewOrderClient({ products, user, categories }: NewOrderC
     const phone = order.customerPhone.replace(/\s+/g, '');
     const names = (order.customerName || "").trim().split(/\s+/);
     const lastName = names[0] || "";
-    const firstName = names.slice(1).join(" ") || "—";
+    const firstName = names.slice(1).join(" ") || "-";
     const totalAmount = Number(order.total || 0) + Number(order.deliveryFee || 0);
 
     const itemsList = order.items.map((i: any) => `${i.name} (${i.size}/${i.color}) x${i.qty}`).join("\n");
 
-    const msg = `🎉 *Votre commande est validée !*
+    const msg = `*Votre commande est validée !*
 Veuillez vérifier vos informations enregistrées pour la commande
 Nom: ${lastName}
 Prenom: ${firstName}
 
 Numéro joignable 1: ${order.customerPhone}
 
-Numéro joignable 2 : ${order.customerPhone2 || '—'}
+Numéro joignable 2 : ${order.customerPhone2 || '-'}
 
 Lieu de livraison : ${order.customerLocation} (${order.commune})
 
@@ -471,14 +479,14 @@ ${itemsList}
 
 Prix total: ${totalAmount.toLocaleString('fr-FR')} FCFA
 
-1️⃣ Téléchargez l’application dès maintenant en cliquant ici 👇🏾:
-📲 *Android* : https://play.google.com/store/apps/details?id=com.zangochap.zangochap&pcampaignid=web_share
+1. Téléchargez l'application dès maintenant :
+Android : https://play.google.com/store/apps/details?id=com.zangochap.zangochap&pcampaignid=web_share
 
-🍏 iPhone : https://apps.apple.com/ci/app/zangochap/id6737241287
+iPhone : https://apps.apple.com/ci/app/zangochap/id6737241287
 
-2️⃣ Envoyez-nous une capture d’écran de l’application installée pour activer votre surprise .
+2. Envoyez-nous une capture d'écran de l'application installée pour activer votre surprise.
 
-Ne passez pas à côté de cette belle surprise ! 😍🔥`;
+Ne passez pas à côté de cette belle surprise !`;
 
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
   };
@@ -528,7 +536,7 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
         }
 
         const order = res.order;
-        showToast(`Commande ${order.ref} créée ✓`, 'success');
+        showToast(`Commande ${order.ref} créée`, 'success');
         
         // Close all modals
         setShowCheckout(false);
@@ -725,7 +733,7 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
           <div className="pos-cart-items">
             {items.length === 0 ? (
               <div className="pos-cart-empty">
-                <div className="pos-cart-empty-icon">🛒</div>
+                <div className="pos-cart-empty-icon"><ShoppingCart size={28} /></div>
                 <p>Votre panier est vide</p>
               </div>
             ) : (
@@ -979,7 +987,7 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
                 {items.map((i, idx) => (
                   <div key={idx} className="pos-mini-item" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <div style={{ width: 32, height: 32, borderRadius: 6, overflow: 'hidden', flexShrink: 0, background: 'var(--cream-2)', border: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {i.image ? <img src={i.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span>{i.emoji || '📦'}</span>}
+                      {i.image ? <img src={i.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span>{i.emoji || 'P'}</span>}
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 12, fontWeight: 600 }}>{i.name}</div>
@@ -1018,7 +1026,7 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
           footer={
             <>
               <button className="btn-secondary" onClick={() => setShowCustomItem(false)}>Annuler</button>
-              <button className="btn-orange" onClick={handleAddCustomItem}>Ajouter à la commande</button>
+              <button className="btn-orange" onClick={handleAddCustomItem} disabled={!customImage}>Ajouter à la commande</button>
             </>
           }
         >
@@ -1051,23 +1059,24 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
               <textarea className="field-input" value={customDesc} onChange={e => setCustomDesc(e.target.value)} placeholder="Détails, notes pour l'emballage..." style={{ minHeight: 60 }} />
             </div>
             <div className="form-row" style={{ gridColumn: '1 / -1' }}>
-              <label className="field-label-sm">IMAGE (facultatif)</label>
+              <label className="field-label-sm">IMAGE *</label>
+              <div style={{ fontSize: 11, color: customImage ? 'var(--green)' : 'var(--red)', fontWeight: 700, marginBottom: 8 }}>
+                Obligatoire pour les articles personnalisés.
+              </div>
               
               <div style={{ display: 'flex', gap: 12 }}>
                 <div
                   onClick={() => document.getElementById('customImageInput')?.click()}
                   style={{ flex: 1, border: '2px dashed var(--line)', borderRadius: 10, padding: 15, textAlign: 'center', cursor: 'pointer', background: 'var(--cream)' }}
                 >
-                  <div style={{ fontSize: 20 }}>📸</div>
-                  <div style={{ fontWeight: 600, color: 'var(--brown)', fontSize: 11 }}>Importer</div>
+                  <div style={{ fontWeight: 700, color: 'var(--brown)', fontSize: 11 }}>Importer une image</div>
                 </div>
 
                 <div
                   onClick={() => setShowGallery(true)}
                   style={{ flex: 1, border: '2px solid var(--orange-soft)', borderRadius: 10, padding: 15, textAlign: 'center', cursor: 'pointer', background: 'white' }}
                 >
-                  <div style={{ fontSize: 20 }}>🖼️</div>
-                  <div style={{ fontWeight: 600, color: 'var(--orange)', fontSize: 11 }}>Galerie</div>
+                  <div style={{ fontWeight: 700, color: 'var(--orange)', fontSize: 11 }}>Choisir dans la galerie</div>
                 </div>
               </div>
 

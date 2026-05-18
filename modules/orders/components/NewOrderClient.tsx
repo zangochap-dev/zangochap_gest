@@ -644,17 +644,6 @@ Ne passez pas à côté de cette belle surprise !`;
           Article personnalisé
         </button>
 
-        <div className="pos-search-wrapper">
-          <Search className="pos-search-icon" size={18} />
-          <input
-            className="pos-search-input"
-            placeholder="Scanner ou rechercher un produit..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-          {search && <button className="pos-search-clear" onClick={() => setSearch('')}><X size={14} /></button>}
-        </div>
-
         <div className="pos-header-right">
           <div className="pos-user-badge">
             <div className="pos-user-avatar">{user?.name?.charAt(0) || 'U'}</div>
@@ -683,6 +672,17 @@ Ne passez pas à côté de cette belle surprise !`;
               </button>
             ))}
           </nav>
+
+          <div className="pos-search-wrapper border border-solid border-gray-400" style={{ margin: "12px 24px 8px 24px", maxWidth: "none" }}>
+            <Search className="pos-search-icon" size={18} />
+            <input
+              className="pos-search-input"
+              placeholder="Scanner ou rechercher un produit..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+            {search && <button className="pos-search-clear" onClick={() => setSearch('')}><X size={14} /></button>}
+          </div>
 
           <div className="pos-product-grid">
             {paginatedProducts.map(p => (

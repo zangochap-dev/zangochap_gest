@@ -55,6 +55,7 @@ export async function createOrder(data: {
   deliveryDate?: string;
   paymentMethod?: string;
   status?: string;
+  allowRefRetry?: boolean;
 }) {
   const session = await getSession();
 
@@ -169,7 +170,7 @@ export async function createOrder(data: {
     } catch (e: any) {
       // P2002 is Prisma code for Unique constraint violation
       const isRefCollision = e.code === 'P2002' && e.meta?.target?.includes('ref');
-      if (data.ref && isRefCollision) {
+      if (data.ref && isRefCollision && !data.allowRefRetry) {
         throw new Error(`La référence ${data.ref} existe déjà.`);
       }
       if (isRefCollision && attempt < 9) {
@@ -381,6 +382,7 @@ export async function duplicateOrder(orderId: string, data: any) {
   const newOrder = await createOrder({
     ...data,
     ref: exchangeRef,
+    allowRefRetry: data.type === 'Echange',
     notes: finalNotes || `Dupliquée depuis ${original.ref}`,
   });
 

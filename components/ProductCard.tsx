@@ -1,26 +1,42 @@
 "use client";
 
 import React from "react";
-import Image from "next/image";
 import { Plus } from "lucide-react";
 import { formatPrice } from "@/lib/constants";
 import { getImageUrl } from "@/lib/utils";
 
 interface ProductCardProps {
-  product: any;
-  onAdd: (product: any) => void;
+  product: ProductCardData;
+  onAdd: (product: ProductCardData) => void;
   onPreview: (image: string) => void;
 }
 
+interface ProductCardData {
+  name: string;
+  price: number | string;
+  stock?: number;
+  lowStockThreshold?: number | null;
+  emoji?: string | null;
+  variants: Array<{ stock?: number | null }>;
+  images?: Array<{ dataUrl?: string | null; url?: string | null }>;
+}
+
 export default function ProductCard({ product: p, onAdd, onPreview }: ProductCardProps) {
-  const realStock = p.variants?.length > 0
-    ? p.variants.reduce((sum: number, v: any) => sum + (v.stock || 0), 0)
-    : p.stock;
+  const [imageFailed, setImageFailed] = React.useState(false);
+  const variants = p.variants || [];
+  const realStock = variants.length > 0
+    ? variants.reduce((sum, v) => sum + (v.stock || 0), 0)
+    : (p.stock || 0);
   
   const isOos = realStock === 0;
   const isLow = realStock > 0 && realStock <= (p.lowStockThreshold || 5);
-  const hasVariants = p.variants?.length > 0;
+  const hasVariants = variants.length > 0;
   const image = getImageUrl(p.images?.[0]?.dataUrl || p.images?.[0]?.url);
+  const showImage = Boolean(image && !imageFailed);
+
+  React.useEffect(() => {
+    setImageFailed(false);
+  }, [image]);
 
   return (
     <div
@@ -49,17 +65,17 @@ export default function ProductCard({ product: p, onAdd, onPreview }: ProductCar
           overflow: 'hidden' 
         }}
         onClick={() => {
-          if (image) onPreview(image);
+          if (showImage && image) onPreview(image);
         }}
       >
-        {image ? (
+        {showImage ? (
           <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-            <Image 
+            <img
               src={image} 
               alt={p.name}
-              fill
-              sizes="(max-width: 768px) 50vw, 200px"
-              style={{ objectFit: 'cover', transition: 'transform 0.3s' }}
+              loading="lazy"
+              onError={() => setImageFailed(true)}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s' }}
               className="hover:scale-105"
             />
           </div>

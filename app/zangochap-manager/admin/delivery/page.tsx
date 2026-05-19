@@ -13,7 +13,7 @@ export default async function AdminDeliveryPage() {
 
   const orders = await prisma.order.findMany({
     where: { 
-      status: { notIn: ['CANCELLED', 'DELIVERED'] } 
+      status: { notIn: ['CANCELLED', 'DELIVERED', 'PARTIALLY_DELIVERED', 'RETURNED'] }
     },
     orderBy: { updatedAt: "desc" },
     include: { items: true },
@@ -28,7 +28,7 @@ export default async function AdminDeliveryPage() {
       _count: {
         select: {
           orders: {
-            where: { status: { notIn: ['DELIVERED', 'CANCELLED'] } }
+            where: { status: { notIn: ['DELIVERED', 'PARTIALLY_DELIVERED', 'RETURNED', 'CANCELLED'] } }
           }
         }
       }

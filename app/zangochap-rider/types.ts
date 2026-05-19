@@ -25,10 +25,13 @@ export interface RiderOrder {
   total: number;
   deliveryFee: number;
   deliveryNote?: string | null;
+  notes?: string | null;
+  deliveryDate?: string | null;
   status: OrderStatus;
   items: RiderOrderItem[];
   discount: number;
   isCommercialContacted?: boolean;
+  returnReason?: string | null;
   updatedAt: string | Date;
   createdAt: string | Date;
   settlementId?: string | null;

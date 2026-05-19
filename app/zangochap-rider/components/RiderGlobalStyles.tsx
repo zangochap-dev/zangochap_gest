@@ -5,8 +5,8 @@ import { useLayoutEffect } from "react";
 export default function RiderGlobalStyles() {
   useLayoutEffect(() => {
     const body = document.body;
-    body.style.backgroundColor = "#F5F5F7";
-    body.style.color = "#1C1C1E";
+    body.style.backgroundColor = "#F3F4F6";
+    body.style.color = "#111827";
     body.style.overflowX = "hidden";
 
     return () => {

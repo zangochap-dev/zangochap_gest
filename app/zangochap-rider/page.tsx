@@ -13,11 +13,24 @@ export default async function DeliveryPage() {
   // Security is handled by layout.tsx, but redundant check here for safety
   if (!user) redirect("/zangochap-manager");
 
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date(startOfDay);
+  endOfDay.setHours(23, 59, 59, 999);
+
   const ordersRaw = await prisma.order.findMany({
     where: {
       deliverymanId: user.id,
+      deletedAt: null,
+      deliveryDate: {
+        gte: startOfDay,
+        lte: endOfDay,
+      },
     },
-    orderBy: { updatedAt: "desc" },
+    orderBy: [
+      { status: "asc" },
+      { updatedAt: "desc" },
+    ],
     include: { 
       items: true,
       commercial: {
@@ -68,8 +81,11 @@ export default async function DeliveryPage() {
       deliveryFee: Number(o.deliveryFee),
       discount: Number(o.discount || 0),
       deliveryNote: o.deliveryNote,
+      notes: o.notes,
+      deliveryDate: o.deliveryDate?.toISOString() || null,
       status: o.status,
       isCommercialContacted: o.isCommercialContacted,
+      returnReason: o.returnReason,
       updatedAt: o.updatedAt.toISOString(),
       createdAt: o.createdAt.toISOString(),
       settlementId: o.settlementId,

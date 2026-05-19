@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { MapPin, Package, ChevronRight, Banknote, Clock } from "lucide-react";
+import { AlertTriangle, CalendarClock, MapPin, Package, ChevronRight, Banknote, Clock, StickyNote } from "lucide-react";
 import { motion } from "framer-motion";
 import { formatPrice } from "@/lib/constants";
 import { StatusBadge } from "./StatusBadge";
@@ -21,6 +21,11 @@ export function OrderCard({ order, onClick, index = 0 }: OrderCardProps) {
     hour: "2-digit",
     minute: "2-digit",
   });
+  const deliveryDate = order.deliveryDate
+    ? new Date(order.deliveryDate).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })
+    : "Jour J";
+  const hasIssue = ["RETURNED", "CANCELLED", "REPRO_DISPO"].includes(order.status);
+  const cardNote = order.deliveryNote || order.notes;
 
   return (
     <motion.div
@@ -30,23 +35,27 @@ export function OrderCard({ order, onClick, index = 0 }: OrderCardProps) {
     >
       <button
         onClick={onClick}
-        className="w-full bg-white rounded-xl border border-[#E5E5EA] p-3.5 text-left active:scale-[0.98] transition-all duration-150 shadow-sm hover:shadow-sm group"
+        className="w-full bg-white rounded-md border border-[#E5E7EB] p-3.5 text-left active:scale-[0.98] transition-all duration-150 shadow-sm hover:shadow-md group"
       >
         <div className="flex flex-col gap-3">
           {/* Top Row: Ref & Price */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="bg-[#F2F2F7] px-2 py-1 rounded-md">
-                <span className="text-[11px] font-bold text-[#1C1C1E] tabular-nums">#{order.ref}</span>
+              <div className="bg-[#F3F4F6] px-2 py-1 rounded-md">
+                <span className="text-[11px] font-bold text-[#111827] tabular-nums">#{order.ref}</span>
               </div>
-              <div className="flex items-center gap-1 text-[#8E8E93]">
+              <div className="flex items-center gap-1 text-[#6B7280]">
                 <Clock size={12} />
                 <span className="text-[10px] font-medium">{time}</span>
               </div>
+              <div className="flex items-center gap-1 text-[#6B7280]">
+                <CalendarClock size={12} />
+                <span className="text-[10px] font-medium">{deliveryDate}</span>
+              </div>
             </div>
-            <div className="flex items-center gap-1.5 bg-[#FF6B2C]/5 px-3 py-1 rounded-full border border-[#FF6B2C]/10">
-              <Banknote size={12} className="text-[#FF6B2C]" />
-              <span className="text-[13px] font-extrabold text-[#FF6B2C] tabular-nums">
+            <div className="flex items-center gap-1.5 bg-[#334155]/5 px-3 py-1 rounded-md border border-[#334155]/10">
+              <Banknote size={12} className="text-[#334155]" />
+              <span className="text-[13px] font-extrabold text-[#334155] tabular-nums">
                 {formatPrice(total)}
               </span>
             </div>
@@ -54,24 +63,43 @@ export function OrderCard({ order, onClick, index = 0 }: OrderCardProps) {
 
           {/* Middle Row: Customer & Location */}
           <div className="space-y-1">
-            <h3 className="text-[15px] font-bold text-[#1C1C1E] leading-tight">
+            <h3 className="text-[15px] font-bold text-[#111827] leading-tight">
               {order.customerName}
             </h3>
-            <div className="flex items-center gap-1.5 text-[#8E8E93]">
-              <MapPin size={12} className="text-[#FF6B2C] shrink-0" />
-              <span className="text-[12px] font-medium truncate">{order.commune}</span>
+            <div className="flex items-center gap-1.5 text-[#334155]">
+              <MapPin size={12} className="text-[#334155] shrink-0" />
+              <span className="text-[12px] font-bold truncate">{order.commune || "Commune non renseignée"}</span>
             </div>
+            <p className="pl-[18px] text-[11px] font-semibold leading-snug text-[#64748B] line-clamp-2">
+              {order.customerLocation || "Lieu exact non renseigné"}
+            </p>
+            {cardNote && (
+              <div className="flex items-start gap-1.5 rounded-md bg-[#F8FAFC] px-2.5 py-2 text-[#475569] border border-[#E2E8F0]">
+                <StickyNote size={12} className="shrink-0 mt-0.5" />
+                <span className="text-[11px] font-semibold leading-snug line-clamp-2">
+                  {cardNote}
+                </span>
+              </div>
+            )}
+            {hasIssue && (
+              <div className="flex items-start gap-1.5 rounded-md bg-[#FFFBEB] px-2.5 py-2 text-[#92400E] border border-[#FDE68A]">
+                <AlertTriangle size={12} className="shrink-0 mt-0.5" />
+                <span className="text-[11px] font-bold leading-snug line-clamp-2">
+                  {order.returnReason || "Motif non renseigné"}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Bottom Row: Status & Items */}
-          <div className="flex items-center justify-between pt-1 border-t border-[#F2F2F7]">
+          <div className="flex items-center justify-between pt-1 border-t border-[#F3F4F6]">
             <StatusBadge status={order.status} />
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1 text-[#AEAEB2]">
+              <div className="flex items-center gap-1 text-[#9CA3AF]">
                 <Package size={12} />
                 <span className="text-[11px] font-semibold">{totalQty} art.</span>
               </div>
-              <ChevronRight size={16} className="text-[#AEAEB2] group-hover:translate-x-0.5 transition-transform" />
+              <ChevronRight size={16} className="text-[#9CA3AF] group-hover:translate-x-0.5 transition-transform" />
             </div>
           </div>
         </div>

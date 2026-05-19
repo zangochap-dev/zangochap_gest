@@ -67,6 +67,10 @@ export async function updateOrderStatus(orderId: string, newStatus: string, note
   };
 
   const normalizedStatus = newStatus.toUpperCase();
+  if (['RETURNED', 'CANCELLED', 'REPRO_DISPO'].includes(normalizedStatus) && !note?.trim()) {
+    throw new Error("Un motif est obligatoire pour clôturer cette livraison.");
+  }
+
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   tomorrow.setHours(0, 0, 0, 0);
@@ -108,7 +112,7 @@ export async function updateOrderStatus(orderId: string, newStatus: string, note
       where: { id: orderId },
       data: {
         ...updateData,
-        returnReason: (normalizedStatus === 'RETURNED' || normalizedStatus === 'CANCELLED') ? note : undefined
+        returnReason: ['RETURNED', 'CANCELLED', 'REPRO_DISPO'].includes(normalizedStatus) ? note : undefined
       },
       include: { items: true },
     });
@@ -140,6 +144,28 @@ export async function markPartialDelivery(orderId: string, deliveredQuantities: 
     include: { items: true },
   });
   if (!order) throw new Error("Commande introuvable");
+  if (!checkOrderAccess(order, session)) throw new Error("Accès refusé");
+  if (['DELIVERED', 'PARTIALLY_DELIVERED'].includes(order.status)) {
+    throw new Error("Cette commande a déjà été livrée.");
+  }
+
+  const normalizedQuantities = new Map<string, number>();
+  let deliveredItemsCount = 0;
+  for (const item of order.items) {
+    const qty = Math.trunc(Number(deliveredQuantities[item.id] ?? 0));
+    if (!Number.isFinite(qty) || qty < 0 || qty > item.qty) {
+      throw new Error(`Quantité invalide pour ${item.name}.`);
+    }
+    normalizedQuantities.set(item.id, qty);
+    if (qty > 0) deliveredItemsCount += 1;
+  }
+  if (deliveredItemsCount === 0) {
+    throw new Error("Sélectionnez au moins un article livré.");
+  }
+  const hasReturnedItems = order.items.some((item) => (normalizedQuantities.get(item.id) || 0) < item.qty);
+  if (hasReturnedItems && !note?.trim()) {
+    throw new Error("Un motif est obligatoire pour les articles non livrés.");
+  }
 
   const history = Array.isArray(order.history) ? [...(order.history as any[])] : [];
 
@@ -164,7 +190,7 @@ export async function markPartialDelivery(orderId: string, deliveredQuantities: 
   let newSubtotal = 0;
 
   for (const item of order.items) {
-    const dQty = deliveredQuantities[item.id] || 0;
+    const dQty = normalizedQuantities.get(item.id) || 0;
     const returnedQty = item.qty - dQty;
 
     if (dQty === 0) {
@@ -223,13 +249,12 @@ export async function markPartialDelivery(orderId: string, deliveredQuantities: 
   }
 
   const finalDeliveryFee = includeDeliveryFee ? order.deliveryFee : 0;
-  const finalTotal = Math.max(0, newSubtotal + finalDeliveryFee - order.discount);
 
   await prisma.order.update({
     where: { id: orderId },
     data: {
       status: 'PARTIALLY_DELIVERED',
-      total: finalTotal,
+      total: newSubtotal,
       deliveryFee: finalDeliveryFee,
       history,
     }

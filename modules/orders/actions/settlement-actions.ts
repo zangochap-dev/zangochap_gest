@@ -53,21 +53,32 @@ export async function createSettlement(deliverymanId: string, orderIds: string[]
   const session = await getSession();
   if (!session || !isRole(session, 'admin')) throw new Error("Accès refusé");
 
-  const orders = await prisma.order.findMany({
-    where: { id: { in: orderIds } }
-  });
+  if (!deliverymanId || orderIds.length === 0) throw new Error("Aucune commande à régler.");
 
-  const productsAmount = orders.reduce((sum, o) => sum + (Number(o.total || 0) - Number(o.deliveryFee || 0)), 0);
+  const orders = await prisma.order.findMany({
+    where: {
+      id: { in: orderIds },
+      deliverymanId,
+      settlementId: null,
+      status: { in: ['DELIVERED', 'PARTIALLY_DELIVERED'] },
+    }
+  });
+  if (orders.length !== orderIds.length) {
+    throw new Error("Certaines commandes sont déjà réglées ou ne sont pas éligibles.");
+  }
+
+  const productsAmount = orders.reduce((sum, o) => sum + Math.max(0, Number(o.total || 0) - Number(o.discount || 0)), 0);
   const deliveryFeesAmount = orders.reduce((sum, o) => sum + Number(o.deliveryFee || 0), 0);
+  const computedAmount = productsAmount + deliveryFeesAmount;
 
   const settlement = await prisma.settlement.create({
     data: {
       deliverymanId,
-      amount,
+      amount: computedAmount,
       productsAmount,
       deliveryFeesAmount,
       ordersCount: orderIds.length,
-      notes,
+      notes: notes || (amount !== computedAmount ? `Montant recalculé côté serveur: ${computedAmount}` : undefined),
       by: session.name,
       status: 'COMPLETED',
       orders: {
@@ -149,6 +160,10 @@ export async function getRiderSettlementStats(from?: string, to?: string, riderI
   } else {
     where.deliverymanId = { not: null };
   }
+  where.OR = [
+    { status: { in: ['DELIVERED', 'PARTIALLY_DELIVERED'] }, settlementId: null },
+    { status: { in: ['RETURNED', 'CANCELLED', 'REPRO_DISPO'] } },
+  ];
 
   if (from || to) {
     where.updatedAt = {};
@@ -173,6 +188,7 @@ export async function getRiderSettlementStats(from?: string, to?: string, riderI
       updatedAt: true,
       deliverymanId: true,
       deliverymanName: true,
+      settlementId: true,
       status: true,
       returnReason: true,
       isCommercialContacted: true,

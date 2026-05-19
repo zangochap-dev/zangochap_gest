@@ -2,31 +2,29 @@
 
 import React from "react";
 
-const STATUS_MAP: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-  DELIVERED: { label: "Livré", color: "#34C759", bg: "#EAF9EE", dot: "#34C759" },
-  RETURNED: { label: "Retourné", color: "#FF3B30", bg: "#FFEBEA", dot: "#FF3B30" },
-  CANCELLED: { label: "Annulé", color: "#FF3B30", bg: "#FFEBEA", dot: "#FF3B30" },
-  PENDING: { label: "À livrer", color: "#FF9500", bg: "#FFF4E6", dot: "#FF9500" },
-  ON_DELIVERY: { label: "En cours", color: "#007AFF", bg: "#E5F1FF", dot: "#007AFF" },
-  REPRO_DISPO: { label: "Repro-dispo", color: "#FF9500", bg: "#FFF4E6", dot: "#FF9500" },
-  PARTIALLY_DELIVERED: { label: "Partiel", color: "#FF9500", bg: "#FFF4E6", dot: "#FF9500" },
+const STATUS_MAP: Record<string, { label: string; color: string; bg: string; border: string }> = {
+  DELIVERED: { label: "Livré", color: "#166534", bg: "#F0FDF4", border: "#BBF7D0" },
+  RETURNED: { label: "Retourné", color: "#991B1B", bg: "#FEF2F2", border: "#FECACA" },
+  CANCELLED: { label: "Annulé", color: "#991B1B", bg: "#FEF2F2", border: "#FECACA" },
+  PENDING: { label: "À livrer", color: "#334155", bg: "#F8FAFC", border: "#E2E8F0" },
+  ON_DELIVERY: { label: "En route", color: "#1E40AF", bg: "#EFF6FF", border: "#BFDBFE" },
+  REPRO_DISPO: { label: "Repro-dispo", color: "#92400E", bg: "#FFFBEB", border: "#FDE68A" },
+  PARTIALLY_DELIVERED: { label: "Partiel", color: "#92400E", bg: "#FFFBEB", border: "#FDE68A" },
 };
 
 export function StatusBadge({ status }: { status: string }) {
   const cfg = STATUS_MAP[status] ?? STATUS_MAP.PENDING;
+
   return (
     <div
-      className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-[0.05em] whitespace-nowrap border"
-      style={{ 
-        backgroundColor: cfg.bg, 
+      className="inline-flex items-center gap-1.5 rounded-sm border px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.04em] whitespace-nowrap"
+      style={{
+        backgroundColor: cfg.bg,
         color: cfg.color,
-        borderColor: `${cfg.color}15`
+        borderColor: cfg.border,
       }}
     >
-      <span
-        className="w-1.5 h-1.5 rounded-full animate-pulse"
-        style={{ backgroundColor: cfg.dot }}
-      />
+      <span className="h-1.5 w-1.5 rounded-sm" style={{ backgroundColor: cfg.color }} />
       {cfg.label}
     </div>
   );

@@ -155,7 +155,7 @@ export async function getPerformanceStats(dateFrom?: string, dateTo?: string) {
 
   const whereDate: Prisma.DateTimeFilter = { gte: start, lte: end };
 
-  // 1. COMMERCIALS
+  // 1. COMMERCIALS — Based on orders they created
   const commercials = await prisma.user.findMany({
     where: { role: 'COMMERCIAL' },
     select: {
@@ -167,15 +167,24 @@ export async function getPerformanceStats(dateFrom?: string, dateTo?: string) {
       },
     },
   });
-  const commercialsStats = commercials.map(c => ({
-    id: c.id,
-    name: c.name,
-    sales: c.orders.length,
-    delivered: c.orders.filter(o => o.status === 'DELIVERED').length,
-    revenue: c.orders.filter(o => o.status === 'DELIVERED').reduce((sum, o) => sum + o.total, 0),
-  }));
+  const commercialsStats = commercials.map(c => {
+    const delivered = c.orders.filter(o => o.status === 'DELIVERED');
+    const cancelled = c.orders.filter(o => o.status === 'CANCELLED' || o.status === 'RETURNED');
+    const revenue = delivered.reduce((sum, o) => sum + o.total, 0);
+    const convRate = c.orders.length > 0 ? Math.round((delivered.length / c.orders.length) * 100) : 0;
+    return {
+      id: c.id,
+      name: c.name,
+      sales: c.orders.length,
+      delivered: delivered.length,
+      cancelled: cancelled.length,
+      revenue,
+      convRate,
+      prime: Math.round(revenue * 0.01),
+    };
+  });
 
-  // 2. PACKING
+  // 2. PACKING — Based on packedBy field
   const packers = await prisma.user.findMany({
     where: { role: 'PACKING' },
     select: { id: true, name: true, email: true }
@@ -186,16 +195,20 @@ export async function getPerformanceStats(dateFrom?: string, dateTo?: string) {
       where: { deletedAt: null, packedBy: p.email, packedAt: whereDate },
       select: { status: true }
     });
+    const partialCount = orders.filter(o => o.status === 'PARTIAL').length;
+    const completedCount = orders.length - partialCount;
+    const score = orders.length > 0 ? Math.round((completedCount / orders.length) * 100) : 100;
     return {
       id: p.id,
       name: p.name,
       packed: orders.length,
-      partial: orders.filter(o => o.status === 'PARTIAL').length,
-      errors: orders.filter(o => o.status === 'PARTIAL').length,
+      completed: completedCount,
+      partial: partialCount,
+      score,
     };
   }));
 
-  // 3. COLLECTION
+  // 3. COLLECTION — Based on CollectionRecord
   const collectors = await prisma.user.findMany({
     where: { role: 'COLLECTION' },
     select: { id: true, name: true }
@@ -206,17 +219,22 @@ export async function getPerformanceStats(dateFrom?: string, dateTo?: string) {
       where: { by: c.id, createdAt: whereDate },
       select: { status: true }
     });
+    const collected = records.filter(r => r.status === 'collected').length;
+    const unavailable = records.filter(r => r.status === 'unavailable').length;
+    const alternative = records.filter(r => r.status === 'alternative').length;
+    const successRate = records.length > 0 ? Math.round((collected / records.length) * 100) : 0;
     return {
       id: c.id,
       name: c.name,
       count: records.length,
-      collected: records.filter(r => r.status === 'collected').length,
-      unavailable: records.filter(r => r.status === 'unavailable').length,
-      alternative: records.filter(r => r.status === 'alternative').length,
+      collected,
+      unavailable,
+      alternative,
+      successRate,
     };
   }));
 
-  // 4. DELIVERY
+  // 4. DELIVERY — Based on deliverymanId
   const deliverymen = await prisma.user.findMany({
     where: { role: 'LIVREUR' },
     select: { id: true, name: true }
@@ -224,27 +242,39 @@ export async function getPerformanceStats(dateFrom?: string, dateTo?: string) {
   const deliveryStats = await Promise.all(deliverymen.map(async d => {
     const orders = await prisma.order.findMany({
       where: { deletedAt: null, deliverymanId: d.id, createdAt: whereDate },
-      select: { status: true }
+      select: { status: true, total: true }
     });
+    const delivered = orders.filter(o => o.status === 'DELIVERED');
+    const returned = orders.filter(o => o.status === 'RETURNED' || o.status === 'CANCELLED');
+    const revenue = delivered.reduce((sum, o) => sum + o.total, 0);
     return {
       id: d.id,
       name: d.name,
       total: orders.length,
-      delivered: orders.filter(o => o.status === 'DELIVERED').length,
-      successRate: orders.length > 0 ? Math.round((orders.filter(o => o.status === 'DELIVERED').length / orders.length) * 100) : 0
+      delivered: delivered.length,
+      returned: returned.length,
+      revenue,
+      successRate: orders.length > 0 ? Math.round((delivered.length / orders.length) * 100) : 0
     };
   }));
 
   // Summary Metrics
+  const totalDeliverySorties = deliveryStats.reduce((sum, d) => sum + d.total, 0);
+  const totalDelivered = deliveryStats.reduce((sum, d) => sum + d.delivered, 0);
+  const totalPackedAll = packingStats.reduce((sum, p) => sum + p.packed, 0);
+  const totalCollectedAll = collectorStats.reduce((sum, c) => sum + c.count, 0);
+
   const summary = {
     totalRevenue: commercialsStats.reduce((sum, c) => sum + c.revenue, 0),
     totalOrders: commercialsStats.reduce((sum, c) => sum + c.sales, 0),
-    avgOrderValue: commercialsStats.reduce((sum, c) => sum + c.sales, 0) > 0
-      ? Math.round(commercialsStats.reduce((sum, c) => sum + c.revenue, 0) / commercialsStats.reduce((sum, c) => sum + (c.delivered || 1), 0))
+    avgOrderValue: totalDelivered > 0
+      ? Math.round(commercialsStats.reduce((sum, c) => sum + c.revenue, 0) / totalDelivered)
       : 0,
-    globalSuccessRate: deliveryStats.length > 0
-      ? Math.round(deliveryStats.reduce((sum, d) => sum + d.delivered, 0) / (deliveryStats.reduce((sum, d) => sum + d.total, 0) || 1) * 100)
-      : 0
+    globalSuccessRate: totalDeliverySorties > 0
+      ? Math.round((totalDelivered / totalDeliverySorties) * 100)
+      : 0,
+    totalPacked: totalPackedAll,
+    totalCollected: totalCollectedAll,
   };
 
   return { commercialsStats, packingStats, collectorStats, deliveryStats, summary };
@@ -261,18 +291,55 @@ export async function getUserPerformanceDetails(userId: string, role: string, da
       where: { deletedAt: null, commercialId: userId, createdAt: whereDate },
       orderBy: { createdAt: 'desc' },
       take: 50,
-      include: { items: true }
+      select: {
+        ref: true,
+        customerName: true,
+        total: true,
+        status: true,
+        createdAt: true,
+        commune: true,
+      }
     });
-    return { orders };
+    const delivered = orders.filter(o => o.status === 'DELIVERED');
+    const revenue = delivered.reduce((sum, o) => sum + o.total, 0);
+    return {
+      orders,
+      summary: {
+        total: orders.length,
+        delivered: delivered.length,
+        revenue,
+        convRate: orders.length > 0 ? Math.round((delivered.length / orders.length) * 100) : 0,
+      }
+    };
   }
 
   if (role === 'LIVREUR') {
     const orders = await prisma.order.findMany({
       where: { deletedAt: null, deliverymanId: userId, createdAt: whereDate },
       orderBy: { createdAt: 'desc' },
-      take: 50
+      take: 50,
+      select: {
+        ref: true,
+        customerName: true,
+        total: true,
+        status: true,
+        createdAt: true,
+        commune: true,
+        deliveredAt: true,
+      }
     });
-    return { orders };
+    const delivered = orders.filter(o => o.status === 'DELIVERED');
+    const returned = orders.filter(o => o.status === 'RETURNED' || o.status === 'CANCELLED');
+    return {
+      orders,
+      summary: {
+        total: orders.length,
+        delivered: delivered.length,
+        returned: returned.length,
+        revenue: delivered.reduce((sum, o) => sum + o.total, 0),
+        successRate: orders.length > 0 ? Math.round((delivered.length / orders.length) * 100) : 0,
+      }
+    };
   }
 
   if (role === 'COLLECTION') {
@@ -281,18 +348,45 @@ export async function getUserPerformanceDetails(userId: string, role: string, da
       orderBy: { createdAt: 'desc' },
       take: 50
     });
-    return { records };
+    const collected = records.filter(r => r.status === 'collected').length;
+    const unavailable = records.filter(r => r.status === 'unavailable').length;
+    return {
+      records,
+      summary: {
+        total: records.length,
+        collected,
+        unavailable,
+        successRate: records.length > 0 ? Math.round((collected / records.length) * 100) : 0,
+      }
+    };
   }
 
   if (role === 'PACKING') {
     const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) return { orders: [] };
+    if (!user) return { orders: [], summary: { total: 0, completed: 0, partial: 0, score: 100 } };
     const orders = await prisma.order.findMany({
       where: { deletedAt: null, packedBy: user.email, packedAt: whereDate },
       orderBy: { packedAt: 'desc' },
-      take: 50
+      take: 50,
+      select: {
+        ref: true,
+        customerName: true,
+        status: true,
+        packedAt: true,
+        createdAt: true,
+      }
     });
-    return { orders };
+    const partialCount = orders.filter(o => o.status === 'PARTIAL').length;
+    const completedCount = orders.length - partialCount;
+    return {
+      orders,
+      summary: {
+        total: orders.length,
+        completed: completedCount,
+        partial: partialCount,
+        score: orders.length > 0 ? Math.round((completedCount / orders.length) * 100) : 100,
+      }
+    };
   }
 
   return { data: [] };

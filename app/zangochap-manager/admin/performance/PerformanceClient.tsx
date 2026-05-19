@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { StatCard, TableCard, DetailCard, StatusBadge } from '@/components/UI';
+import { StatCard, TableCard, StatusBadge } from '@/components/UI';
 import Modal from '@/components/Modal';
-import { TrendingUp, Truck, Users, ShoppingBag, Target, Star, Calendar, Package, Eye, Search, X, Loader2, Award } from 'lucide-react';
+import { TrendingUp, Truck, Users, ShoppingBag, Target, Package, Eye, Search, Loader2, Award, Phone, Box } from 'lucide-react';
 import { formatPrice, formatDate } from '@/lib/constants';
 import { useRouter } from 'next/navigation';
 import { getUserPerformanceDetails } from "@/modules/orders/actions";
@@ -20,8 +20,35 @@ interface PerformanceClientProps {
       totalOrders: number;
       avgOrderValue: number;
       globalSuccessRate: number;
+      totalPacked: number;
+      totalCollected: number;
     };
   };
+}
+
+// Rank badge component
+function RankBadge({ rank }: { rank: number }) {
+  const cls = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : '';
+  return <div className={`rank-badge ${cls}`}>{rank}</div>;
+}
+
+// Progress bar component
+function ProgressBar({ value, color }: { value: number; color: string }) {
+  return (
+    <div className="progress-bar-wrap">
+      <div className="progress-bar-bg">
+        <div className="progress-bar-fill" style={{ width: `${value}%`, background: color }} />
+      </div>
+      <span className="progress-bar-label" style={{ color }}>{value}%</span>
+    </div>
+  );
+}
+
+// Color helper for rates
+function rateColor(rate: number) {
+  if (rate >= 90) return 'var(--green)';
+  if (rate >= 70) return 'var(--orange)';
+  return 'var(--red)';
 }
 
 export default function PerformanceClient({ stats }: PerformanceClientProps) {
@@ -32,42 +59,21 @@ export default function PerformanceClient({ stats }: PerformanceClientProps) {
   const [selectedMember, setSelectedMember] = useState<{ id: string; name: string; role: string } | null>(null);
   const [memberDetails, setMemberDetails] = useState<any>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
-
   const router = useRouter();
 
   const setQuickDate = (range: 'today' | 'yesterday' | 'week' | 'month' | 'lastMonth' | 'all') => {
     const now = new Date();
-    let from = '';
-    let to = now.toISOString().split('T')[0];
-
-    if (range === 'today') {
-      from = to;
-    } else if (range === 'yesterday') {
-      const y = new Date();
-      y.setDate(y.getDate() - 1);
-      from = y.toISOString().split('T')[0];
-      to = from;
-    } else if (range === 'week') {
-      const w = new Date();
-      w.setDate(w.getDate() - 7);
-      from = w.toISOString().split('T')[0];
-    } else if (range === 'month') {
-      from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-    } else if (range === 'lastMonth') {
-      const lmFrom = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const lmTo = new Date(now.getFullYear(), now.getMonth(), 0);
-      from = lmFrom.toISOString().split('T')[0];
-      to = lmTo.toISOString().split('T')[0];
-    } else if (range === 'all') {
-      from = '';
-      to = '';
-    }
-
+    let from = '', to = now.toISOString().split('T')[0];
+    if (range === 'today') { from = to; }
+    else if (range === 'yesterday') { const y = new Date(); y.setDate(y.getDate() - 1); from = y.toISOString().split('T')[0]; to = from; }
+    else if (range === 'week') { const w = new Date(); w.setDate(w.getDate() - 7); from = w.toISOString().split('T')[0]; }
+    else if (range === 'month') { from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]; }
+    else if (range === 'lastMonth') { from = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0]; to = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0]; }
+    else { from = ''; to = ''; }
     setDateFrom(from);
     setDateTo(to);
   };
 
-  // Update URL when dates change to trigger server re-fetch
   React.useEffect(() => {
     if (dateFrom || dateTo) {
       const params = new URLSearchParams();
@@ -90,39 +96,42 @@ export default function PerformanceClient({ stats }: PerformanceClientProps) {
     }
   }, [dateFrom, dateTo]);
 
-  const filteredStats = useMemo(() => {
+  const filtered = useMemo(() => {
     const s = searchTerm.toLowerCase();
     return {
-      commercials: stats.commercialsStats.filter(c => c.name.toLowerCase().includes(s)),
-      delivery: stats.deliveryStats.filter(d => d.name.toLowerCase().includes(s)),
-      collectors: stats.collectorStats.filter(c => c.name.toLowerCase().includes(s)),
-      packing: stats.packingStats.filter(p => p.name.toLowerCase().includes(s)),
+      commercials: stats.commercialsStats.filter(c => c.name.toLowerCase().includes(s)).sort((a, b) => b.revenue - a.revenue),
+      delivery: stats.deliveryStats.filter(d => d.name.toLowerCase().includes(s)).sort((a, b) => b.successRate - a.successRate),
+      collectors: stats.collectorStats.filter(c => c.name.toLowerCase().includes(s)).sort((a, b) => b.count - a.count),
+      packing: stats.packingStats.filter(p => p.name.toLowerCase().includes(s)).sort((a, b) => b.packed - a.packed),
     };
   }, [stats, searchTerm]);
 
+  const roles = [
+    { key: 'ALL', label: 'Vue globale', count: stats.commercialsStats.length + stats.deliveryStats.length + stats.collectorStats.length + stats.packingStats.length },
+    { key: 'COMMERCIAL', label: 'Call Center', count: stats.commercialsStats.length, icon: <Phone size={13} /> },
+    { key: 'PACKING', label: 'Emballage', count: stats.packingStats.length, icon: <Package size={13} /> },
+    { key: 'COLLECTION', label: 'Collecte', count: stats.collectorStats.length, icon: <Box size={13} /> },
+    { key: 'LIVREUR', label: 'Livreurs', count: stats.deliveryStats.length, icon: <Truck size={13} /> },
+  ];
+
   return (
     <div className="content animate-fade-in">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, gap: 16, flexWrap: 'wrap' }}>
+      {/* HEADER */}
+      <div className="perf-header">
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--ink)', marginBottom: 4 }}>Équipe & Performance</h1>
-          <p style={{ color: 'var(--brown-soft)', fontSize: 14 }}>Analyse détaillée de l'activité par collaborateur.</p>
+          <h1>Performance Équipe</h1>
+          <p>Analyse détaillée de l&apos;activité par collaborateur et service.</p>
         </div>
-
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <div className="search-bar" style={{ width: 220 }}>
-            <Search size={16} color="var(--brown-soft)" />
-            <input 
-              type="text" 
-              placeholder="Rechercher un membre..." 
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-            />
+        <div className="perf-controls">
+          <div className="search-bar" style={{ width: 200 }}>
+            <Search size={15} color="var(--brown-soft)" />
+            <input type="text" placeholder="Chercher..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
           </div>
-
-          <div className="filters-bar" style={{ margin: 0, padding: '4px 12px', gap: 10 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--cream)', padding: '2px 6px', borderRadius: 10, border: '1px solid var(--line)' }}>
+          <div className="filters-bar" style={{ margin: 0, padding: '4px 10px', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'var(--cream)', padding: '2px 6px', borderRadius: 8, border: '1px solid var(--line)' }}>
               <button className={`shortcut-btn ${!dateFrom && !dateTo ? 'active' : ''}`} onClick={() => setQuickDate('all')}>Tout</button>
-              <button className="shortcut-btn" onClick={() => setQuickDate('today')}>Aujourd'hui</button>
+              <button className="shortcut-btn" onClick={() => setQuickDate('today')}>Ajd</button>
+              <button className="shortcut-btn" onClick={() => setQuickDate('week')}>7j</button>
               <button className="shortcut-btn" onClick={() => setQuickDate('month')}>Mois</button>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -134,291 +143,235 @@ export default function PerformanceClient({ stats }: PerformanceClientProps) {
         </div>
       </div>
 
-      <div className="stats-grid" style={{ marginBottom: 32 }}>
-        <StatCard 
-          label="Chiffre d'Affaires" 
-          value={formatPrice(stats.summary.totalRevenue)} 
-          icon={<TrendingUp size={20} />}
-          accent
-        />
-        <StatCard 
-          label="Commandes Totales" 
-          value={stats.summary.totalOrders} 
-          icon={<ShoppingBag size={20} />}
-        />
-        <StatCard 
-          label="Panier Moyen (Livré)" 
-          value={formatPrice(stats.summary.avgOrderValue)} 
-          icon={<Award size={20} />}
-        />
-        <StatCard 
-          label="Réussite Livraison" 
-          value={`${stats.summary.globalSuccessRate}%`} 
-          icon={<Target size={20} />}
-        />
+      {/* SUMMARY */}
+      <div className="perf-stats">
+        <StatCard label="CA Livré" value={formatPrice(stats.summary.totalRevenue)} icon={<TrendingUp size={18} />} accent />
+        <StatCard label="Commandes" value={stats.summary.totalOrders} icon={<ShoppingBag size={18} />} />
+        <StatCard label="Panier Moyen" value={formatPrice(stats.summary.avgOrderValue)} icon={<Award size={18} />} />
+        <StatCard label="Taux Livraison" value={`${stats.summary.globalSuccessRate}%`} icon={<Target size={18} />} />
+        <StatCard label="Colis Emballés" value={stats.summary.totalPacked} icon={<Package size={18} />} />
+        <StatCard label="Articles Collectés" value={stats.summary.totalCollected} icon={<Box size={18} />} />
       </div>
 
-      <div className="role-selector" style={{ display: 'flex', gap: 10, marginBottom: 24, overflowX: 'auto', paddingBottom: 8 }}>
-        {['ALL', 'COMMERCIAL', 'LIVREUR', 'COLLECTION', 'PACKING'].map(role => (
-          <button 
-            key={role}
-            onClick={() => setRoleFilter(role)}
-            className={`role-btn ${roleFilter === role ? 'active' : ''}`}
-          >
-            {role === 'ALL' ? 'Tous les services' : 
-             role === 'COMMERCIAL' ? 'Call Center' :
-             role === 'LIVREUR' ? 'Livreurs' :
-             role === 'COLLECTION' ? 'Collecte' : 'Emballage'}
+      {/* ROLE TABS */}
+      <div className="perf-tabs">
+        {roles.map(r => (
+          <button key={r.key} onClick={() => setRoleFilter(r.key)} className={`role-btn ${roleFilter === r.key ? 'active' : ''}`}>
+            {r.icon} {r.label} <span className="role-count">{r.count}</span>
           </button>
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: 24 }}>
-        {/* 1. CALL CENTER (COMMERCIALS) */}
+      {/* SECTIONS */}
+      <div className="perf-sections">
+
+        {/* ─── CALL CENTER ─── */}
         {(roleFilter === 'ALL' || roleFilter === 'COMMERCIAL') && (
-          <TableCard 
-            title="Performance Call Center" 
-            meta={`${filteredStats.commercials.length} commerciaux actifs`}
-          >
-            <table>
-              <thead>
-                <tr>
-                  <th>Commercial</th>
-                  <th>Total</th>
-                  <th>Livrées</th>
-                  <th>CA Livré</th>
-                  <th>Taux</th>
-                  <th>Prime (1%)</th>
-                  <th style={{ width: 40 }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredStats.commercials.sort((a, b) => b.revenue - a.revenue).map((c, i) => {
-                  const conv = c.sales ? Math.round(c.delivered / c.sales * 100) : 0;
-                  return (
-                    <tr key={i}>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <div style={{ width: 22, height: 22, borderRadius: 6, background: i === 0 ? 'var(--orange)' : 'var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: i === 0 ? 'white' : 'var(--brown)' }}>
-                            {i + 1}
-                          </div>
-                          <span className="cell-strong">{c.name}</span>
-                        </div>
-                      </td>
+          <TableCard title="Call Center" meta={`${filtered.commercials.length} commerciaux — Basé sur les commandes créées et livrées`}>
+            {filtered.commercials.length === 0 ? (
+              <div className="perf-empty"><div className="perf-empty-icon">📞</div><p>Aucun commercial trouvé</p></div>
+            ) : (
+              <table>
+                <thead><tr><th>#</th><th>Commercial</th><th>Total</th><th>Livrées</th><th>Annulées</th><th>CA Livré</th><th>Taux</th><th>Prime 1%</th><th style={{ width: 36 }}></th></tr></thead>
+                <tbody>
+                  {filtered.commercials.map((c, i) => (
+                    <tr key={c.id}>
+                      <td><RankBadge rank={i + 1} /></td>
+                      <td><span className="cell-strong">{c.name}</span></td>
                       <td>{c.sales}</td>
                       <td><span style={{ color: 'var(--green)', fontWeight: 600 }}>{c.delivered}</span></td>
+                      <td><span style={{ color: c.cancelled > 0 ? 'var(--red)' : 'var(--brown-soft)' }}>{c.cancelled}</span></td>
                       <td><span className="cell-price">{formatPrice(c.revenue)}</span></td>
-                      <td><strong>{conv}%</strong></td>
-                      <td><div style={{ color: 'var(--orange)', fontWeight: 700 }}>{formatPrice(c.revenue * 0.01)}</div></td>
-                      <td>
-                        <button className="icon-btn-small" onClick={() => handleViewDetails(c, 'COMMERCIAL')}>
-                          <Eye size={14} />
-                        </button>
-                      </td>
+                      <td><ProgressBar value={c.convRate} color={rateColor(c.convRate)} /></td>
+                      <td><span style={{ color: 'var(--orange)', fontWeight: 700, fontSize: 12 }}>{formatPrice(c.prime)}</span></td>
+                      <td><button className="icon-btn-small" onClick={() => handleViewDetails(c, 'COMMERCIAL')}><Eye size={14} /></button></td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </TableCard>
         )}
 
-        {/* 2. PACKING PERFORMANCE */}
+        {/* ─── EMBALLAGE ─── */}
         {(roleFilter === 'ALL' || roleFilter === 'PACKING') && (
-          <TableCard 
-            title="Service Emballage" 
-            meta="Vitesse et précision des colis"
-          >
-            <table>
-              <thead>
-                <tr>
-                  <th>Emballeur</th>
-                  <th>Colis</th>
-                  <th>Partiels</th>
-                  <th>Erreurs</th>
-                  <th>Score</th>
-                  <th style={{ width: 40 }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredStats.packing.map((p, i) => (
-                  <tr key={i}>
-                    <td><span className="cell-strong">{p.name}</span></td>
-                    <td><div className="cell-strong">{p.packed}</div></td>
-                    <td><span style={{ color: 'var(--amber)' }}>{p.partial || 0}</span></td>
-                    <td><span style={{ color: 'var(--red)' }}>{p.errors || 0}</span></td>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ flex: 1, height: 4, background: 'var(--line)', borderRadius: 2, width: 60, overflow: 'hidden' }}>
-                          <div style={{ width: `${Math.max(0, 100 - (p.errors * 10))}%`, height: '100%', background: 'var(--blue)' }} />
-                        </div>
-                        <span style={{ fontSize: 11, fontWeight: 700 }}>{Math.max(0, 100 - (p.errors * 10))}%</span>
-                      </div>
-                    </td>
-                    <td>
-                      <button className="icon-btn-small" onClick={() => handleViewDetails(p, 'PACKING')}>
-                        <Eye size={14} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <TableCard title="Service Emballage" meta={`${filtered.packing.length} emballeurs — Basé sur les colis préparés (packedBy)`}>
+            {filtered.packing.length === 0 ? (
+              <div className="perf-empty"><div className="perf-empty-icon">📦</div><p>Aucun emballeur trouvé</p></div>
+            ) : (
+              <table>
+                <thead><tr><th>#</th><th>Emballeur</th><th>Colis</th><th>Complets</th><th>Partiels</th><th>Score qualité</th><th style={{ width: 36 }}></th></tr></thead>
+                <tbody>
+                  {filtered.packing.map((p, i) => (
+                    <tr key={p.id}>
+                      <td><RankBadge rank={i + 1} /></td>
+                      <td><span className="cell-strong">{p.name}</span></td>
+                      <td><strong>{p.packed}</strong></td>
+                      <td><span style={{ color: 'var(--green)', fontWeight: 600 }}>{p.completed}</span></td>
+                      <td><span style={{ color: p.partial > 0 ? 'var(--amber)' : 'var(--brown-soft)' }}>{p.partial}</span></td>
+                      <td><ProgressBar value={p.score} color={rateColor(p.score)} /></td>
+                      <td><button className="icon-btn-small" onClick={() => handleViewDetails(p, 'PACKING')}><Eye size={14} /></button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </TableCard>
         )}
 
-        {/* 3. COLLECTION PERFORMANCE */}
+        {/* ─── COLLECTE ─── */}
         {(roleFilter === 'ALL' || roleFilter === 'COLLECTION') && (
-          <TableCard 
-            title="Service Collecte" 
-            meta="Taux de récupération articles"
-          >
-            <table>
-              <thead>
-                <tr>
-                  <th>Collecteur</th>
-                  <th>Collectés</th>
-                  <th>Indispos</th>
-                  <th>Total</th>
-                  <th style={{ width: 40 }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredStats.collectors.sort((a, b) => b.count - a.count).map((c, i) => (
-                  <tr key={i}>
-                    <td><span className="cell-strong">{c.name}</span></td>
-                    <td><span style={{ color: 'var(--green)', fontWeight: 600 }}>{c.collected}</span></td>
-                    <td><span style={{ color: 'var(--red)' }}>{c.unavailable}</span></td>
-                    <td><strong>{c.count}</strong></td>
-                    <td>
-                      <button className="icon-btn-small" onClick={() => handleViewDetails(c, 'COLLECTION')}>
-                        <Eye size={14} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <TableCard title="Service Collecte" meta={`${filtered.collectors.length} collecteurs — Basé sur les CollectionRecord créés`}>
+            {filtered.collectors.length === 0 ? (
+              <div className="perf-empty"><div className="perf-empty-icon">🚚</div><p>Aucun collecteur trouvé</p></div>
+            ) : (
+              <table>
+                <thead><tr><th>#</th><th>Collecteur</th><th>Total</th><th>Collectés</th><th>Indispos</th><th>Alternatifs</th><th>Taux réussite</th><th style={{ width: 36 }}></th></tr></thead>
+                <tbody>
+                  {filtered.collectors.map((c, i) => (
+                    <tr key={c.id}>
+                      <td><RankBadge rank={i + 1} /></td>
+                      <td><span className="cell-strong">{c.name}</span></td>
+                      <td><strong>{c.count}</strong></td>
+                      <td><span style={{ color: 'var(--green)', fontWeight: 600 }}>{c.collected}</span></td>
+                      <td><span style={{ color: c.unavailable > 0 ? 'var(--red)' : 'var(--brown-soft)' }}>{c.unavailable}</span></td>
+                      <td><span style={{ color: 'var(--blue)' }}>{c.alternative}</span></td>
+                      <td><ProgressBar value={c.successRate} color={rateColor(c.successRate)} /></td>
+                      <td><button className="icon-btn-small" onClick={() => handleViewDetails(c, 'COLLECTION')}><Eye size={14} /></button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </TableCard>
         )}
 
-        {/* 4. DELIVERY PERFORMANCE */}
+        {/* ─── LIVREURS ─── */}
         {(roleFilter === 'ALL' || roleFilter === 'LIVREUR') && (
-          <TableCard 
-            title="Performance Livreurs" 
-            meta="Taux de réussite des livraisons"
-          >
-            <table>
-              <thead>
-                <tr>
-                  <th>Livreur</th>
-                  <th>Sortis</th>
-                  <th>Livrés</th>
-                  <th>Taux</th>
-                  <th style={{ width: 40 }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredStats.delivery.sort((a, b) => b.successRate - a.successRate).map((d, i) => (
-                  <tr key={i}>
-                    <td><span className="cell-strong">{d.name}</span></td>
-                    <td>{d.total}</td>
-                    <td><span style={{ color: 'var(--green)', fontWeight: 600 }}>{d.delivered}</span></td>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ flex: 1, height: 4, background: 'var(--line)', borderRadius: 2, width: 60, overflow: 'hidden' }}>
-                          <div style={{ width: `${d.successRate}%`, height: '100%', background: d.successRate > 90 ? 'var(--green)' : d.successRate > 70 ? 'var(--orange)' : 'var(--red)' }} />
-                        </div>
-                        <span style={{ fontSize: 11, fontWeight: 700 }}>{d.successRate}%</span>
-                      </div>
-                    </td>
-                    <td>
-                      <button className="icon-btn-small" onClick={() => handleViewDetails(d, 'LIVREUR')}>
-                        <Eye size={14} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <TableCard title="Livreurs" meta={`${filtered.delivery.length} livreurs — Basé sur les commandes assignées (deliverymanId)`}>
+            {filtered.delivery.length === 0 ? (
+              <div className="perf-empty"><div className="perf-empty-icon">🏍️</div><p>Aucun livreur trouvé</p></div>
+            ) : (
+              <table>
+                <thead><tr><th>#</th><th>Livreur</th><th>Sortis</th><th>Livrés</th><th>Retours</th><th>CA Livré</th><th>Taux</th><th style={{ width: 36 }}></th></tr></thead>
+                <tbody>
+                  {filtered.delivery.map((d, i) => (
+                    <tr key={d.id}>
+                      <td><RankBadge rank={i + 1} /></td>
+                      <td><span className="cell-strong">{d.name}</span></td>
+                      <td>{d.total}</td>
+                      <td><span style={{ color: 'var(--green)', fontWeight: 600 }}>{d.delivered}</span></td>
+                      <td><span style={{ color: d.returned > 0 ? 'var(--red)' : 'var(--brown-soft)' }}>{d.returned}</span></td>
+                      <td><span className="cell-price">{formatPrice(d.revenue)}</span></td>
+                      <td><ProgressBar value={d.successRate} color={rateColor(d.successRate)} /></td>
+                      <td><button className="icon-btn-small" onClick={() => handleViewDetails(d, 'LIVREUR')}><Eye size={14} /></button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </TableCard>
         )}
       </div>
 
+      {/* ─── DETAIL MODAL ─── */}
       {selectedMember && (
-        <Modal 
-          isOpen={true} 
-          onClose={() => { setSelectedMember(null); setMemberDetails(null); }}
-          title={`Performance de ${selectedMember.name}`}
-        >
-          <div style={{ minHeight: 300 }}>
+        <Modal isOpen onClose={() => { setSelectedMember(null); setMemberDetails(null); }} title={`${selectedMember.name} — ${selectedMember.role}`}>
+          <div style={{ minHeight: 280 }}>
             {isLoadingDetails ? (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 300, gap: 12 }}>
-                <Loader2 className="animate-spin" size={32} color="var(--orange)" />
-                <p style={{ color: 'var(--brown-soft)', fontSize: 14 }}>Chargement des détails...</p>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 280, gap: 12 }}>
+                <Loader2 className="animate-spin" size={28} color="var(--orange)" />
+                <p style={{ color: 'var(--brown-soft)', fontSize: 13 }}>Chargement...</p>
               </div>
             ) : memberDetails ? (
-              <div className="member-details">
-                <div className="stats-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
-                  <div style={{ padding: 16, background: 'var(--cream)', borderRadius: 12, border: '1px solid var(--line)' }}>
-                    <div style={{ fontSize: 11, color: 'var(--brown-soft)', textTransform: 'uppercase', marginBottom: 4 }}>Volume total</div>
-                    <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--brown)' }}>
-                      {selectedMember.role === 'COLLECTION' ? memberDetails.records?.length : memberDetails.orders?.length || 0}
-                    </div>
-                  </div>
-                  <div style={{ padding: 16, background: 'var(--cream)', borderRadius: 12, border: '1px solid var(--line)' }}>
-                    <div style={{ fontSize: 11, color: 'var(--brown-soft)', textTransform: 'uppercase', marginBottom: 4 }}>Période</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--brown)' }}>
-                      {dateFrom ? formatDate(dateFrom) : 'Ce mois'}
-                    </div>
-                  </div>
-                  <div style={{ padding: 16, background: 'var(--orange-soft)', borderRadius: 12, border: '1px solid var(--orange)' }}>
-                    <div style={{ fontSize: 11, color: 'var(--orange)', textTransform: 'uppercase', marginBottom: 4 }}>Rôle</div>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--orange)' }}>{selectedMember.role}</div>
-                  </div>
-                </div>
-
-                <div className="table-wrap" style={{ maxHeight: 400, overflowY: 'auto' }}>
-                  <table style={{ width: '100%', fontSize: 12 }}>
+              <div>
+                {/* Summary Cards */}
+                {memberDetails.summary && <DetailSummary summary={memberDetails.summary} role={selectedMember.role} />}
+                {/* Detail Table */}
+                <div className="detail-table-wrap">
+                  <table>
                     <thead>
-                      <tr style={{ position: 'sticky', top: 0, background: 'var(--cream)', zIndex: 1 }}>
-                        <th style={{ textAlign: 'left', padding: 8 }}>Date</th>
-                        <th style={{ textAlign: 'left', padding: 8 }}>Référence / Action</th>
-                        <th style={{ textAlign: 'right', padding: 8 }}>Statut</th>
+                      <tr>
+                        <th>Date</th>
+                        <th>Référence</th>
+                        {selectedMember.role !== 'COLLECTION' && <th>Client</th>}
+                        {(selectedMember.role === 'COMMERCIAL' || selectedMember.role === 'LIVREUR') && <th>Montant</th>}
+                        <th>Statut</th>
                       </tr>
                     </thead>
                     <tbody>
                       {(memberDetails.orders || memberDetails.records)?.map((item: any, i: number) => (
-                        <tr key={i} style={{ borderBottom: '1px solid var(--line)' }}>
-                          <td style={{ padding: 8, color: 'var(--brown-soft)' }}>
-                            {formatDate(item.createdAt || item.packedAt)}
-                          </td>
-                          <td style={{ padding: 8 }}>
-                            <div style={{ fontWeight: 600 }}>{item.ref || item.action || '—'}</div>
-                            {item.customerName && <div style={{ fontSize: 10, color: 'var(--brown-soft)' }}>{item.customerName}</div>}
-                          </td>
-                          <td style={{ padding: 8, textAlign: 'right' }}>
-                            <StatusBadge status={item.status} />
-                          </td>
+                        <tr key={i}>
+                          <td style={{ color: 'var(--brown-soft)', whiteSpace: 'nowrap' }}>{formatDate(item.createdAt || item.packedAt)}</td>
+                          <td><span style={{ fontWeight: 600 }}>{item.ref || item.productId || '—'}</span></td>
+                          {selectedMember.role !== 'COLLECTION' && <td style={{ fontSize: 11 }}>{item.customerName || '—'}</td>}
+                          {(selectedMember.role === 'COMMERCIAL' || selectedMember.role === 'LIVREUR') && (
+                            <td><span className="cell-price">{formatPrice(item.total)}</span></td>
+                          )}
+                          <td><StatusBadge status={item.status} /></td>
                         </tr>
                       ))}
+                      {!(memberDetails.orders || memberDetails.records)?.length && (
+                        <tr><td colSpan={5} style={{ textAlign: 'center', padding: 24, color: 'var(--brown-soft)' }}>Aucune activité sur cette période.</td></tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
               </div>
             ) : (
-              <div style={{ textAlign: 'center', padding: 40 }}>
-                <p>Aucune donnée disponible.</p>
-              </div>
+              <div className="perf-empty"><p>Aucune donnée disponible.</p></div>
             )}
           </div>
-          <div style={{ marginTop: 24, display: 'flex', justifyContent: 'flex-end' }}>
+          <div className="modal-footer">
             <button className="btn-secondary" onClick={() => setSelectedMember(null)}>Fermer</button>
           </div>
         </Modal>
       )}
-
-      
     </div>
   );
+}
+
+// Sub-component for detail modal summary
+function DetailSummary({ summary, role }: { summary: any; role: string }) {
+  if (role === 'COMMERCIAL') {
+    return (
+      <div className="detail-stats-row">
+        <div className="detail-stat-box"><div className="detail-stat-label">Commandes</div><div className="detail-stat-value">{summary.total}</div></div>
+        <div className="detail-stat-box"><div className="detail-stat-label">Livrées</div><div className="detail-stat-value" style={{ color: 'var(--green)' }}>{summary.delivered}</div></div>
+        <div className="detail-stat-box"><div className="detail-stat-label">Taux</div><div className="detail-stat-value">{summary.convRate}%</div></div>
+        <div className="detail-stat-box accent"><div className="detail-stat-label">CA Livré</div><div className="detail-stat-value">{formatPrice(summary.revenue)}</div></div>
+      </div>
+    );
+  }
+  if (role === 'LIVREUR') {
+    return (
+      <div className="detail-stats-row">
+        <div className="detail-stat-box"><div className="detail-stat-label">Sorties</div><div className="detail-stat-value">{summary.total}</div></div>
+        <div className="detail-stat-box"><div className="detail-stat-label">Livrés</div><div className="detail-stat-value" style={{ color: 'var(--green)' }}>{summary.delivered}</div></div>
+        <div className="detail-stat-box"><div className="detail-stat-label">Retours</div><div className="detail-stat-value" style={{ color: 'var(--red)' }}>{summary.returned}</div></div>
+        <div className="detail-stat-box accent"><div className="detail-stat-label">Taux réussite</div><div className="detail-stat-value">{summary.successRate}%</div></div>
+      </div>
+    );
+  }
+  if (role === 'COLLECTION') {
+    return (
+      <div className="detail-stats-row">
+        <div className="detail-stat-box"><div className="detail-stat-label">Total traité</div><div className="detail-stat-value">{summary.total}</div></div>
+        <div className="detail-stat-box"><div className="detail-stat-label">Collectés</div><div className="detail-stat-value" style={{ color: 'var(--green)' }}>{summary.collected}</div></div>
+        <div className="detail-stat-box"><div className="detail-stat-label">Indispos</div><div className="detail-stat-value" style={{ color: 'var(--red)' }}>{summary.unavailable}</div></div>
+        <div className="detail-stat-box accent"><div className="detail-stat-label">Taux réussite</div><div className="detail-stat-value">{summary.successRate}%</div></div>
+      </div>
+    );
+  }
+  if (role === 'PACKING') {
+    return (
+      <div className="detail-stats-row">
+        <div className="detail-stat-box"><div className="detail-stat-label">Total colis</div><div className="detail-stat-value">{summary.total}</div></div>
+        <div className="detail-stat-box"><div className="detail-stat-label">Complets</div><div className="detail-stat-value" style={{ color: 'var(--green)' }}>{summary.completed}</div></div>
+        <div className="detail-stat-box"><div className="detail-stat-label">Partiels</div><div className="detail-stat-value" style={{ color: 'var(--amber)' }}>{summary.partial}</div></div>
+        <div className="detail-stat-box accent"><div className="detail-stat-label">Score qualité</div><div className="detail-stat-value">{summary.score}%</div></div>
+      </div>
+    );
+  }
+  return null;
 }

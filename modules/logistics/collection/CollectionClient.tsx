@@ -13,6 +13,7 @@ import { useResponsiveMode } from "@/lib/hooks";
 import LogisticsMobileStyles from "@/modules/logistics/components/LogisticsMobileStyles";
 import { motion, AnimatePresence } from "framer-motion";
 import VariantsEditorModal from "../packing/components/VariantsEditorModal";
+import { shouldSendToCollection } from "./helpers";
 
 type DatePreset = 'today' | 'yesterday' | 'custom' | 'all';
 
@@ -126,14 +127,10 @@ export default function CollectionClient({ toCollect, user, categories = [], war
       const hasUnavailable = isUnavailableAction(latestAction);
       const hasAlternative = isAlternativeAction(latestAction);
 
-      const variant = tc.item.variantId
-        ? tc.product.variants.find((v: any) => v.id === tc.item.variantId)
-        : tc.product.variants.find((v: any) => v.size === tc.item.size && v.color === tc.item.color);
-      const requestedQty = Number(tc.item.qty) || 1;
-      const isOutOfStock = variant ? Number(variant.stock || 0) < requestedQty : Number(tc.product.stock || 0) < requestedQty;
+      const needsCollection = shouldSendToCollection(tc.item, tc.product);
       const isProcessed = !!latestLog;
 
-      if (!isProcessed && !isOutOfStock) return false;
+      if (!isProcessed && !needsCollection) return false;
       if (!isProcessed) counts.all++;
       else {
         if (hasCollected) counts.collected++;

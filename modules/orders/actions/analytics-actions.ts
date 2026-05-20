@@ -8,6 +8,7 @@ import {
   getSidebarCountsForUser,
   type SidebarCountsUser,
 } from "@/modules/orders/actions/sidebar-counts";
+import { shouldSendToCollection } from "@/modules/logistics/collection/helpers";
 
 // ============ SIDEBAR COUNTS ============
 export async function getSidebarCounts(user?: SidebarCountsUser | string) {
@@ -120,12 +121,7 @@ export async function getDashboardStats() {
       if (!item.productId) return false;
       const product = productMap.get(item.productId);
       if (!product) return false;
-      const requestedQty = Number(item.qty) || 1;
-      const variant = item.variantId
-        ? product.variants.find(v => v.id === item.variantId)
-        : product.variants.find(v => v.size === item.size && v.color === item.color);
-      if (variant) return Number(variant.stock || 0) < requestedQty;
-      return Number(product.stock || 0) < requestedQty;
+      return shouldSendToCollection(item, product);
     }).length;
   }, 0);
 

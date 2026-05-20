@@ -2,6 +2,7 @@ import React from "react";
 import prisma from "@/lib/prisma";
 import { StatCard, TableCard, EmptyState } from "@/components/UI";
 import Topbar from "@/components/Topbar";
+import { shouldSendToCollection } from "@/modules/logistics/collection/helpers";
 import "./dashboard.css";
 
 export default async function CollectionDashboard({ user }: { user: any }) {
@@ -22,12 +23,7 @@ export default async function CollectionDashboard({ user }: { user: any }) {
       if (!item.productId) continue;
       const product = productMap.get(item.productId);
       if (!product) continue;
-      const requestedQty = Number(item.qty) || 1;
-      const variant = item.variantId
-        ? product.variants.find(v => v.id === item.variantId)
-        : product.variants.find(v => v.size === item.size && v.color === item.color);
-      const missingStock = variant ? Number(variant.stock || 0) < requestedQty : Number(product.stock || 0) < requestedQty;
-      if (missingStock) toCollect.push({ order, item, product });
+      if (shouldSendToCollection(item, product)) toCollect.push({ order, item, product });
     }
   }
 

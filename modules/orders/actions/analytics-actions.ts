@@ -8,7 +8,7 @@ import {
   getSidebarCountsForUser,
   type SidebarCountsUser,
 } from "@/modules/orders/actions/sidebar-counts";
-import { shouldSendToCollection } from "@/modules/logistics/collection/helpers";
+import { shouldShowInCollectionQueue } from "@/modules/logistics/collection/helpers";
 
 // ============ SIDEBAR COUNTS ============
 export async function getSidebarCounts(user?: SidebarCountsUser | string) {
@@ -118,10 +118,10 @@ export async function getDashboardStats() {
 
   const collectionQueueCount = activeOrders.reduce((count, order) => {
     return count + order.items.filter(item => {
-      if (!item.productId) return false;
+      if (!item.productId) return true;
       const product = productMap.get(item.productId);
       if (!product) return false;
-      return shouldSendToCollection(item, product);
+      return shouldShowInCollectionQueue(order, item, product);
     }).length;
   }, 0);
 

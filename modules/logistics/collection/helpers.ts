@@ -23,11 +23,17 @@ type CollectionProduct = {
   id: string;
   name?: string;
   stock?: number | null;
+  isCustom?: boolean;
   variants?: CollectionProductVariant[];
 };
 
 type CollectionOrder = {
   items: CollectionOrderItem[];
+  history?: unknown;
+};
+
+type CollectionHistoryEntry = {
+  action?: string | null;
 };
 
 export function getCollectionStockLevel(item: CollectionOrderItem, product: CollectionProduct) {
@@ -42,6 +48,24 @@ export function shouldSendToCollection(item: CollectionOrderItem, product: Colle
   const requestedQty = Number(item.qty) || 1;
   const stockLevel = getCollectionStockLevel(item, product);
   return stockLevel < requestedQty || stockLevel - requestedQty <= COLLECTION_STOCK_THRESHOLD;
+}
+
+export function hasAlternativeProposalForItem(order: CollectionOrder, item: CollectionOrderItem) {
+  const itemName = String(item.name || "").toLowerCase();
+  if (!itemName) return false;
+
+  const history = Array.isArray(order.history) ? order.history as CollectionHistoryEntry[] : [];
+
+  return history.some((entry) => {
+    const action = String(entry.action || "").toLowerCase();
+    if (action.includes("collection_status:")) return false;
+    const isAlternativeProposal = action.includes("alternative proposée") || action.includes("alternative proposee");
+    return isAlternativeProposal && action.includes(itemName);
+  });
+}
+
+export function shouldShowInCollectionQueue(order: CollectionOrder, item: CollectionOrderItem, product: CollectionProduct) {
+  return !item.productId || product.isCustom || shouldSendToCollection(item, product) || hasAlternativeProposalForItem(order, item);
 }
 
 export function buildCollectionItems(orders: CollectionOrder[], products: CollectionProduct[]): CollectionItem[] {

@@ -2,7 +2,7 @@ import React from "react";
 import prisma from "@/lib/prisma";
 import { StatCard, TableCard, EmptyState } from "@/components/UI";
 import Topbar from "@/components/Topbar";
-import { shouldSendToCollection } from "@/modules/logistics/collection/helpers";
+import { shouldShowInCollectionQueue } from "@/modules/logistics/collection/helpers";
 import "./dashboard.css";
 
 export default async function CollectionDashboard({ user }: { user: any }) {
@@ -20,10 +20,17 @@ export default async function CollectionDashboard({ user }: { user: any }) {
   const toCollect: Array<{ order: any; item: any; product: any }> = [];
   for (const order of orders) {
     for (const item of order.items) {
-      if (!item.productId) continue;
+      if (!item.productId) {
+        toCollect.push({
+          order,
+          item,
+          product: { id: "CUSTOM", name: item.name, supplier: null, variants: [], stock: 0, isCustom: true },
+        });
+        continue;
+      }
       const product = productMap.get(item.productId);
       if (!product) continue;
-      if (shouldSendToCollection(item, product)) toCollect.push({ order, item, product });
+      if (shouldShowInCollectionQueue(order, item, product)) toCollect.push({ order, item, product });
     }
   }
 

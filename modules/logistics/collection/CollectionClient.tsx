@@ -13,7 +13,7 @@ import { useResponsiveMode } from "@/lib/hooks";
 import LogisticsMobileStyles from "@/modules/logistics/components/LogisticsMobileStyles";
 import { motion, AnimatePresence } from "framer-motion";
 import VariantsEditorModal from "../packing/components/VariantsEditorModal";
-import { shouldSendToCollection } from "./helpers";
+import { shouldShowInCollectionQueue } from "./helpers";
 
 type DatePreset = 'today' | 'yesterday' | 'custom' | 'all';
 
@@ -27,8 +27,7 @@ function toLocalDateInputValue(date = new Date()) {
 const isCollectionHistoryAction = (action: string) =>
   action.includes('collection_status:') ||
   action.includes('collecté') ||
-  action.includes('indisponible') ||
-  action.includes('alternative');
+  action.includes('indisponible');
 
 const isCollectedAction = (action: string) =>
   action.includes('collection_status:collected') ||
@@ -127,7 +126,7 @@ export default function CollectionClient({ toCollect, user, categories = [], war
       const hasUnavailable = isUnavailableAction(latestAction);
       const hasAlternative = isAlternativeAction(latestAction);
 
-      const needsCollection = shouldSendToCollection(tc.item, tc.product);
+      const needsCollection = shouldShowInCollectionQueue(tc.order, tc.item, tc.product);
       const isProcessed = !!latestLog;
 
       if (!isProcessed && !needsCollection) return false;

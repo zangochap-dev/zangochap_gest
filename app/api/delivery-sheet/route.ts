@@ -33,22 +33,21 @@ export async function GET(req: NextRequest) {
     };
   }
 
+  const isVerificationByCreationDate = type === 'created';
+  const deliveredItemsFilter = isVerificationByCreationDate ? undefined : { isDelivered: true };
+
   const orders = await prisma.order.findMany({
     where: {
       status: { notIn: ['CANCELLED', 'PENDING', 'TO_PROCESS', 'REPRO_DISPO'] },
       deletedAt: null,
       items: {
-        some: {
-          isDelivered: true,
-        },
+        some: deliveredItemsFilter || {},
       },
       ...dateFilter
     },
     include: { 
       items: {
-        where: {
-          isDelivered: true,
-        },
+        ...(deliveredItemsFilter ? { where: deliveredItemsFilter } : {}),
         include: {
           product: {
             include: {

@@ -61,14 +61,14 @@ function matchesDateInput(value: unknown, dateInput: string) {
   return !dateInput || (typeof value === "string" && value.startsWith(dateInput));
 }
 
-function isDeliveryDateToday(deliveryDate?: string | null) {
+function isDeliveryDateNextDay(deliveryDate?: string | null) {
   if (!deliveryDate) return false;
 
-  const today = new Date();
+  const next = getNextDeliveryDate();
   const delivery = new Date(deliveryDate);
-  return delivery.getFullYear() === today.getFullYear()
-    && delivery.getMonth() === today.getMonth()
-    && delivery.getDate() === today.getDate();
+  return delivery.getFullYear() === next.getFullYear()
+    && delivery.getMonth() === next.getMonth()
+    && delivery.getDate() === next.getDate();
 }
 
 function getOrderTimestamp(order: DeliveryAdminOrder) {
@@ -80,6 +80,16 @@ function dateInputValue(date: Date) {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+/** Delivery date = tomorrow, except Sat→Mon and Sun→Mon */
+function getNextDeliveryDate() {
+  const d = new Date();
+  d.setDate(d.getDate() + 1); // tomorrow
+  const day = d.getDay(); // 0=Sun, 6=Sat
+  if (day === 6) d.setDate(d.getDate() + 2); // Sat → Mon
+  else if (day === 0) d.setDate(d.getDate() + 1); // Sun → Mon
+  return d;
 }
 
 export default function AdminDeliveryClient({ activeOrders, archivedOrders, deliverymen }: AdminDeliveryClientProps) {
@@ -271,11 +281,11 @@ export default function AdminDeliveryClient({ activeOrders, archivedOrders, deli
 
   // Today's assigned orders grouped by deliveryman for delivery sheets
   const todaySheets = useMemo(() => {
-    // Get assigned orders + any BJ orders for today (except Cocody)
+    // Get assigned orders + any BJ orders for next delivery day (except Cocody)
     const allRelevantOrders = activeOrders.filter(o => {
       const isBJToBroadcast = o.ref?.toUpperCase().startsWith("BJ") && !o.commune?.toLowerCase().includes("cocody");
-      const isToday = isDeliveryDateToday(o.deliveryDate);
-      return isToday && (o.deliverymanId || isBJToBroadcast);
+      const isNextDay = isDeliveryDateNextDay(o.deliveryDate);
+      return isNextDay && (o.deliverymanId || isBJToBroadcast);
     });
 
     const bjOrders = allRelevantOrders.filter(o => o.ref?.toUpperCase().startsWith("BJ") && !o.commune?.toLowerCase().includes("cocody"));
@@ -322,7 +332,7 @@ export default function AdminDeliveryClient({ activeOrders, archivedOrders, deli
       const totalAmount = driverOrders.reduce((s, o) => s + (o.total || 0) + (o.deliveryFee || 0) - (o.discount || 0), 0);
       const totalProducts = driverOrders.reduce((s, o) => s + (o.total || 0) - (o.discount || 0), 0);
       const totalDeliveryFee = driverOrders.reduce((s, o) => s + (o.deliveryFee || 0), 0);
-      const dateStr = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      const dateStr = getNextDeliveryDate().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
       const byCommune: Record<string, DeliveryAdminOrder[]> = {};
       driverOrders.forEach(o => {
@@ -914,7 +924,7 @@ export default function AdminDeliveryClient({ activeOrders, archivedOrders, deli
                           <Printer size={13} /> Imprimer
                         </button>
                       </div>
-                      <div className="sheet-date">{new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div>
+                      <div className="sheet-date">{getNextDeliveryDate().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div>
                       <div className="sheet-stats-row">
                         <span><strong>{driverOrders.length}</strong> colis</span>
                         <span>•</span>

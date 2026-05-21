@@ -15,6 +15,13 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/components/Toast';
 import "./settlement-client.css";
 
+function localDateInputValue(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 interface Props {
   pendingOrders: any[];
   history: any[];
@@ -50,6 +57,13 @@ export default function SettlementClient({
     if (t) params.set("to", t); else params.delete("to");
     if (r) params.set("riderId", r); else params.delete("riderId");
     router.push(`?${params.toString()}`);
+  };
+
+  const today = localDateInputValue();
+  const filterToday = () => {
+    setFrom(today);
+    setTo(today);
+    handleFilter(today, today, initialRiderId);
   };
 
   const groups = useMemo(() => {
@@ -141,6 +155,13 @@ export default function SettlementClient({
         </div>
 
         <div className="date-filters">
+          <button
+            type="button"
+            className={`filter-chip today-chip ${from === today && to === today ? "active" : ""}`}
+            onClick={filterToday}
+          >
+            Aujourd&apos;hui
+          </button>
           <div className="date-input-group">
             <Calendar size={14} />
             <input type="date" value={from} onChange={e => setFrom(e.target.value)} />

@@ -1,5 +1,6 @@
 .filters-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; gap: 16px; flex-wrap: wrap; }
 .date-filters { display: flex; align-items: center; gap: 10px; background: white; padding: 6px 12px; border-radius: 12px; border: 1px solid var(--line); }
+.today-chip { min-height: 32px; padding-inline: 12px; }
 .date-input-group { display: flex; align-items: center; gap: 6px; color: var(--brown-soft); }
 .date-input-group input { border: none; outline: none; font-size: 12px; font-weight: 600; color: var(--ink); background: transparent; }
 .apply-btn-sm { width: 32px; height: 32px; border-radius: 8px; background: var(--ink); color: white; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; }

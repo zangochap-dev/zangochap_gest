@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getSession } from "@/modules/auth/actions";
 import { ensureAuth } from "@/lib/auth";
 import { isRole } from "../helpers";
+import type { Prisma } from "@prisma/client";
 
 // ============ PENDING SETTLEMENTS ============
 export async function getPendingSettlements() {
@@ -41,7 +42,7 @@ export async function getSettlementHistory() {
       createdAt: true,
       deliveryman: { select: { name: true } },
       orders: { select: { id: true, ref: true, customerName: true, total: true, deliveryFee: true, discount: true } },
-    } as any,
+    },
     orderBy: { createdAt: 'desc' },
     take: 50,
   });
@@ -98,7 +99,8 @@ export async function getSettlementStats(from?: string, to?: string, commercialI
   const session = await getSession();
   if (!session || !isRole(session, 'admin')) throw new Error("Accès refusé");
 
-  const where: any = {
+  const where: Prisma.OrderWhereInput = {
+    deletedAt: null,
     paymentMethod: method ? method : { not: null },
   };
 
@@ -127,13 +129,13 @@ export async function getSettlementStats(from?: string, to?: string, commercialI
       createdAt: true,
       commercialName: true,
       status: true,
-    } as any,
+    },
     orderBy: { createdAt: 'desc' }
   });
 
   const stats: Record<string, { count: number, total: number }> = {};
 
-  orders.forEach((o: any) => {
+  orders.forEach((o) => {
     const method = String(o.paymentMethod || 'Inconnu');
     if (!stats[method]) stats[method] = { count: 0, total: 0 };
     stats[method].count += 1;
@@ -146,7 +148,7 @@ export async function getSettlementStats(from?: string, to?: string, commercialI
     total: data.total
   })).sort((a, b) => b.total - a.total);
 
-  return { methods, orders } as any;
+  return { methods, orders };
 }
 
 // ============ RIDER SETTLEMENT STATS ============
@@ -154,7 +156,7 @@ export async function getRiderSettlementStats(from?: string, to?: string, riderI
   const session = await getSession();
   if (!session || !isRole(session, 'admin')) throw new Error("Accès refusé");
 
-  const where: any = {};
+  const where: Prisma.OrderWhereInput = { deletedAt: null };
   if (riderId) {
     where.deliverymanId = riderId;
   } else {
@@ -192,14 +194,16 @@ export async function getRiderSettlementStats(from?: string, to?: string, riderI
       status: true,
       returnReason: true,
       isCommercialContacted: true,
-    } as any,
+    },
     orderBy: { updatedAt: 'desc' }
   });
+
+  type RiderSettlementOrder = (typeof orders)[number];
 
   const riderMap: Record<string, {
     id: string,
     name: string,
-    orders: any[],
+    orders: RiderSettlementOrder[],
     totalDeliveryFees: number,
     totalProducts: number,
     totalGrandTotal: number,
@@ -207,7 +211,7 @@ export async function getRiderSettlementStats(from?: string, to?: string, riderI
     returnedCount: number
   }> = {};
 
-  orders.forEach((o: any) => {
+  orders.forEach((o) => {
     const rId = String(o.deliverymanId || 'unknown');
     if (!riderMap[rId]) {
       riderMap[rId] = {

@@ -9,15 +9,15 @@
 .dashboard-actions { display: flex; gap: 12px; }
 
 /* Stats Grid */
-.dashboard-stats-grid { 
-  display: grid; 
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); 
+.dashboard-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
   gap: 20px;
   margin-bottom: 32px;
 }
 
 /* Two-Column Layout */
-.dashboard-main-grid { display: grid; grid-template-columns: 1fr 340px; gap: 24px; }
+.dashboard-main-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 340px); gap: 24px; }
 .dashboard-left-col { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
 .dashboard-right-col { display: flex; flex-direction: column; gap: 24px; }
 

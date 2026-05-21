@@ -3,72 +3,80 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  LayoutGrid, Store, MapPin, Tag, Users,
-  Settings, ChevronLeft
-} from "lucide-react";
+import { ChevronLeft, LayoutGrid, MapPin, Settings, Store, Tag, Users } from "lucide-react";
 
 const NAV_ITEMS = [
+  {
+    label: "Vue d'ensemble",
+    href: "/zangochap-manager/admin/settings",
+    icon: <Settings size={16} />,
+    desc: "Accueil",
+    exact: true,
+  },
   {
     label: "Catégories",
     href: "/zangochap-manager/admin/settings/categories",
     icon: <LayoutGrid size={16} />,
-    desc: "Organiser les produits",
+    desc: "Catalogue",
   },
   {
     label: "Fournisseurs",
     href: "/zangochap-manager/admin/settings/suppliers",
     icon: <Store size={16} />,
-    desc: "Partenaires & sources",
+    desc: "Sources",
   },
   {
-    label: "Communes & Livraison",
+    label: "Communes",
     href: "/zangochap-manager/admin/settings/communes",
     icon: <MapPin size={16} />,
-    desc: "Zones & frais de livraison",
+    desc: "Livraison",
   },
   {
-    label: "Codes Promo",
+    label: "Promos",
     href: "/zangochap-manager/admin/settings/promos",
     icon: <Tag size={16} />,
-    desc: "Réductions & offres",
+    desc: "Remises",
   },
   {
-    label: "Équipe & Accès",
+    label: "Équipe",
     href: "/zangochap-manager/admin/settings/team",
     icon: <Users size={16} />,
-    desc: "Membres & rôles",
+    desc: "Accès",
   },
 ];
 
 export default function SettingsNav() {
   const pathname = usePathname();
-  const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/');
+  const isActive = (href: string, exact?: boolean) => {
+    if (exact) return pathname === href;
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
 
   return (
     <aside className="settings-nav">
       <div className="nav-header">
         <Link href="/zangochap-manager" className="nav-back">
           <ChevronLeft size={14} />
-          <span>Retour</span>
+          <span>Manager</span>
         </Link>
         <div className="nav-title">
           <Settings size={16} />
           Configuration
         </div>
       </div>
-      <nav className="nav-list">
-        {NAV_ITEMS.map(item => (
+
+      <nav className="nav-list" aria-label="Sections configuration">
+        {NAV_ITEMS.map((item) => (
           <Link
             key={item.href}
             href={item.href}
-            className={`nav-item ${isActive(item.href) ? 'active' : ''}`}
+            className={`nav-item ${isActive(item.href, item.exact) ? "active" : ""}`}
           >
             <span className="nav-icon">{item.icon}</span>
-            <div className="nav-text">
+            <span className="nav-text">
               <span className="nav-label">{item.label}</span>
               <span className="nav-desc">{item.desc}</span>
-            </div>
+            </span>
           </Link>
         ))}
       </nav>

@@ -5,7 +5,7 @@
 .date-input-group input { border: none; outline: none; font-size: 12px; font-weight: 600; color: var(--ink); background: transparent; }
 .apply-btn-sm { width: 32px; height: 32px; border-radius: 8px; background: var(--ink); color: white; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; }
 
-.settle-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+.settle-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 20px; }
 .settle-card-simple { background: white; border-radius: 16px; border: 1px solid var(--line); padding: 16px; transition: all 0.2s; position: relative; overflow: hidden; }
 .settle-card-simple.has-warning { border-color: var(--orange); }
 .warning-banner { background: var(--orange); color: white; font-size: 9px; font-weight: 800; text-align: center; padding: 4px; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; justify-content: center; gap: 6px; margin: -16px -16px 12px -16px; }

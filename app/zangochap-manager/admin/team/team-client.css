@@ -3,10 +3,12 @@
   gap: 16px;
   margin-bottom: 32px;
   align-items: center;
+  flex-wrap: wrap;
 }
 .search-box {
   position: relative;
-  flex: 1;
+  flex: 1 1 min(100%, 280px);
+  min-width: 0;
 }
 .search-icon {
   position: absolute;
@@ -39,6 +41,8 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
   margin-bottom: 20px;
   padding-bottom: 12px;
   border-bottom: 1px solid var(--line);
@@ -47,6 +51,7 @@
   display: flex;
   align-items: center;
   gap: 16px;
+  min-width: 0;
 }
 .role-icon-box {
   width: 44px;
@@ -72,7 +77,7 @@
 
 .team-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
   gap: 16px;
 }
 

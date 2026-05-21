@@ -1,16 +1,33 @@
 "use client";
 
 import React, { useState, useTransition } from "react";
-import { Edit2, Trash2, Tag, Plus, ChevronRight, ChevronDown } from "lucide-react";
+import { ChevronDown, ChevronRight, Edit2, Plus, Trash2 } from "lucide-react";
 import { createCategory, updateCategory, deleteCategory, createSubCategory, updateSubCategory, deleteSubCategory } from "@/modules/settings/actions";
 import { useToast } from "@/components/Toast";
 import { useRouter } from "next/navigation";
 
-export default function CategoriesClient({ categories }: { categories: any[] }) {
-  const [isEditingCat, setIsEditingCat] = useState<any>(null);
+type SubCategoryOption = {
+  id: string;
+  name: string;
+  _count?: { products: number } | null;
+};
+
+type CategoryOption = {
+  id: string;
+  name: string;
+  _count?: { products: number } | null;
+  subCategories?: SubCategoryOption[];
+};
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Erreur";
+}
+
+export default function CategoriesClient({ categories }: { categories: CategoryOption[] }) {
+  const [isEditingCat, setIsEditingCat] = useState<CategoryOption | null>(null);
   const [newCatName, setNewCatName] = useState("");
 
-  const [isEditingSubCat, setIsEditingSubCat] = useState<any>(null);
+  const [isEditingSubCat, setIsEditingSubCat] = useState<SubCategoryOption | null>(null);
   const [newSubCatName, setNewSubCatName] = useState("");
   const [addingSubCatTo, setAddingSubCatTo] = useState<string | null>(null);
   const [expandedCats, setExpandedCats] = useState<Record<string, boolean>>({});
@@ -37,8 +54,8 @@ export default function CategoriesClient({ categories }: { categories: any[] }) 
         setNewCatName("");
         setIsEditingCat(null);
         router.refresh();
-      } catch (e: any) {
-        showToast(e.message, "error");
+      } catch (error: unknown) {
+        showToast(errorMessage(error), "error");
       }
     });
   };
@@ -50,8 +67,8 @@ export default function CategoriesClient({ categories }: { categories: any[] }) 
         await deleteCategory(id);
         showToast("Catégorie supprimée", "success");
         router.refresh();
-      } catch (e: any) {
-        showToast(e.message, "error");
+      } catch (error: unknown) {
+        showToast(errorMessage(error), "error");
       }
     });
   };
@@ -71,8 +88,8 @@ export default function CategoriesClient({ categories }: { categories: any[] }) 
         setIsEditingSubCat(null);
         setAddingSubCatTo(null);
         router.refresh();
-      } catch (e: any) {
-        showToast(e.message, "error");
+      } catch (error: unknown) {
+        showToast(errorMessage(error), "error");
       }
     });
   };
@@ -84,8 +101,8 @@ export default function CategoriesClient({ categories }: { categories: any[] }) 
         await deleteSubCategory(id);
         showToast("Sous-catégorie supprimée", "success");
         router.refresh();
-      } catch (e: any) {
-        showToast(e.message, "error");
+      } catch (error: unknown) {
+        showToast(errorMessage(error), "error");
       }
     });
   };
@@ -97,7 +114,7 @@ export default function CategoriesClient({ categories }: { categories: any[] }) 
         <p>Organisez votre catalogue par thématiques.</p>
       </div>
 
-      <div className="sc-layout" style={{ gridTemplateColumns: '1fr 2fr' }}>
+      <div className="sc-layout settings-categories-layout">
         {/* FORM CATEGORY */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           <div className="sc-panel">
@@ -190,7 +207,7 @@ export default function CategoriesClient({ categories }: { categories: any[] }) 
                       {cat.subCategories?.length === 0 ? (
                         <div style={{ fontSize: 13, color: 'var(--brown-soft)', fontStyle: 'italic' }}>Aucune sous-catégorie</div>
                       ) : (
-                        cat.subCategories?.map((subCat: any) => (
+                        cat.subCategories?.map((subCat) => (
                           <div key={subCat.id} className="sp-row" style={{ padding: '8px 12px', marginBottom: 5, background: 'white', borderRadius: 6, border: '1px solid var(--border)' }}>
                             <div className="sp-icon" style={{ opacity: 0.5 }}><ChevronRight size={12} /></div>
                             <div className="sp-info">

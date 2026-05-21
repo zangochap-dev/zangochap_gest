@@ -12,8 +12,8 @@
 }
 .search-bar-wrap {
   position: relative;
-  flex: 1;
-  min-width: 300px;
+  flex: 1 1 min(100%, 300px);
+  min-width: min(100%, 300px);
 }
 .search-icon {
   position: absolute;
@@ -69,7 +69,7 @@
 
 .directory-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
   gap: 20px;
   padding: 10px;
 }
@@ -108,6 +108,7 @@
 }
 .user-info {
   flex: 1;
+  min-width: 0;
 }
 .user-name {
   font-size: 16px;
@@ -157,11 +158,13 @@
 .phone-details {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 .phone-number {
   font-size: 14px;
   font-weight: 700;
   color: var(--ink);
+  overflow-wrap: anywhere;
 }
 .phone-label {
   font-size: 10px;

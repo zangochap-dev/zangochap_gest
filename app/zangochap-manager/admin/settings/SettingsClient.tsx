@@ -2,49 +2,46 @@
 
 import React from "react";
 import Link from "next/link";
-import {
-  LayoutGrid, Store, MapPin, Tag, Users,
-  ArrowRight, Settings
-} from "lucide-react";
+import { ArrowRight, LayoutGrid, MapPin, Settings, Store, Tag, Users } from "lucide-react";
 
 const SECTIONS = [
   {
     title: "Catégories",
-    description: "Organisez votre catalogue en catégories thématiques pour faciliter la navigation des clients.",
+    description: "Structurez le catalogue et ses sous-catégories.",
     href: "/zangochap-manager/admin/settings/categories",
-    icon: <LayoutGrid size={22} />,
+    icon: <LayoutGrid size={20} />,
     iconColor: "#4F46E5",
     bgColor: "#EEF2FF",
   },
   {
     title: "Fournisseurs",
-    description: "Gérez votre annuaire de fournisseurs, contacts et sources d'approvisionnement.",
+    description: "Centralisez les sources, contacts et approvisionnements.",
     href: "/zangochap-manager/admin/settings/suppliers",
-    icon: <Store size={22} />,
+    icon: <Store size={20} />,
     iconColor: "#D97706",
     bgColor: "#FFF7ED",
   },
   {
-    title: "Communes & Livraison",
-    description: "Configurez les zones de livraison et les tarifs par commune d'Abidjan.",
+    title: "Communes & livraison",
+    description: "Réglez les zones de livraison et les frais par commune.",
     href: "/zangochap-manager/admin/settings/communes",
-    icon: <MapPin size={22} />,
+    icon: <MapPin size={20} />,
     iconColor: "#059669",
     bgColor: "#ECFDF5",
   },
   {
-    title: "Codes Promo",
-    description: "Créez et pilotez vos campagnes de réductions et offres spéciales.",
+    title: "Codes promo",
+    description: "Pilotez les remises, usages et campagnes commerciales.",
     href: "/zangochap-manager/admin/settings/promos",
-    icon: <Tag size={22} />,
+    icon: <Tag size={20} />,
     iconColor: "#7C3AED",
     bgColor: "#F5F3FF",
   },
   {
-    title: "Équipe & Accès",
-    description: "Gérez les comptes utilisateurs, les rôles et les permissions de votre équipe.",
+    title: "Équipe & accès",
+    description: "Administrez les comptes, rôles et accès staff.",
     href: "/zangochap-manager/admin/settings/team",
-    icon: <Users size={22} />,
+    icon: <Users size={20} />,
     iconColor: "#2563EB",
     bgColor: "#EFF6FF",
   },
@@ -55,23 +52,30 @@ export default function SettingsClient() {
     <div className="settings-overview">
       <div className="overview-header">
         <div className="overview-icon">
-          <Settings size={28} />
+          <Settings size={24} />
         </div>
         <div>
-          <h1>Configuration du système</h1>
-          <p>Personnalisez les paramètres de votre plateforme Zangochap.</p>
+          <h1>Centre de configuration</h1>
+          <p>Les réglages qui structurent le catalogue, la livraison et les accès équipe.</p>
         </div>
       </div>
 
+      <div className="overview-strip">
+        <span>{SECTIONS.length} modules</span>
+        <span>Catalogue</span>
+        <span>Livraison</span>
+        <span>Équipe</span>
+      </div>
+
       <div className="overview-grid">
-        {SECTIONS.map((s, i) => (
-          <Link key={i} href={s.href} className="overview-card">
-            <div className="card-icon" style={{ backgroundColor: s.bgColor, color: s.iconColor }}>
-              {s.icon}
+        {SECTIONS.map((section) => (
+          <Link key={section.href} href={section.href} className="overview-card">
+            <div className="card-icon" style={{ backgroundColor: section.bgColor, color: section.iconColor }}>
+              {section.icon}
             </div>
             <div className="card-body">
-              <h3>{s.title}</h3>
-              <p>{s.description}</p>
+              <h3>{section.title}</h3>
+              <p>{section.description}</p>
             </div>
             <ArrowRight size={16} className="card-arrow" />
           </Link>

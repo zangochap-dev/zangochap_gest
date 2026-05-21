@@ -1,6 +1,7 @@
 .app-container {
   display: flex;
   height: 100dvh;
+  min-width: 0;
   overflow: hidden;
   background: var(--cream);
 }
@@ -24,9 +25,15 @@
 }
 .main-scroll-area {
   flex: 1;
+  min-width: 0;
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
+}
+
+.main-scroll-area > * {
+  min-width: 0;
+  max-width: 100%;
 }
 
 @keyframes spin {

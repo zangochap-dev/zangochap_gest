@@ -24,7 +24,7 @@ export const TableCard = ({ title, meta, children, actions, className }: {
   </div>
 );
 
-export const StatusBadge = ({ status, size }: { status: any, size?: 'sm' | 'md' | 'lg' }) => {
+export const StatusBadge = ({ status, size }: { status?: string | null, size?: 'sm' | 'md' | 'lg' }) => {
   const s = String(status || '').toUpperCase();
   const cssClass = STATUS_CSS[s] || s.toLowerCase() || 'pending';
   const label = STATUS_LABELS[s] || status || 'En attente';

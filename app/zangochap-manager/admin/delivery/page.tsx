@@ -11,35 +11,40 @@ export default async function AdminDeliveryPage() {
   const user = await getSession();
   if (!user || user.role !== 'admin') redirect("/zangochap-manager");
 
-  const orders = await prisma.order.findMany({
-    where: { 
-      status: { notIn: ['CANCELLED', 'DELIVERED', 'PARTIALLY_DELIVERED', 'RETURNED'] }
-    },
-    orderBy: { updatedAt: "desc" },
-    include: { items: true },
-  });
-
-  const deliverymen = await prisma.user.findMany({
-    where: { role: 'LIVREUR' },
-    select: { 
-      id: true, 
-      name: true, 
-      phone: true,
-      _count: {
-        select: {
-          orders: {
-            where: { status: { notIn: ['DELIVERED', 'PARTIALLY_DELIVERED', 'RETURNED', 'CANCELLED'] } }
-          }
-        }
-      }
-    },
-  });
+  const [activeOrders, archivedOrders, deliverymen] = await Promise.all([
+    prisma.order.findMany({
+      where: {
+        deletedAt: null,
+        status: { notIn: ['CANCELLED', 'DELIVERED', 'PARTIALLY_DELIVERED', 'RETURNED'] },
+      },
+      orderBy: { updatedAt: "desc" },
+      include: { items: true },
+    }),
+    prisma.order.findMany({
+      where: {
+        deletedAt: null,
+        status: { in: ['CANCELLED', 'DELIVERED', 'PARTIALLY_DELIVERED', 'RETURNED'] },
+      },
+      orderBy: { updatedAt: "desc" },
+      include: { items: true },
+      take: 250,
+    }),
+    prisma.user.findMany({
+      where: { role: 'LIVREUR' },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+      },
+    }),
+  ]);
 
   return (
     <>
       <Topbar title="Gestion" subtitle="des livraisons" />
       <AdminDeliveryClient 
-        orders={JSON.parse(JSON.stringify(orders))} 
+        activeOrders={JSON.parse(JSON.stringify(activeOrders))}
+        archivedOrders={JSON.parse(JSON.stringify(archivedOrders))}
         deliverymen={deliverymen} 
       />
     </>

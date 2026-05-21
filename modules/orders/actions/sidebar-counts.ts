@@ -41,6 +41,7 @@ export async function getSidebarCountsForUser(user?: SidebarCountsUser | null): 
       where: {
         ...activeOrderWhere,
         status: OrderStatus.CONFIRMED,
+        createdAt: { gte: today },
       },
     }),
     prisma.order.count({
@@ -49,6 +50,7 @@ export async function getSidebarCountsForUser(user?: SidebarCountsUser | null): 
         status: {
           in: [OrderStatus.CONFIRMED, OrderStatus.TO_PROCESS, OrderStatus.PENDING, OrderStatus.PARTIAL],
         },
+        createdAt: { gte: today },
       },
     }),
     prisma.order.count({

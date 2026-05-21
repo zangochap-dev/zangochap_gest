@@ -23,9 +23,10 @@ export async function assignOrderToDeliveryman(orderId: string, deliverymanId: s
   if (!isUnassigning) {
     driver = await prisma.user.findUnique({ where: { id: deliverymanId } });
     if (!driver) throw new Error("Livreur introuvable");
+    if (driver.role !== "LIVREUR") throw new Error("Le compte choisi n'est pas un livreur.");
   }
 
-  const history = Array.isArray(order.history) ? [...(order.history as any[])] : [];
+  const history = Array.isArray(order.history) ? [...order.history] : [];
   history.push({
     at: new Date().toISOString(),
     action: isUnassigning ? "Commande désattribuée (remise en attente)" : `Livreur attribué : ${driver?.name}`,
@@ -60,6 +61,7 @@ export async function bulkAssignOrders(orderIds: string[], deliverymanId: string
   if (!isUnassigning) {
     driver = await prisma.user.findUnique({ where: { id: deliverymanId } });
     if (!driver) throw new Error("Livreur introuvable");
+    if (driver.role !== "LIVREUR") throw new Error("Le compte choisi n'est pas un livreur.");
   }
 
   const orders = await prisma.order.findMany({
@@ -67,7 +69,7 @@ export async function bulkAssignOrders(orderIds: string[], deliverymanId: string
   });
 
   await Promise.all(orders.map(order => {
-    const history = Array.isArray(order.history) ? [...(order.history as any[])] : [];
+    const history = Array.isArray(order.history) ? [...order.history] : [];
     history.push({
       at: new Date().toISOString(),
       action: isUnassigning ? "Désattribution groupée" : `Attribution groupée au livreur : ${driver?.name}`,

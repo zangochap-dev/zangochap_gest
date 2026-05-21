@@ -2,19 +2,87 @@
 
 import React, { useState, useTransition, useMemo } from "react";
 import { TableCard, EmptyState, StatCard, StatusBadge } from "@/components/UI";
+import Modal from "@/components/Modal";
 import { formatPrice, formatDate, COMMUNES } from "@/lib/constants";
-import { Truck, User, UserPlus, Clock, Search, X, Package, Check, Filter, MapPin, Calendar, LayoutGrid, List, Archive, TrendingUp, ChevronRight, FileText, Phone, Printer, CalendarClock, Download } from "lucide-react";
+import { Truck, User, UserPlus, Clock, Search, X, Check, Filter, MapPin, Calendar, LayoutGrid, List, Archive, ChevronRight, FileText, Phone, Printer, CalendarClock, Download } from "lucide-react";
 import { assignOrderToDeliveryman, bulkAssignOrders, updateOrderStatus } from "@/modules/orders/actions";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/Toast";
 import "./admin-delivery-client.css";
 
+type Deliveryman = {
+  id: string;
+  name: string;
+  phone: string | null;
+};
+
+type DeliveryAdminItem = {
+  name: string;
+  size: string;
+  color: string;
+  qty: number;
+};
+
+type DeliveryAdminOrder = {
+  id: string;
+  ref: string;
+  customerName: string;
+  customerPhone: string;
+  customerPhone2?: string | null;
+  customerLocation?: string | null;
+  commune?: string | null;
+  total?: number | null;
+  discount?: number | null;
+  deliveryFee?: number | null;
+  deliveryNote?: string | null;
+  deliveryDate?: string | null;
+  deliverymanId?: string | null;
+  deliverymanName?: string | null;
+  status: string;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+  items?: DeliveryAdminItem[];
+};
+
 interface AdminDeliveryClientProps {
-  orders: any[];
-  deliverymen: any[];
+  activeOrders: DeliveryAdminOrder[];
+  archivedOrders: DeliveryAdminOrder[];
+  deliverymen: Deliveryman[];
 }
 
-export default function AdminDeliveryClient({ orders, deliverymen }: AdminDeliveryClientProps) {
+const REPRO_DISPO_REASONS = [
+  "Client indisponible aujourd'hui",
+  "Client demande demain",
+  "Adresse a confirmer",
+  "Fin de tournee",
+];
+
+function matchesDateInput(value: unknown, dateInput: string) {
+  return !dateInput || (typeof value === "string" && value.startsWith(dateInput));
+}
+
+function isDeliveryDateToday(deliveryDate?: string | null) {
+  if (!deliveryDate) return false;
+
+  const today = new Date();
+  const delivery = new Date(deliveryDate);
+  return delivery.getFullYear() === today.getFullYear()
+    && delivery.getMonth() === today.getMonth()
+    && delivery.getDate() === today.getDate();
+}
+
+function getOrderTimestamp(order: DeliveryAdminOrder) {
+  return new Date(order.updatedAt || order.createdAt || 0);
+}
+
+function dateInputValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export default function AdminDeliveryClient({ activeOrders, archivedOrders, deliverymen }: AdminDeliveryClientProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("ALL");
   const [filterDeliveryman, setFilterDeliveryman] = useState("ALL");
@@ -24,9 +92,13 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
+  const [reproOrder, setReproOrder] = useState<DeliveryAdminOrder | null>(null);
+  const [reproReason, setReproReason] = useState("");
+  const [reproDetails, setReproDetails] = useState("");
 
   const router = useRouter();
   const { showToast } = useToast();
+  const todayFilterValue = dateInputValue(new Date());
 
   const handleAssign = (orderId: string, dId: string) => {
     const isUnassigning = dId === "unassigned" || dId === "";
@@ -45,8 +117,8 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
         await assignOrderToDeliveryman(orderId, dId);
         showToast(isUnassigning ? 'Commande désattribuée' : 'Commande attribuée ✓', 'success');
         router.refresh();
-      } catch (e: any) {
-        showToast(e.message || 'Erreur', 'error');
+      } catch (e: unknown) {
+        showToast(e instanceof Error ? e.message : 'Erreur', 'error');
       }
     });
   };
@@ -70,22 +142,31 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
         showToast(`${selectedIds.size} commandes ${isUnassigning ? 'désattribuées' : 'attribuées ✓'}`, 'success');
         setSelectedIds(new Set());
         router.refresh();
-      } catch (e: any) {
-        showToast(e.message || 'Erreur', 'error');
+      } catch (e: unknown) {
+        showToast(e instanceof Error ? e.message : 'Erreur', 'error');
       }
     });
   };
 
-  const handleReproDispo = (orderId: string) => {
-    if (!confirm("Mettre cette commande en repro-dispo pour la livraison de demain ?")) return;
+  const handleReproDispo = () => {
+    if (!reproOrder) return;
+
+    const note = [reproReason, reproDetails.trim()].filter(Boolean).join(" - ");
+    if (!note) {
+      showToast("Ajoutez un motif pour la repro-dispo.", "error");
+      return;
+    }
 
     startTransition(async () => {
       try {
-        await updateOrderStatus(orderId, "REPRO_DISPO");
+        await updateOrderStatus(reproOrder.id, "REPRO_DISPO", note);
         showToast("Commande repro-dispo pour demain ✓", "success");
+        setReproOrder(null);
+        setReproReason("");
+        setReproDetails("");
         router.refresh();
-      } catch (e: any) {
-        showToast(e.message || 'Erreur', 'error');
+      } catch (e: unknown) {
+        showToast(e instanceof Error ? e.message : 'Erreur', 'error');
       }
     });
   };
@@ -97,13 +178,13 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
     setSelectedIds(next);
   };
 
-  const toggleAll = (filtered: any[]) => {
+  const toggleAll = (filtered: DeliveryAdminOrder[]) => {
     if (selectedIds.size === filtered.length) setSelectedIds(new Set());
     else setSelectedIds(new Set(filtered.map(o => o.id)));
   };
 
   const filteredOrders = useMemo(() => {
-    return orders.filter(o => {
+    return activeOrders.filter(o => {
       const matchesSearch =
         o.ref.toLowerCase().includes(searchTerm.toLowerCase()) ||
         o.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -118,11 +199,27 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
       const matchesDriver = filterDeliveryman === "ALL" || o.deliverymanId === filterDeliveryman;
       const matchesCommune = filterCommune === "ALL" || o.commune === filterCommune;
 
-      const matchesDate = !filterDate || (o.deliveryDate && o.deliveryDate.startsWith(filterDate));
+      const matchesDate = matchesDateInput(o.deliveryDate, filterDate);
 
       return matchesSearch && matchesStatus && matchesDriver && matchesCommune && matchesDate;
     });
-  }, [orders, searchTerm, filterStatus, filterDeliveryman, filterCommune, filterDate]);
+  }, [activeOrders, searchTerm, filterStatus, filterDeliveryman, filterCommune, filterDate]);
+
+  const filteredArchivedOrders = useMemo(() => {
+    return archivedOrders.filter(o => {
+      const matchesSearch =
+        o.ref.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        o.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (o.deliverymanName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (o.commune || "").toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchesDriver = filterDeliveryman === "ALL" || o.deliverymanId === filterDeliveryman;
+      const matchesCommune = filterCommune === "ALL" || o.commune === filterCommune;
+      const matchesDate = matchesDateInput(o.deliveryDate, filterDate);
+
+      return matchesSearch && matchesDriver && matchesCommune && matchesDate;
+    });
+  }, [archivedOrders, searchTerm, filterDeliveryman, filterCommune, filterDate]);
 
   const stats = useMemo(() => {
     return {
@@ -136,17 +233,17 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
   // Live count of orders per deliveryman (to keep UI sync after assignment)
   const riderLiveCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    orders.forEach(o => {
+    activeOrders.forEach(o => {
       if (o.deliverymanId) {
         counts[o.deliverymanId] = (counts[o.deliverymanId] || 0) + 1;
       }
     });
     return counts;
-  }, [orders]);
+  }, [activeOrders]);
 
   // Group by deliveryman for the "grid" view (Rider Load)
   const groupedByDriver = useMemo(() => {
-    const groups: Record<string, any[]> = { "unassigned": [] };
+    const groups: Record<string, DeliveryAdminOrder[]> = { "unassigned": [] };
     deliverymen.forEach(d => groups[d.id] = []);
 
     filteredOrders.forEach(o => {
@@ -159,39 +256,38 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
 
   // Group by date for the "history" view
   const groupedByDate = useMemo(() => {
-    const groups: Record<string, any[]> = {};
-    const sortedOrders = [...filteredOrders].sort((a, b) =>
-      new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime()
+    const groups: Record<string, DeliveryAdminOrder[]> = {};
+    const sortedOrders = [...filteredArchivedOrders].sort((a, b) =>
+      getOrderTimestamp(b).getTime() - getOrderTimestamp(a).getTime()
     );
 
     sortedOrders.forEach(o => {
-      const date = new Date(o.updatedAt || o.createdAt).toLocaleDateString("fr-CA"); // YYYY-MM-DD
+      const date = getOrderTimestamp(o).toLocaleDateString("fr-CA"); // YYYY-MM-DD
       if (!groups[date]) groups[date] = [];
       groups[date].push(o);
     });
     return groups;
-  }, [filteredOrders]);
+  }, [filteredArchivedOrders]);
 
   // Today's assigned orders grouped by deliveryman for delivery sheets
   const todaySheets = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
     // Get assigned orders + any BJ orders for today (except Cocody)
-    const allRelevantOrders = orders.filter(o => {
+    const allRelevantOrders = activeOrders.filter(o => {
       const isBJToBroadcast = o.ref?.toUpperCase().startsWith("BJ") && !o.commune?.toLowerCase().includes("cocody");
-      const updated = new Date(o.updatedAt || o.createdAt);
-      const isToday = updated >= today;
+      const isToday = isDeliveryDateToday(o.deliveryDate);
       return isToday && (o.deliverymanId || isBJToBroadcast);
     });
 
     const bjOrders = allRelevantOrders.filter(o => o.ref?.toUpperCase().startsWith("BJ") && !o.commune?.toLowerCase().includes("cocody"));
-    const assignedOrders = allRelevantOrders.filter(o => o.deliverymanId && !(o.ref?.toUpperCase().startsWith("BJ") && !o.commune?.toLowerCase().includes("cocody")));
+    const assignedOrders = allRelevantOrders.filter(
+      (o): o is DeliveryAdminOrder & { deliverymanId: string } =>
+        Boolean(o.deliverymanId) && !(o.ref?.toUpperCase().startsWith("BJ") && !o.commune?.toLowerCase().includes("cocody"))
+    );
 
     // Find all drivers who have at least one order assigned today
     const activeDriverIds = new Set(assignedOrders.map(o => o.deliverymanId));
 
-    const sheets: Record<string, { driver: any, orders: any[] }> = {};
+    const sheets: Record<string, { driver: Deliveryman, orders: DeliveryAdminOrder[] }> = {};
 
     // Initialize sheets for active drivers and add their specific orders
     activeDriverIds.forEach(dId => {
@@ -208,7 +304,7 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
     });
 
     return Object.values(sheets);
-  }, [orders, deliverymen]);
+  }, [activeOrders, deliverymen]);
 
   const handleExportWord = (driverId?: string) => {
     const sheetsToExport = driverId 
@@ -228,7 +324,7 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
       const totalDeliveryFee = driverOrders.reduce((s, o) => s + (o.deliveryFee || 0), 0);
       const dateStr = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
-      const byCommune: Record<string, any[]> = {};
+      const byCommune: Record<string, DeliveryAdminOrder[]> = {};
       driverOrders.forEach(o => {
         const c = o.commune || 'Non défini';
         if (!byCommune[c]) byCommune[c] = [];
@@ -267,9 +363,9 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
               <tbody>
         `;
 
-        communeOrders.forEach((o: any) => {
+        communeOrders.forEach((o) => {
           globalIdx++;
-          const itemsList = o.items?.map((item: any) => `${item.name} (${item.size}/${item.color}) ×${item.qty}`).join('<br>') || '';
+          const itemsList = o.items?.map((item) => `${item.name} (${item.size}/${item.color}) ×${item.qty}`).join('<br>') || '';
           sheetHtml += `
                 <tr>
                   <td style="text-align: center;">${globalIdx}</td>
@@ -347,6 +443,20 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
         <StatCard label="Livreurs actifs" value={stats.deliverymen} icon={<User size={20} />} color="var(--blue)" />
       </div>
 
+      <div className="delivery-overview">
+        <div>
+          <div className="overview-kicker">Pilotage livraison</div>
+          <div className="overview-title">
+            {viewMode === "history" ? "Archives cloturees" : viewMode === "sheet" ? "Fiches du jour" : "Commandes actives"}
+          </div>
+        </div>
+        <div className="overview-metrics">
+          <span>{activeOrders.length} actives</span>
+          <span>{archivedOrders.length} archives recentes</span>
+          <span>{todaySheets.reduce((sum, sheet) => sum + sheet.orders.length, 0)} sur les fiches</span>
+        </div>
+      </div>
+
       {/* BULK ACTION BAR */}
       {selectedIds.size > 0 && (
         <div className="bulk-bar animate-slide-up">
@@ -387,14 +497,28 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
           />
         </div>
 
-        <div className="filter-item">
-          <Calendar size={16} className="filter-icon" />
-          <input
-            type="date"
-            className="field-input filter-date-input"
-            value={filterDate}
-            onChange={e => setFilterDate(e.target.value)}
-          />
+        <div className="date-filter-group">
+          <div className="filter-item compact-date">
+            <Calendar size={16} className="filter-icon" />
+            <input
+              type="date"
+              className="field-input filter-date-input"
+              value={filterDate}
+              onChange={e => setFilterDate(e.target.value)}
+            />
+          </div>
+          <button
+            type="button"
+            className={`date-shortcut ${filterDate === todayFilterValue ? "active" : ""}`}
+            onClick={() => setFilterDate(todayFilterValue)}
+          >
+            Aujourd&apos;hui
+          </button>
+          {filterDate === todayFilterValue && (
+            <button type="button" className="date-shortcut clear" onClick={() => setFilterDate("")}>
+              Tout
+            </button>
+          )}
         </div>
 
         <div className="filter-item">
@@ -426,10 +550,26 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
             ))}
           </select>
         </div>
+
+        {(searchTerm || filterDate || filterDeliveryman !== "ALL" || filterCommune !== "ALL") && (
+          <button
+            type="button"
+            className="filter-reset"
+            onClick={() => {
+              setSearchTerm("");
+              setFilterDate("");
+              setFilterDeliveryman("ALL");
+              setFilterCommune("ALL");
+              setFilterStatus("ALL");
+            }}
+          >
+            <X size={14} /> Effacer
+          </button>
+        )}
       </div>
 
-      <div className="toolbar">
-        <div className="filters-bar">
+      <div className="toolbar compact-toolbar">
+        <div className={`filters-bar compact-status-tabs ${viewMode === "history" ? "is-muted" : ""}`}>
           {[
             { key: "ALL", label: "Toutes" },
             { key: "UNASSIGNED", label: "Non attribuées" },
@@ -440,14 +580,15 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
             <button
               key={f.key}
               className={`filter-chip ${filterStatus === f.key ? 'active' : ''}`}
-              onClick={() => setFilterStatus(f.key)}
+              onClick={() => viewMode !== "history" && setFilterStatus(f.key)}
+              disabled={viewMode === "history"}
             >
               {f.label}
             </button>
           ))}
         </div>
 
-        <div className="view-toggle">
+        <div className="view-toggle compact-view-tabs">
           <button
             className={`toggle-btn ${viewMode === 'table' ? 'active' : ''}`}
             onClick={() => setViewMode('table')}
@@ -552,7 +693,7 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
                           <button
                             type="button"
                             className="cell-btn-icon"
-                            onClick={() => handleReproDispo(order.id)}
+                            onClick={() => setReproOrder(order)}
                             disabled={isPending || order.status === "REPRO_DISPO"}
                             title="Repro-dispo demain"
                           >
@@ -740,7 +881,7 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
               const totalDeliveryFee = driverOrders.reduce((s, o) => s + (o.deliveryFee || 0), 0);
               const initials = driver.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
 
-              const byCommune: Record<string, any[]> = {};
+              const byCommune: Record<string, DeliveryAdminOrder[]> = {};
               driverOrders.forEach(o => {
                 const c = o.commune || 'Non défini';
                 if (!byCommune[c]) byCommune[c] = [];
@@ -804,7 +945,7 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
                           </tr>
                         </thead>
                         <tbody>
-                          {communeOrders.map((o: any) => {
+                          {communeOrders.map((o) => {
                             globalIdx++;
                             return (
                               <tr key={o.id}>
@@ -821,7 +962,7 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
                                 </td>
 
                                 <td>
-                                  {o.items?.map((item: any, i: number) => (
+                                  {o.items?.map((item, i: number) => (
                                     <div key={i} className="sheet-item">{item.name} <span className="item-variant">{item.size}/{item.color}</span> ×{item.qty}</div>
                                   ))}
                                 </td>
@@ -849,11 +990,67 @@ export default function AdminDeliveryClient({ orders, deliverymen }: AdminDelive
         </div>
       )}
 
+      {reproOrder && (
+        <Modal
+          isOpen
+          onClose={() => {
+            setReproOrder(null);
+            setReproReason("");
+            setReproDetails("");
+          }}
+          title={`Repro-dispo ${reproOrder.ref}`}
+          footer={
+            <>
+              <button
+                className="btn-secondary"
+                onClick={() => {
+                  setReproOrder(null);
+                  setReproReason("");
+                  setReproDetails("");
+                }}
+                disabled={isPending}
+              >
+                Annuler
+              </button>
+              <button className="btn-orange" onClick={handleReproDispo} disabled={isPending || (!reproReason && !reproDetails.trim())}>
+                <CalendarClock size={14} /> Reprogrammer demain
+              </button>
+            </>
+          }
+        >
+          <div className="repro-modal">
+            <p>
+              Le livreur sera retire de la commande et la livraison passera a demain.
+            </p>
+            <div className="repro-reasons">
+              {REPRO_DISPO_REASONS.map((reason) => (
+                <button
+                  key={reason}
+                  type="button"
+                  className={`repro-reason ${reproReason === reason ? "active" : ""}`}
+                  onClick={() => setReproReason(reason)}
+                >
+                  {reason}
+                </button>
+              ))}
+            </div>
+            <label className="field-label-sm" htmlFor="repro-details">Detail utile</label>
+            <textarea
+              id="repro-details"
+              className="field-input repro-note"
+              value={reproDetails}
+              onChange={(event) => setReproDetails(event.target.value)}
+              placeholder="Precision pour le bureau ou le prochain livreur..."
+            />
+          </div>
+        </Modal>
+      )}
+
     </div>
   );
 }
 
-function OrderMiniCard({ order, deliverymen, onAssign, riderLiveCounts }: { order: any, deliverymen: any[], onAssign: (oid: string, did: string) => void, riderLiveCounts: Record<string, number> }) {
+function OrderMiniCard({ order, deliverymen, onAssign, riderLiveCounts }: { order: DeliveryAdminOrder, deliverymen: Deliveryman[], onAssign: (oid: string, did: string) => void, riderLiveCounts: Record<string, number> }) {
   return (
     <div className="order-mini-card">
       <div className="card-header">
@@ -888,7 +1085,7 @@ function OrderMiniCard({ order, deliverymen, onAssign, riderLiveCounts }: { orde
         >
           <option value="" disabled>Attribuer à...</option>
           <option value="unassigned">❌ Désattribuer</option>
-          {deliverymen.map((d: any) => (
+          {deliverymen.map((d) => (
             <option key={d.id} value={d.id}>{d.name} ({riderLiveCounts[d.id] || 0})</option>
           ))}
         </select>

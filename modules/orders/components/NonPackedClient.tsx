@@ -3,8 +3,9 @@
 import React, { useState, useTransition, useMemo } from "react";
 import { TableCard, EmptyState, StatusBadge } from "@/components/UI";
 import { useToast } from "@/components/Toast";
-import { Search, Package, AlertCircle, Eye, RefreshCw } from "lucide-react";
+import { Search, Package, FileText, Eye, RefreshCw } from "lucide-react";
 import { useIsMobile } from "@/lib/hooks";
+import { STATUS_LABELS } from "@/lib/constants";
 import { AnimatePresence } from "framer-motion";
 import { updateOrderStatus } from "@/modules/orders/actions";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -13,14 +14,15 @@ import NonPackedItem from "./_components/NonPackedItem";
 import "./non-packed-client.css";
 
 interface NonPackedClientProps {
-  notPacked: any[];
   withAlternatives: any[];
   user: any;
 }
 
-export default function NonPackedClient({ notPacked: initialNotPacked, withAlternatives: initialAlternatives, user }: NonPackedClientProps) {
+export default function NonPackedClient({ withAlternatives: initialAlternatives, user }: NonPackedClientProps) {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [commercialFilter, setCommercialFilter] = useState("all");
   const [isPending, startTransition] = useTransition();
   const { showToast } = useToast();
   const isMobile = useIsMobile();
@@ -34,12 +36,11 @@ export default function NonPackedClient({ notPacked: initialNotPacked, withAlter
       if (!res.ok) throw new Error('Erreur');
       return res.json();
     },
-    initialData: { notPacked: initialNotPacked, withAlternatives: initialAlternatives },
+    initialData: { withAlternatives: initialAlternatives },
     refetchInterval: 10_000,
     staleTime: 0,
   });
 
-  const notPacked = data?.notPacked ?? initialNotPacked;
   const withAlternatives = data?.withAlternatives ?? initialAlternatives;
 
   const handleStatusChange = (orderId: string, status: string) => {
@@ -49,7 +50,6 @@ export default function NonPackedClient({ notPacked: initialNotPacked, withAlter
       if (!old) return old;
       return {
         ...old,
-        notPacked: old.notPacked.filter((o: any) => o.id !== orderId),
         withAlternatives: old.withAlternatives.filter((o: any) => o.id !== orderId),
       };
     });
@@ -70,25 +70,49 @@ export default function NonPackedClient({ notPacked: initialNotPacked, withAlter
     });
   };
 
-  const filteredNotPacked = useMemo(() => {
-    if (!search) return notPacked;
-    const s = search.toLowerCase();
-    return notPacked.filter((o: any) => 
-      o.ref.toLowerCase().includes(s) || 
-      o.customerName.toLowerCase().includes(s)
-    );
-  }, [notPacked, search]);
+  const commercialOptions = useMemo<string[]>(() => {
+    return Array.from(new Set<string>(
+      withAlternatives
+        .map((order: any) => order.commercialName)
+        .filter((commercial: unknown): commercial is string => typeof commercial === "string" && commercial.length > 0)
+    )).sort((a, b) => a.localeCompare(b));
+  }, [withAlternatives]);
+
+  const statusOptions = useMemo<string[]>(() => {
+    return Array.from(new Set<string>(
+      withAlternatives
+        .map((order: any) => order.status)
+        .filter((status: unknown): status is string => typeof status === "string" && status.length > 0)
+    )).sort();
+  }, [withAlternatives]);
 
   const filteredAlternatives = useMemo(() => {
-    if (!search) return withAlternatives;
-    const s = search.toLowerCase();
-    return withAlternatives.filter((o: any) => 
-      o.ref.toLowerCase().includes(s) || 
-      o.customerName.toLowerCase().includes(s)
-    );
-  }, [withAlternatives, search]);
+    const normalizedSearch = search.trim().toLowerCase();
 
-  const totalCount = filteredNotPacked.length + filteredAlternatives.length;
+    return withAlternatives.filter((order: any) => {
+      const searchableText = [
+        order.ref,
+        order.customerName,
+        order.customerPhone,
+        order.commune,
+        order.motif,
+        order.commercialName,
+        ...(order.items || []).map((item: any) => item.name),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      const matchesSearch = !normalizedSearch || searchableText.includes(normalizedSearch);
+      const matchesStatus = statusFilter === "all" || order.status === statusFilter;
+      const matchesCommercial = commercialFilter === "all"
+        || order.commercialName === commercialFilter;
+
+      return matchesSearch && matchesStatus && matchesCommercial;
+    });
+  }, [commercialFilter, search, statusFilter, withAlternatives]);
+
+  const totalCount = filteredAlternatives.length;
 
   const OrderSection = ({ orders, title, meta, showCommercial = false, grouped = false }: { orders: any[], title: string, meta: string, showCommercial?: boolean, grouped?: boolean }) => {
     
@@ -228,12 +252,12 @@ export default function NonPackedClient({ notPacked: initialNotPacked, withAlter
       }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <AlertCircle size={20} color="var(--orange)" />
-            <h1 style={{ fontSize: isMobile ? 22 : 24, fontWeight: 900 }}>Suivi des Retards</h1>
+            <FileText size={20} color="var(--orange)" />
+            <h1 style={{ fontSize: isMobile ? 22 : 24, fontWeight: 900 }}>Fiche de rappel</h1>
             {isFetching && <RefreshCw size={14} className="animate-spin" style={{ color: 'var(--orange)', opacity: 0.5 }} />}
           </div>
           <p style={{ fontSize: 13, color: '#8E8E93', fontWeight: 500, marginTop: 4 }}>
-            Commandes nécessitant une intervention commerciale ou logistique.
+            Alternatives proposées pour les commandes d&apos;hier.
           </p>
         </div>
 
@@ -241,7 +265,7 @@ export default function NonPackedClient({ notPacked: initialNotPacked, withAlter
           <Search size={18} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', opacity: 0.3 }} />
           <input
             type="text"
-            placeholder="Rechercher..."
+            placeholder="Rechercher une commande..."
             className="field-input"
             style={{ 
               paddingLeft: 40, 
@@ -256,36 +280,45 @@ export default function NonPackedClient({ notPacked: initialNotPacked, withAlter
         </div>
       </div>
 
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr' : `repeat(${user?.role === 'admin' ? 2 : 1}, minmax(180px, 1fr))`,
+          gap: 12,
+          marginBottom: 20
+        }}
+      >
+        <select className="field-input" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+          <option value="all">Tous les statuts</option>
+          {statusOptions.map((status) => (
+            <option key={status} value={status}>{STATUS_LABELS[status] || status}</option>
+          ))}
+        </select>
+
+        {user?.role === 'admin' && (
+          <select className="field-input" value={commercialFilter} onChange={(event) => setCommercialFilter(event.target.value)}>
+            <option value="all">Tous les call centers</option>
+            {commercialOptions.map((commercial) => (
+              <option key={commercial} value={commercial}>{commercial}</option>
+            ))}
+          </select>
+        )}
+      </div>
+
       <div className={`info-banner ${totalCount > 0 ? 'amber' : 'green'}`} style={{ marginBottom: 24, borderRadius: 12 }}>
-        {totalCount > 0 
-          ? `⚠️ ${totalCount} commande(s) en attente de traitement.` 
-          : "✨ Toutes les anomalies ont été traitées !"}
+        {totalCount > 0
+          ? `${totalCount} rappel(s) pour les commandes d'hier.`
+          : "Aucun rappel ne correspond aux filtres."}
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-        <OrderSection 
-          orders={filteredNotPacked.filter((o: any) => o.isToday)} 
-          title="Non emballées du jour" 
-          meta={`${filteredNotPacked.filter((o: any) => o.isToday).length} à traiter`} 
+        <OrderSection
+          orders={filteredAlternatives}
+          title="Alternatives proposées"
+          meta={`${filteredAlternatives.length} rappel(s)`}
+          showCommercial={user?.role === 'admin'}
+          grouped={user?.role === 'admin' && commercialFilter === 'all'}
         />
-
-        {filteredNotPacked.some((o: any) => !o.isToday) && (
-          <OrderSection 
-            orders={filteredNotPacked.filter((o: any) => !o.isToday)} 
-            title="Retards antérieurs" 
-            meta={`${filteredNotPacked.filter((o: any) => !o.isToday).length} en attente`} 
-          />
-        )}
-
-        {filteredAlternatives.length > 0 && (
-          <OrderSection 
-            orders={filteredAlternatives} 
-            title="Commandes avec alternative" 
-            meta={`${filteredAlternatives.length} relances`}
-            showCommercial={true}
-            grouped={user?.role === 'admin'}
-          />
-        )}
       </div>
 
       <AnimatePresence>

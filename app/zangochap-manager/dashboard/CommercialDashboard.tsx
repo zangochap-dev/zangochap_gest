@@ -39,66 +39,66 @@ export default async function CommercialDashboard({ user }: { user: any }) {
     <>
       <Topbar title="Bonjour" subtitle={firstName} />
       <div className="content animate-fade-in">
-      <SectionLabel>Mes performances</SectionLabel>
-      <div className="stats-grid">
-        <StatCard label="Commandes (jour)" value={todayOrders.length} trend={`${myOrders.length} au total`} accent />
-        <StatCard label="Mon CA livré" value={formatPrice(Number(ca))} color="var(--orange)" trend={`+${formatPrice(Number(todayCa))} aujourd'hui`} trendDir="up" />
-        <StatCard label="Taux conversion" value={`${conv}%`} trend={`${delivered.length} livrées sur ${myOrders.length}`} trendDir="up" />
-        <StatCard label="Non emballées" value={nonPacked.length} color="var(--amber)" trend="En attente d'emballage" trendDir="down" />
-      </div>
+        <SectionLabel>Mes performances</SectionLabel>
+        <div className="stats-grid">
+          <StatCard label="Commandes (jour)" value={todayOrders.length} trend={`${myOrders.length} au total`} accent />
+          <StatCard label="Mon CA livré" value={formatPrice(Number(ca))} color="var(--orange)" trend={`+${formatPrice(Number(todayCa))} aujourd'hui`} trendDir="up" />
+          <StatCard label="Taux conversion" value={`${conv}%`} trend={`${delivered.length} livrées sur ${myOrders.length}`} trendDir="up" />
+          <StatCard label="Non emballées" value={nonPacked.length} color="var(--amber)" trend="En attente d'emballage" trendDir="down" />
+        </div>
 
-      <SectionLabel spaced>Mon pipeline</SectionLabel>
-      <div className="stats-grid">
-        <StatCard label="En attente" value={pending.length} color="var(--amber)" />
-        <StatCard label="Confirmées" value={confirmed.length} color="var(--blue)" />
-        <StatCard label="Livrées" value={delivered.length} color="var(--green)" />
-        <StatCard label="Annulées" value={cancelled.length} color="var(--red)" />
-      </div>
+        <SectionLabel spaced>Mon pipeline</SectionLabel>
+        <div className="stats-grid">
+          <StatCard label="En attente" value={pending.length} color="var(--amber)" />
+          <StatCard label="Confirmées" value={confirmed.length} color="var(--blue)" />
+          <StatCard label="Livrées" value={delivered.length} color="var(--green)" />
+          <StatCard label="Annulées" value={cancelled.length} color="var(--red)" />
+        </div>
 
-      {/* Recent orders */}
-      <div style={{ marginTop: 16 }}>
-        <TableCard
-          title="Mes dernières commandes"
-          meta={`${todayOrders.length} aujourd'hui`}
-          actions={<Link href="/orders" className="btn-primary-sm">Tout voir →</Link>}
-        >
-          {myOrders.length === 0 ? (
-            <EmptyState icon="📦" title="Aucune commande" description="Créez votre première commande." />
-          ) : (
-            <table>
-              <thead>
-                <tr><th>Réf.</th><th>Client</th><th>Articles</th><th>Total</th><th>Statut</th><th>Date</th></tr>
-              </thead>
-              <tbody>
-                {myOrders.slice(0, 6).map(order => (
-                  <tr key={order.id}>
-                    <td><span className="cell-mono">{order.ref}</span></td>
-                    <td>
-                      <div className="cell-strong">{order.customerName}</div>
-                      <div className="cell-muted">{order.customerPhone}</div>
-                    </td>
-                    <td>
-                      {order.items.map((item, i) => (
-                        <div key={i} className="order-item-mini">
-                          <span>{item.emoji || '📦'}</span>
-                          <span>{item.name}</span>
-                          <span className="size-dot">{item.size}</span>
-                          <strong className="order-item-color">{item.color}</strong>
-                          <span>× {item.qty}</span>
-                        </div>
-                      ))}
-                    </td>
-                    <td><span className="cell-price">{formatPrice(Number(order.total))}</span></td>
-                    <td><StatusBadge status={order.status} /></td>
-                    <td><span className="cell-muted">{formatDate(order.createdAt)}</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </TableCard>
+        {/* Recent orders */}
+        <div style={{ marginTop: 16 }}>
+          <TableCard
+            title="Mes dernières commandes"
+            meta={`${todayOrders.length} aujourd'hui`}
+            actions={<Link href="/orders" className="btn-primary-sm">Tout voir →</Link>}
+          >
+            {myOrders.length === 0 ? (
+              <EmptyState icon="📦" title="Aucune commande" description="Créez votre première commande." />
+            ) : (
+              <table>
+                <thead>
+                  <tr><th>Réf.</th><th>Client</th><th>Articles</th><th>Total</th><th>Statut</th><th>Date</th></tr>
+                </thead>
+                <tbody>
+                  {myOrders.slice(0, 6).map(order => (
+                    <tr key={order.id}>
+                      <td><span className="cell-mono">{order.ref}</span></td>
+                      <td>
+                        <div className="cell-strong">{order.customerName}</div>
+                        <div className="cell-muted">{order.customerPhone}</div>
+                      </td>
+                      <td>
+                        {order.items.map((item, i) => (
+                          <div key={i} className="order-item-mini">
+                            <span>{item.emoji || '📦'}</span>
+                            <span>{item.name}</span>
+                            <span className="size-dot">{item.size}</span>
+                            <strong className="order-item-color">{item.color}</strong>
+                            <span>× {item.qty}</span>
+                          </div>
+                        ))}
+                      </td>
+                      <td><span className="cell-price">{formatPrice(Number(order.total))}</span></td>
+                      <td><StatusBadge status={order.status} /></td>
+                      <td><span className="cell-muted">{formatDate(order.createdAt)}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </TableCard>
+        </div>
       </div>
-    </div>
     </>
   );
 }

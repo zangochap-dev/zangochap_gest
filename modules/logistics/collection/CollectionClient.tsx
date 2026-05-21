@@ -13,7 +13,7 @@ import { useResponsiveMode } from "@/lib/hooks";
 import LogisticsMobileStyles from "@/modules/logistics/components/LogisticsMobileStyles";
 import { motion, AnimatePresence } from "framer-motion";
 import VariantsEditorModal from "../packing/components/VariantsEditorModal";
-import { shouldShowInCollectionQueue } from "./helpers";
+import { getCollectionStockLevel, hasAlternativeProposalForItem, shouldShowInCollectionQueue } from "./helpers";
 
 type DatePreset = 'today' | 'yesterday' | 'custom' | 'all';
 
@@ -196,12 +196,29 @@ export default function CollectionClient({ toCollect, user, categories = [], war
   if (isMobile) {
     return (
       <>
-        <motion.div key="collection-mobile" className="logistics-mobile-root logistics-view-mobile" {...viewMotion}>
+        <motion.div key="collection-mobile" className="logistics-mobile-root logistics-view-mobile !bg-[#F4F5F7]" {...viewMotion}>
           <LogisticsMobileStyles />
-          <div className="logistics-mobile-header">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <div style={{ fontWeight: 900, fontSize: 18, color: 'var(--orange)' }}>Collecte</div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--brown-soft)' }}>{stats.filtered} / {stats.total}</div>
+          <div className="bg-white px-3.5 py-3 border-b border-[#E5E7EB] shadow-[0_1px_0_rgba(17,24,39,0.02)] shrink-0">
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div>
+                <h1 className="m-0 text-[18px] leading-[1.15] font-black text-[#111827] tracking-normal">Collecte</h1>
+                <div className="mt-0.5 text-[11px] text-[#6B7280] font-semibold">File terrain et suivi fournisseur</div>
+              </div>
+              <div className="inline-flex min-h-[22px] items-center rounded-md bg-[#FFF7ED] px-2 py-1 text-[10px] font-extrabold text-[#9A3412]">{stats.filtered} / {stats.total}</div>
+            </div>
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              <div className="min-w-0 rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] px-2.5 py-2">
+                <span className="block text-[16px] leading-none font-black text-[#111827]">{counts.all}</span>
+                <span className="mt-1 block text-[9px] font-extrabold uppercase tracking-[0.04em] text-[#6B7280]">À traiter</span>
+              </div>
+              <div className="min-w-0 rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] px-2.5 py-2">
+                <span className="block text-[16px] leading-none font-black text-[#111827]">{counts.collected}</span>
+                <span className="mt-1 block text-[9px] font-extrabold uppercase tracking-[0.04em] text-[#6B7280]">Collectés</span>
+              </div>
+              <div className="min-w-0 rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] px-2.5 py-2">
+                <span className="block text-[16px] leading-none font-black text-[#111827]">{counts.unavailable}</span>
+                <span className="mt-1 block text-[9px] font-extrabold uppercase tracking-[0.04em] text-[#6B7280]">Indispos</span>
+              </div>
             </div>
             <div className="mobile-search-bar">
               <Search size={16} style={{ position: 'absolute', left: 12, top: 12, color: '#AEAEB2' }} />
@@ -267,7 +284,7 @@ export default function CollectionClient({ toCollect, user, categories = [], war
             </div>
           </div>
 
-          <div className="logistics-mobile-content">
+          <div className="logistics-mobile-content !px-3 !py-3 !pb-24">
             <AnimatePresence mode="popLayout">
               {filteredToCollect.length === 0 ? (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ padding: '40px 0', textAlign: 'center' }}>
@@ -295,6 +312,17 @@ export default function CollectionClient({ toCollect, user, categories = [], war
                     const match = (lastLog?.action || '').match(/\(([^)]+)\)/);
                     altNote = match ? match[1] : '';
                   }
+                  const stockLevel = getCollectionStockLevel(tc.item, tc.product);
+                  const requestedQty = Number(tc.item.qty) || 1;
+                  const projectedStock = stockLevel - requestedQty;
+                  const hasAlternativeProposal = hasAlternativeProposalForItem(tc.order, tc.item);
+                  const collectionReason = !tc.item.productId || tc.product.id === 'CUSTOM'
+                    ? 'Produit personnalisé'
+                    : hasAlternativeProposal
+                      ? 'Alternative proposée'
+                      : projectedStock <= 4
+                        ? `Stock bas: ${Math.max(projectedStock, 0)} restant`
+                        : 'À collecter';
 
                   return (
                     <motion.div
@@ -302,8 +330,7 @@ export default function CollectionClient({ toCollect, user, categories = [], war
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: idx * 0.05 }}
-                      className="mobile-card"
-                      style={{ padding: 0, overflow: 'hidden' }}
+                      className="mobile-card !mb-2.5 !overflow-hidden !rounded-lg !border-[#E5E7EB] !p-0 !shadow-[0_1px_2px_rgba(17,24,39,0.04)]"
                     >
                       <div style={{ display: 'flex', padding: '12px', gap: 14 }}>
                         {/* IMAGE LEFT */}
@@ -334,6 +361,12 @@ export default function CollectionClient({ toCollect, user, categories = [], war
 
                           <div style={{ fontWeight: 800, fontSize: 15, color: '#1C1C1E', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tc.item.name}</div>
                           <div style={{ fontSize: 11, color: '#8E8E93', fontWeight: 600, marginBottom: 4 }}>{tc.order.customerName}</div>
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            <span className="inline-flex min-h-[22px] max-w-full items-center rounded-md bg-[#FFF7ED] px-2 py-0.5 text-[10px] font-extrabold text-[#9A3412]">{collectionReason}</span>
+                            {isCollected && <span className="inline-flex min-h-[22px] items-center rounded-md bg-[#ECFDF5] px-2 py-0.5 text-[10px] font-extrabold text-[#047857]">Collecté</span>}
+                            {isUnavailable && <span className="inline-flex min-h-[22px] items-center rounded-md bg-[#FEF2F2] px-2 py-0.5 text-[10px] font-extrabold text-[#B91C1C]">Indisponible</span>}
+                            {isAlt && <span className="inline-flex min-h-[22px] items-center rounded-md bg-[#EFF6FF] px-2 py-0.5 text-[10px] font-extrabold text-[#1D4ED8]">Alternative</span>}
+                          </div>
 
                           <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
                             {tc.order.commercialName && <span style={{ fontSize: 9, fontWeight: 700, background: '#E8F4FD', color: '#0A84FF', padding: '2px 6px', borderRadius: 6 }}>Comm: {tc.order.commercialName}</span>}
@@ -514,9 +547,9 @@ export default function CollectionClient({ toCollect, user, categories = [], war
             </div>
             {datePreset === 'custom' && (
               <>
-            <input type="date" className="filter-date" value={dateFrom} onChange={e => handleDateFromChange(e.target.value)} style={{ height: 34, fontSize: 11 }} />
-            <span style={{ opacity: 0.3, fontSize: 10 }}>→</span>
-            <input type="date" className="filter-date" value={dateTo} onChange={e => handleDateToChange(e.target.value)} style={{ height: 34, fontSize: 11 }} />
+                <input type="date" className="filter-date" value={dateFrom} onChange={e => handleDateFromChange(e.target.value)} style={{ height: 34, fontSize: 11 }} />
+                <span style={{ opacity: 0.3, fontSize: 10 }}>→</span>
+                <input type="date" className="filter-date" value={dateTo} onChange={e => handleDateToChange(e.target.value)} style={{ height: 34, fontSize: 11 }} />
               </>
             )}
           </div>

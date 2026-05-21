@@ -29,7 +29,6 @@ function todayIso() {
 }
 
 export function buildOrdersWhere(params: OrdersQueryParams, user: SessionUser | null | undefined) {
-  const scope = params.scope || (user?.role === "commercial" ? "mine" : "all");
   const from = params.from ?? todayIso();
   const to = params.to ?? todayIso();
 
@@ -62,21 +61,15 @@ export function buildOrdersWhere(params: OrdersQueryParams, user: SessionUser | 
     where[dateField] = dateFilter;
   }
 
-  if (user?.role === "commercial" && scope === "mine") {
-    const scopeFilter = {
-      OR: [
-        { commercialId: user.id },
-        { commercialName: user.name },
-        { commercialName: "Site Web" },
-      ],
-    };
+  if (user?.role === "commercial") {
+    const scopeFilter = { commercialId: user.id };
 
     if (where.OR) {
       const searchOR = where.OR;
       delete where.OR;
       where.AND = [{ OR: searchOR }, scopeFilter];
     } else {
-      where.OR = scopeFilter.OR;
+      where.commercialId = user.id;
     }
   }
 
@@ -125,16 +118,20 @@ const ISSUE_KEYWORDS = ["propose", "alternative", "indispo", "manque", "pas en s
 const ALTERNATIVE_KEYWORDS = ["propose", "alternative"];
 
 export async function getNonPackedOrdersData(user: SessionUser | null | undefined) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
   const where: Record<string, unknown> = {
     deletedAt: null,
-    status: { in: ["CONFIRMED", "PENDING", "TO_PROCESS", "PARTIAL", "UNAVAILABLE"] },
+    status: { in: ["CONFIRMED", "PENDING", "TO_PROCESS", "PARTIAL", "UNAVAILABLE", "ALTERNATIVE"] },
+    createdAt: { gte: yesterday, lt: today },
   };
 
-  if (user?.role === "commercial") {
-    where.OR = [
-      { commercialId: user.id },
-      { commercialName: user.name },
-    ];
+  if (user?.role?.toLowerCase() === "commercial") {
+    where.commercialId = user.id;
   }
 
   const allOrders = await prisma.order.findMany({
@@ -142,9 +139,6 @@ export async function getNonPackedOrdersData(user: SessionUser | null | undefine
     orderBy: { createdAt: "asc" },
     include: { items: true },
   });
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
 
   const notPacked: unknown[] = [];
   const withAlternatives: unknown[] = [];
@@ -166,7 +160,6 @@ export async function getNonPackedOrdersData(user: SessionUser | null | undefine
     const orderWithMotif = {
       ...order,
       motif: lastIssueEvent?.action || (order.status === "PARTIAL" ? "Emballage partiel" : "Problème de stock"),
-      isToday: new Date(order.createdAt) >= today,
     };
 
     if (hasAlt) {

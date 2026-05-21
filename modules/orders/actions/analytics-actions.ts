@@ -110,9 +110,9 @@ export async function getDashboardStats() {
 
   const productsForCollection = productIds.length
     ? await prisma.product.findMany({
-        where: { id: { in: productIds } },
-        include: { variants: true },
-      })
+      where: { id: { in: productIds } },
+      include: { variants: true },
+    })
     : [];
   const productMap = new Map(productsForCollection.map(product => [product.id, product]));
 

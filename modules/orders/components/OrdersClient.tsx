@@ -225,7 +225,7 @@ export default function OrdersClient({
     searchParams.get("commune") || "all",
   );
 
-  const [scope, setScope] = useState(
+  const [scope] = useState(
     searchParams.get("scope") || (user?.role === "commercial" ? "mine" : "all"),
   );
 
@@ -5787,18 +5787,6 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
             </option>
           ))}
         </select>
-
-        {user?.role === "commercial" && (
-          <select
-            className="filter-select"
-            value={scope}
-            onChange={(e) => setScope(e.target.value)}
-          >
-            <option value="mine">Mes commandes</option>
-
-            <option value="all">Toutes les commandes</option>
-          </select>
-        )}
 
         <div className="filter-spacer" />
 

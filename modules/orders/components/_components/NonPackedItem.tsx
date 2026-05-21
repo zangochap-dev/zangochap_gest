@@ -2,7 +2,7 @@
 
 import React from "react";
 import { StatusBadge } from "@/components/UI";
-import { Eye, MessageCircle } from "lucide-react";
+import { Eye } from "lucide-react";
 import { motion } from "framer-motion";
 import { formatDate } from "@/lib/constants";
 

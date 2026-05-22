@@ -9,8 +9,9 @@ export async function GET() {
     const user = await getSession();
     if (!user) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
 
-    const { withAlternatives } = await getNonPackedOrdersData(user);
+    const { notPacked, withAlternatives } = await getNonPackedOrdersData(user);
     return NextResponse.json({
+      notPacked: JSON.parse(JSON.stringify(notPacked)),
       withAlternatives: JSON.parse(JSON.stringify(withAlternatives)),
     });
   } catch (e: unknown) {

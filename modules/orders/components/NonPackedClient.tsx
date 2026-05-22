@@ -14,11 +14,16 @@ import NonPackedItem from "./_components/NonPackedItem";
 import "./non-packed-client.css";
 
 interface NonPackedClientProps {
+  notPacked: any[];
   withAlternatives: any[];
   user: any;
 }
 
-export default function NonPackedClient({ withAlternatives: initialAlternatives, user }: NonPackedClientProps) {
+export default function NonPackedClient({
+  notPacked: initialNotPacked,
+  withAlternatives: initialAlternatives,
+  user,
+}: NonPackedClientProps) {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -27,6 +32,7 @@ export default function NonPackedClient({ withAlternatives: initialAlternatives,
   const { showToast } = useToast();
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
+  const isAdmin = user?.role?.toLowerCase() === "admin";
 
   // React Query — smooth background polling, no page flash
   const { data, isFetching } = useQuery({
@@ -36,12 +42,20 @@ export default function NonPackedClient({ withAlternatives: initialAlternatives,
       if (!res.ok) throw new Error('Erreur');
       return res.json();
     },
-    initialData: { withAlternatives: initialAlternatives },
+    initialData: {
+      notPacked: initialNotPacked,
+      withAlternatives: initialAlternatives,
+    },
     refetchInterval: 10_000,
     staleTime: 0,
   });
 
+  const notPacked = data?.notPacked ?? initialNotPacked;
   const withAlternatives = data?.withAlternatives ?? initialAlternatives;
+  const reminderOrders = useMemo(
+    () => [...notPacked, ...withAlternatives],
+    [notPacked, withAlternatives],
+  );
 
   const handleStatusChange = (orderId: string, status: string) => {
     // Optimistic Update: Remove from list immediately
@@ -50,6 +64,7 @@ export default function NonPackedClient({ withAlternatives: initialAlternatives,
       if (!old) return old;
       return {
         ...old,
+        notPacked: old.notPacked.filter((o: any) => o.id !== orderId),
         withAlternatives: old.withAlternatives.filter((o: any) => o.id !== orderId),
       };
     });
@@ -72,30 +87,31 @@ export default function NonPackedClient({ withAlternatives: initialAlternatives,
 
   const commercialOptions = useMemo<string[]>(() => {
     return Array.from(new Set<string>(
-      withAlternatives
+      reminderOrders
         .map((order: any) => order.commercialName)
         .filter((commercial: unknown): commercial is string => typeof commercial === "string" && commercial.length > 0)
     )).sort((a, b) => a.localeCompare(b));
-  }, [withAlternatives]);
+  }, [reminderOrders]);
 
   const statusOptions = useMemo<string[]>(() => {
     return Array.from(new Set<string>(
-      withAlternatives
+      reminderOrders
         .map((order: any) => order.status)
         .filter((status: unknown): status is string => typeof status === "string" && status.length > 0)
     )).sort();
-  }, [withAlternatives]);
+  }, [reminderOrders]);
 
-  const filteredAlternatives = useMemo(() => {
+  const filterReminders = (orders: any[]) => {
     const normalizedSearch = search.trim().toLowerCase();
 
-    return withAlternatives.filter((order: any) => {
+    return orders.filter((order: any) => {
       const searchableText = [
         order.ref,
         order.customerName,
         order.customerPhone,
         order.commune,
         order.motif,
+        ...(order.motifs || []),
         order.commercialName,
         ...(order.items || []).map((item: any) => item.name),
       ]
@@ -110,9 +126,11 @@ export default function NonPackedClient({ withAlternatives: initialAlternatives,
 
       return matchesSearch && matchesStatus && matchesCommercial;
     });
-  }, [commercialFilter, search, statusFilter, withAlternatives]);
+  };
 
-  const totalCount = filteredAlternatives.length;
+  const filteredNotPacked = filterReminders(notPacked);
+  const filteredAlternatives = filterReminders(withAlternatives);
+  const totalCount = filteredNotPacked.length + filteredAlternatives.length;
 
   const OrderSection = ({ orders, title, meta, showCommercial = false, grouped = false }: { orders: any[], title: string, meta: string, showCommercial?: boolean, grouped?: boolean }) => {
     
@@ -161,6 +179,11 @@ export default function NonPackedClient({ withAlternatives: initialAlternatives,
                   <div style={{ color: '#8E8E93', fontSize: 11, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     → {o.motif}
                   </div>
+                  {o.motifs?.length > 0 && (
+                    <div style={{ color: 'var(--orange)', fontSize: 11, fontWeight: 600, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      Motif: {o.motifs.join(' | ')}
+                    </div>
+                  )}
                 </div>
                 <StatusBadge status={o.status} size="sm" />
                 <button className="action-btn" style={{ background: 'white' }}>
@@ -257,7 +280,7 @@ export default function NonPackedClient({ withAlternatives: initialAlternatives,
             {isFetching && <RefreshCw size={14} className="animate-spin" style={{ color: 'var(--orange)', opacity: 0.5 }} />}
           </div>
           <p style={{ fontSize: 13, color: '#8E8E93', fontWeight: 500, marginTop: 4 }}>
-            Alternatives proposées pour les commandes d&apos;hier.
+            Indisponibles et alternatives à rappeler pour les commandes d&apos;hier.
           </p>
         </div>
 
@@ -283,7 +306,7 @@ export default function NonPackedClient({ withAlternatives: initialAlternatives,
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr' : `repeat(${user?.role === 'admin' ? 2 : 1}, minmax(180px, 1fr))`,
+          gridTemplateColumns: isMobile ? '1fr' : `repeat(${isAdmin ? 2 : 1}, minmax(180px, 1fr))`,
           gap: 12,
           marginBottom: 20
         }}
@@ -295,7 +318,7 @@ export default function NonPackedClient({ withAlternatives: initialAlternatives,
           ))}
         </select>
 
-        {user?.role === 'admin' && (
+        {isAdmin && (
           <select className="field-input" value={commercialFilter} onChange={(event) => setCommercialFilter(event.target.value)}>
             <option value="all">Tous les call centers</option>
             {commercialOptions.map((commercial) => (
@@ -313,11 +336,19 @@ export default function NonPackedClient({ withAlternatives: initialAlternatives,
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
         <OrderSection
+          orders={filteredNotPacked}
+          title="Indisponibles / sans alternative"
+          meta={`${filteredNotPacked.length} rappel(s)`}
+          showCommercial={isAdmin}
+          grouped={isAdmin && commercialFilter === 'all'}
+        />
+
+        <OrderSection
           orders={filteredAlternatives}
           title="Alternatives proposées"
           meta={`${filteredAlternatives.length} rappel(s)`}
-          showCommercial={user?.role === 'admin'}
-          grouped={user?.role === 'admin' && commercialFilter === 'all'}
+          showCommercial={isAdmin}
+          grouped={isAdmin && commercialFilter === 'all'}
         />
       </div>
 

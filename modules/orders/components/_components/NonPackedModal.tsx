@@ -23,6 +23,8 @@ export default function NonPackedModal({
 }: NonPackedModalProps) {
   if (!order) return null;
 
+  const isAdmin = user?.role?.toLowerCase() === "admin";
+
   const handleWhatsApp = () => {
     const phone = (order.customerPhone || '').replace(/[^0-9]/g, '');
     const formattedPhone = phone.startsWith('0') ? '225' + phone.substring(1) : (phone.startsWith('225') ? phone : '225' + phone);
@@ -75,7 +77,7 @@ export default function NonPackedModal({
           >
             <MessageCircle size={16} /> Relance WhatsApp
           </button>
-          {user?.role === 'admin' && (
+          {isAdmin && (
             <button className="btn-orange" onClick={() => onStatusChange(order.id, 'CONFIRMED')} disabled={isPending}>
               <Check size={16} /> Marquer Traitée
             </button>
@@ -132,6 +134,15 @@ export default function NonPackedModal({
             <div style={{ marginTop: 14, padding: 12, background: 'var(--orange-soft)', borderRadius: 8, borderLeft: '4px solid var(--orange)' }}>
               <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--orange)', marginBottom: 4 }}>MOTIF SIGNALEMENT</div>
               <div style={{ fontSize: 13, fontWeight: 600 }}>{order.motif}</div>
+              {order.motifs?.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 10 }}>
+                  {order.motifs.map((motif: string, index: number) => (
+                    <div key={`${motif}-${index}`} style={{ fontSize: 12, fontWeight: 700 }}>
+                      Motif: {motif}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

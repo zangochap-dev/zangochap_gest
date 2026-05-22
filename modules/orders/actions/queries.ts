@@ -117,6 +117,16 @@ export async function getToProcessOrders() {
 const ISSUE_KEYWORDS = ["propose", "alternative", "indispo", "manque", "pas en stock", "épuisé", "rupture", "incomplet"];
 const ALTERNATIVE_KEYWORDS = ["propose", "alternative"];
 
+function getReminderMotifs(history: OrderHistoryEntry[]) {
+  return Array.from(new Set(
+    history
+      .map((entry) => String(entry.action || "").trim())
+      .filter((action) => /^note\s*:/i.test(action) || /motif/i.test(action))
+      .map((action) => action.replace(/^note\s*:\s*/i, "").trim())
+      .filter(Boolean),
+  ));
+}
+
 export async function getNonPackedOrdersData(user: SessionUser | null | undefined) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -160,6 +170,7 @@ export async function getNonPackedOrdersData(user: SessionUser | null | undefine
     const orderWithMotif = {
       ...order,
       motif: lastIssueEvent?.action || (order.status === "PARTIAL" ? "Emballage partiel" : "Problème de stock"),
+      motifs: getReminderMotifs(history),
     };
 
     if (hasAlt) {

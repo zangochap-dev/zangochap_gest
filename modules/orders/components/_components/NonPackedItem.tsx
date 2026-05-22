@@ -64,6 +64,11 @@ export default function NonPackedItem({
         <div style={{ padding: '8px 12px', background: 'var(--orange-soft)', borderRadius: 8, fontSize: 12 }}>
           <div style={{ fontSize: 9, fontWeight: 800, color: 'var(--orange)', marginBottom: 2 }}>MOTIF / ÉTAT</div>
           <div style={{ fontWeight: 600, color: 'var(--ink)' }}>{o.motif}</div>
+          {o.motifs?.length > 0 && (
+            <div style={{ fontWeight: 700, color: 'var(--orange)', marginTop: 6 }}>
+              Motif: {o.motifs.join(' | ')}
+            </div>
+          )}
         </div>
 
         {showCommercial && (
@@ -114,6 +119,11 @@ export default function NonPackedItem({
           maxWidth: 240
         }}>
           {o.motif}
+          {o.motifs?.length > 0 && (
+            <div style={{ color: 'var(--orange)', marginTop: 6 }}>
+              Motif: {o.motifs.join(' | ')}
+            </div>
+          )}
         </div>
       </td>
       {showCommercial && <td>

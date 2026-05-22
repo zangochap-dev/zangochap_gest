@@ -8,12 +8,13 @@ export const dynamic = "force-dynamic";
 
 export default async function NonPackedOrdersPage() {
   const user = await getSession();
-  const { withAlternatives } = await getNonPackedOrdersData(user);
+  const { notPacked, withAlternatives } = await getNonPackedOrdersData(user);
 
   return (
     <>
       <Topbar title="Fiche" subtitle="de rappel" />
       <NonPackedClient
+        notPacked={JSON.parse(JSON.stringify(notPacked))}
         withAlternatives={JSON.parse(JSON.stringify(withAlternatives))}
         user={user}
       />

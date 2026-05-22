@@ -113,10 +113,10 @@ export default function AdminDeliveryClient({ activeOrders, archivedOrders, deli
   const handleAssign = (orderId: string, dId: string) => {
     const isUnassigning = dId === "unassigned" || dId === "";
     const driver = deliverymen.find(d => d.id === dId);
-    
+
     if (!isUnassigning && !driver) return;
 
-    const confirmMsg = isUnassigning 
+    const confirmMsg = isUnassigning
       ? "Désattribuer cette commande et la remettre en attente ?"
       : `Attribuer la commande au livreur ${driver?.name} ?`;
 
@@ -137,7 +137,7 @@ export default function AdminDeliveryClient({ activeOrders, archivedOrders, deli
     if (selectedIds.size === 0) return;
     const isUnassigning = dId === "unassigned" || dId === "";
     const driver = deliverymen.find(d => d.id === dId);
-    
+
     if (!isUnassigning && !driver) return;
 
     const confirmMsg = isUnassigning
@@ -281,11 +281,10 @@ export default function AdminDeliveryClient({ activeOrders, archivedOrders, deli
 
   // Today's assigned orders grouped by deliveryman for delivery sheets
   const todaySheets = useMemo(() => {
-    // Get assigned orders + any BJ orders for next delivery day (except Cocody)
-    const allRelevantOrders = activeOrders.filter(o => {
+    // Get assigned orders + any BJ orders (except Cocody) based on current filters
+    const allRelevantOrders = filteredOrders.filter(o => {
       const isBJToBroadcast = o.ref?.toUpperCase().startsWith("BJ") && !o.commune?.toLowerCase().includes("cocody");
-      const isNextDay = isDeliveryDateNextDay(o.deliveryDate);
-      return isNextDay && (o.deliverymanId || isBJToBroadcast);
+      return o.deliverymanId || isBJToBroadcast;
     });
 
     const bjOrders = allRelevantOrders.filter(o => o.ref?.toUpperCase().startsWith("BJ") && !o.commune?.toLowerCase().includes("cocody"));
@@ -310,14 +309,16 @@ export default function AdminDeliveryClient({ activeOrders, archivedOrders, deli
 
     // Add all BJ orders to every active driver's sheet
     Object.keys(sheets).forEach(dId => {
-      sheets[dId].orders = [...sheets[dId].orders, ...bjOrders];
+      const existingIds = new Set(sheets[dId].orders.map(o => o.id));
+      const bjToAdd = bjOrders.filter(o => !existingIds.has(o.id));
+      sheets[dId].orders = [...sheets[dId].orders, ...bjToAdd];
     });
 
     return Object.values(sheets);
-  }, [activeOrders, deliverymen]);
+  }, [filteredOrders, deliverymen]);
 
   const handleExportWord = (driverId?: string) => {
-    const sheetsToExport = driverId 
+    const sheetsToExport = driverId
       ? todaySheets.filter(s => s.driver.id === driverId)
       : todaySheets;
 
@@ -332,7 +333,8 @@ export default function AdminDeliveryClient({ activeOrders, archivedOrders, deli
       const totalAmount = driverOrders.reduce((s, o) => s + (o.total || 0) + (o.deliveryFee || 0) - (o.discount || 0), 0);
       const totalProducts = driverOrders.reduce((s, o) => s + (o.total || 0) - (o.discount || 0), 0);
       const totalDeliveryFee = driverOrders.reduce((s, o) => s + (o.deliveryFee || 0), 0);
-      const dateStr = getNextDeliveryDate().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      const sheetDateObj = filterDate ? new Date(filterDate) : new Date();
+      const dateStr = sheetDateObj.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
       const byCommune: Record<string, DeliveryAdminOrder[]> = {};
       driverOrders.forEach(o => {
@@ -432,7 +434,7 @@ export default function AdminDeliveryClient({ activeOrders, archivedOrders, deli
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = driverId 
+    a.download = driverId
       ? `Fiche_Livraison_${sheetsToExport[0].driver.name.replace(/\s+/g, '_')}.doc`
       : `Fiches_Livraison_Global.doc`;
     document.body.appendChild(a);
@@ -747,9 +749,9 @@ export default function AdminDeliveryClient({ activeOrders, archivedOrders, deli
               <span className="count-badge">{groupedByDriver["unassigned"].length}</span>
             </div>
             <div className="order-cards-list">
-                {groupedByDriver["unassigned"].map(order => (
-                  <OrderMiniCard key={order.id} order={order} deliverymen={deliverymen} onAssign={handleAssign} riderLiveCounts={riderLiveCounts} />
-                ))}
+              {groupedByDriver["unassigned"].map(order => (
+                <OrderMiniCard key={order.id} order={order} deliverymen={deliverymen} onAssign={handleAssign} riderLiveCounts={riderLiveCounts} />
+              ))}
               {groupedByDriver["unassigned"].length === 0 && <div className="empty-col">Tout est assigné ✓</div>}
             </div>
           </div>
@@ -924,7 +926,9 @@ export default function AdminDeliveryClient({ activeOrders, archivedOrders, deli
                           <Printer size={13} /> Imprimer
                         </button>
                       </div>
-                      <div className="sheet-date">{getNextDeliveryDate().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div>
+                      <div className="sheet-date">
+                        {(filterDate ? new Date(filterDate) : new Date()).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                      </div>
                       <div className="sheet-stats-row">
                         <span><strong>{driverOrders.length}</strong> colis</span>
                         <span>•</span>
@@ -985,78 +989,81 @@ export default function AdminDeliveryClient({ activeOrders, archivedOrders, deli
                         </tbody>
                       </table>
                     </div>
-                  ))}
+  ))
+}
 
-                  <div className="sheet-footer">
-                    <div className="sheet-footer-item"><span className="label">Colis</span><span className="val">{driverOrders.length}</span></div>
-                    <div className="sheet-footer-item"><span className="label">Total Produits</span><span className="val">{formatPrice(totalProducts)}</span></div>
-                    <div className="sheet-footer-item"><span className="label">Total Livraison</span><span className="val">{formatPrice(totalDeliveryFee)}</span></div>
-                    <div className="sheet-footer-item total"><span className="label">TOTAL À ENCAISSER</span><span className="val">{formatPrice(totalAmount)}</span></div>
-                  </div>
-                </div>
+<div className="sheet-footer">
+  <div className="sheet-footer-item"><span className="label">Colis</span><span className="val">{driverOrders.length}</span></div>
+  <div className="sheet-footer-item"><span className="label">Total Produits</span><span className="val">{formatPrice(totalProducts)}</span></div>
+  <div className="sheet-footer-item"><span className="label">Total Livraison</span><span className="val">{formatPrice(totalDeliveryFee)}</span></div>
+  <div className="sheet-footer-item total"><span className="label">TOTAL À ENCAISSER</span><span className="val">{formatPrice(totalAmount)}</span></div>
+</div>
+                </div >
               );
             })
           )}
+        </div >
+      )}
+
+{
+  reproOrder && (
+    <Modal
+      isOpen
+      onClose={() => {
+        setReproOrder(null);
+        setReproReason("");
+        setReproDetails("");
+      }}
+      title={`Repro-dispo ${reproOrder.ref}`}
+      footer={
+        <>
+          <button
+            className="btn-secondary"
+            onClick={() => {
+              setReproOrder(null);
+              setReproReason("");
+              setReproDetails("");
+            }}
+            disabled={isPending}
+          >
+            Annuler
+          </button>
+          <button className="btn-orange" onClick={handleReproDispo} disabled={isPending || (!reproReason && !reproDetails.trim())}>
+            <CalendarClock size={14} /> Reprogrammer demain
+          </button>
+        </>
+      }
+    >
+      <div className="repro-modal">
+        <p>
+          Le livreur sera retire de la commande et la livraison passera a demain.
+        </p>
+        <div className="repro-reasons">
+          {REPRO_DISPO_REASONS.map((reason) => (
+            <button
+              key={reason}
+              type="button"
+              className={`repro-reason ${reproReason === reason ? "active" : ""}`}
+              onClick={() => setReproReason(reason)}
+            >
+              {reason}
+            </button>
+          ))}
         </div>
-      )}
+        <label className="field-label-sm" htmlFor="repro-details">Detail utile</label>
+        <textarea
+          id="repro-details"
+          className="field-input repro-note"
+          value={reproDetails}
+          onChange={(event) => setReproDetails(event.target.value)}
+          placeholder="Precision pour le bureau ou le prochain livreur..."
+        />
+      </div>
+    </Modal>
+  )
+}
 
-      {reproOrder && (
-        <Modal
-          isOpen
-          onClose={() => {
-            setReproOrder(null);
-            setReproReason("");
-            setReproDetails("");
-          }}
-          title={`Repro-dispo ${reproOrder.ref}`}
-          footer={
-            <>
-              <button
-                className="btn-secondary"
-                onClick={() => {
-                  setReproOrder(null);
-                  setReproReason("");
-                  setReproDetails("");
-                }}
-                disabled={isPending}
-              >
-                Annuler
-              </button>
-              <button className="btn-orange" onClick={handleReproDispo} disabled={isPending || (!reproReason && !reproDetails.trim())}>
-                <CalendarClock size={14} /> Reprogrammer demain
-              </button>
-            </>
-          }
-        >
-          <div className="repro-modal">
-            <p>
-              Le livreur sera retire de la commande et la livraison passera a demain.
-            </p>
-            <div className="repro-reasons">
-              {REPRO_DISPO_REASONS.map((reason) => (
-                <button
-                  key={reason}
-                  type="button"
-                  className={`repro-reason ${reproReason === reason ? "active" : ""}`}
-                  onClick={() => setReproReason(reason)}
-                >
-                  {reason}
-                </button>
-              ))}
-            </div>
-            <label className="field-label-sm" htmlFor="repro-details">Detail utile</label>
-            <textarea
-              id="repro-details"
-              className="field-input repro-note"
-              value={reproDetails}
-              onChange={(event) => setReproDetails(event.target.value)}
-              placeholder="Precision pour le bureau ou le prochain livreur..."
-            />
-          </div>
-        </Modal>
-      )}
-
-    </div>
+    </div >
   );
 }
 

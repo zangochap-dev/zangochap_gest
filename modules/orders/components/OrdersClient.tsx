@@ -546,6 +546,9 @@ export default function OrdersClient({
 
   const [orderToDuplicate, setOrderToDuplicate] = useState<any>(null);
 
+  const [orderToExchange, setOrderToExchange] =
+    useState<typeof orderToDuplicate>(null);
+
   const [orderToEdit, setOrderToEdit] = useState<any>(null);
 
   const [receiptOrder, setReceiptOrder] = useState<any>(null);
@@ -738,6 +741,7 @@ export default function OrdersClient({
           showToast("Commande dupliquée ✓", "success");
 
           setOrderToDuplicate(null);
+          setOrderToExchange(null);
 
           queryClient.invalidateQueries({ queryKey: ["orders"] });
         } catch (e: any) {
@@ -6076,13 +6080,22 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
                           {/* Commercials can only edit/dup/delete their own orders */}
                           {(user?.role === "admin" ||
                             user?.role === "commercial") && (
-                              <button
-                                className="action-btn"
-                                title="Modifier"
-                                onClick={() => setOrderToEdit(order)}
-                              >
-                                <Edit3 size={14} />
-                              </button>
+                              <>
+                                <button
+                                  className="action-btn"
+                                  title="Modifier"
+                                  onClick={() => setOrderToEdit(order)}
+                                >
+                                  <Edit3 size={14} />
+                                </button>
+                                <button
+                                  className="action-btn"
+                                  title="Dupliquer"
+                                  onClick={() => setOrderToDuplicate(order)}
+                                >
+                                  <Copy size={14} />
+                                </button>
+                              </>
                             )}
                           <button
                             className="action-btn"
@@ -6106,7 +6119,7 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
                                   <button
                                     type="button"
                                     className="action-menu-item"
-                                    onClick={() => setOrderToDuplicate(order)}
+                                    onClick={() => setOrderToExchange(order)}
                                   >
                                     <Copy size={14} /> Créer un échange
                                   </button>
@@ -6298,6 +6311,18 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
           order={orderToDuplicate}
           onClose={() => setOrderToDuplicate(null)}
           onConfirm={(data) => handleDuplicate(orderToDuplicate.id, data)}
+          isPending={isPending}
+          onPreviewImage={setPreviewImage}
+          products={products}
+        />
+      )}
+
+      {orderToExchange && (
+        <OrderFormModal
+          mode="exchange"
+          order={orderToExchange}
+          onClose={() => setOrderToExchange(null)}
+          onConfirm={(data) => handleDuplicate(orderToExchange.id, data)}
           isPending={isPending}
           onPreviewImage={setPreviewImage}
           products={products}
@@ -7883,7 +7908,7 @@ function OrderFormModal({
   onReproDispo,
 }: {
   order: any;
-  mode?: "duplicate" | "edit";
+  mode?: "duplicate" | "exchange" | "edit";
   onClose: () => void;
   onConfirm: (data: any) => void;
   isPending: boolean;
@@ -7949,7 +7974,7 @@ function OrderFormModal({
 
       notes: order.notes || "",
 
-      type: mode === "duplicate" ? "Echange" : order.type || "Standard",
+      type: mode === "exchange" ? "Echange" : order.type || "Standard",
 
       total: initialItems.reduce(
         (sum: number, i: any) => sum + Number(i.price) * Number(i.qty),
@@ -8186,8 +8211,10 @@ function OrderFormModal({
       onClose={onClose}
       title={
         mode === "duplicate"
-          ? "Créer une commande d'échange"
-          : "Modifier la commande"
+          ? "Dupliquer la commande"
+          : mode === "exchange"
+            ? "Créer une commande d'échange"
+            : "Modifier la commande"
       }
       full
       footer={
@@ -8245,7 +8272,11 @@ function OrderFormModal({
             ) : (
               <>
                 <Check size={18} />{" "}
-                {mode === "duplicate" ? "Créer l'échange" : "Enregistrer"}
+                {mode === "duplicate"
+                  ? "Dupliquer"
+                  : mode === "exchange"
+                    ? "Créer l'échange"
+                    : "Enregistrer"}
               </>
             )}
           </button>

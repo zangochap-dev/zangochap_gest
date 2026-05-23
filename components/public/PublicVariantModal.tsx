@@ -11,12 +11,16 @@ type PublicVariantModalProps = {
   product: Product | null;
   onClose: () => void;
   onConfirm: (variant: ProductVariant, qty: number) => void;
+  actionLabel?: string;
+  title?: string;
 };
 
 export default function PublicVariantModal({
   product,
   onClose,
   onConfirm,
+  actionLabel,
+  title,
 }: PublicVariantModalProps) {
   const [selectedSize, setSelectedSize] = useState("");
   const [selectedColor, setSelectedColor] = useState("");
@@ -51,7 +55,7 @@ export default function PublicVariantModal({
     <Modal
       isOpen
       onClose={onClose}
-      title="Choisir la variante"
+      title={title || "Choisir la variante"}
       footer={
         <button
           className="h-11 w-full bg-[#1A1614] px-5 text-[12px] font-semibold tracking-[0.14em] text-white disabled:opacity-40"
@@ -59,7 +63,7 @@ export default function PublicVariantModal({
           onClick={() => selectedVariant && onConfirm(selectedVariant, qty)}
         >
           <span className="inline-flex items-center gap-2">
-            <ShoppingBag size={16} /> Valider le panier
+            <ShoppingBag size={16} /> {actionLabel || "Valider le panier"}
           </span>
         </button>
       }
@@ -75,7 +79,7 @@ export default function PublicVariantModal({
           </div>
           <div className="min-w-0">
             <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#D4541C]">
-              Ajouter au panier
+              {actionLabel || "Ajouter au panier"}
             </div>
             <h2 className="mt-1 text-lg font-semibold leading-tight">{product.name}</h2>
             <div className="mt-2 text-sm font-semibold">{formatPrice(Number(product.price))}</div>

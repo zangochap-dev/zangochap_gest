@@ -109,12 +109,12 @@ export async function getSettlementStats(from?: string, to?: string, commercialI
   if (commercialId) where.commercialId = commercialId;
 
   if (from || to) {
-    where.createdAt = {};
-    if (from) where.createdAt.gte = new Date(from);
+    where.deliveryDate = {};
+    if (from) where.deliveryDate.gte = new Date(from);
     if (to) {
       const toDate = new Date(to);
       toDate.setHours(23, 59, 59, 999);
-      where.createdAt.lte = toDate;
+      where.deliveryDate.lte = toDate;
     }
   }
 
@@ -171,12 +171,12 @@ export async function getRiderSettlementStats(from?: string, to?: string, riderI
   ];
 
   if (from || to) {
-    where.updatedAt = {};
-    if (from) where.updatedAt.gte = new Date(from);
+    where.deliveryDate = {};
+    if (from) where.deliveryDate.gte = new Date(from);
     if (to) {
       const toDate = new Date(to);
       toDate.setHours(23, 59, 59, 999);
-      where.updatedAt.lte = toDate;
+      where.deliveryDate.lte = toDate;
     }
   }
 

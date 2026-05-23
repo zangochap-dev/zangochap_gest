@@ -17,7 +17,14 @@ export default async function SettlementsPage({ searchParams }: SettlementsPageP
   const session = await getSession();
   if (!session || session.role !== "admin") redirect("/zangochap-manager");
 
-  const { from, to, commercialId, method } = await searchParams;
+  const resolvedParams = await searchParams;
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+
+  const from = resolvedParams.from || today;
+  const to = resolvedParams.to || today;
+  const commercialId = resolvedParams.commercialId;
+  const method = resolvedParams.method;
   const stats = await getSettlementStats(from, to, commercialId, method);
   const allUsers = await getAccounts();
   const commercials = allUsers.filter((user) => user.role === "COMMERCIAL");

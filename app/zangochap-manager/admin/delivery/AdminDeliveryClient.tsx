@@ -197,8 +197,8 @@ export default function AdminDeliveryClient({ activeOrders, archivedOrders, deli
   const filteredOrders = useMemo(() => {
     return activeOrders.filter(o => {
       const matchesSearch =
-        o.ref.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        o.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (o.ref || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (o.customerName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
         (o.deliverymanName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
         (o.commune || "").toLowerCase().includes(searchTerm.toLowerCase());
 
@@ -219,8 +219,8 @@ export default function AdminDeliveryClient({ activeOrders, archivedOrders, deli
   const filteredArchivedOrders = useMemo(() => {
     return archivedOrders.filter(o => {
       const matchesSearch =
-        o.ref.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        o.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (o.ref || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (o.customerName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
         (o.deliverymanName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
         (o.commune || "").toLowerCase().includes(searchTerm.toLowerCase());
 

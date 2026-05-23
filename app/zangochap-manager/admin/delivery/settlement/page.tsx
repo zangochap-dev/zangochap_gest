@@ -22,7 +22,13 @@ type SettlementPageProps = {
 };
 
 export default async function SettlementPage({ searchParams }: SettlementPageProps) {
-  const { from, to, riderId } = await searchParams;
+  const resolvedParams = await searchParams;
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  
+  const from = resolvedParams.from || today;
+  const to = resolvedParams.to || today;
+  const riderId = resolvedParams.riderId;
 
   const [pendingOrders, settlementHistory, riderStats] = await Promise.all([
     getPendingSettlements(),

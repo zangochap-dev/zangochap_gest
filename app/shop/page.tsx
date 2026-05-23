@@ -57,7 +57,7 @@ export default async function ShopPage() {
         }
       }
     },
-    include: { images: true, category: true },
+    include: { images: true, category: true, variants: true },
     orderBy: { createdAt: 'desc' }
   });
 

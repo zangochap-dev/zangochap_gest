@@ -72,7 +72,7 @@ export default async function SearchPage({
       ],
       status: "PUBLISHED",
     },
-    include: { images: true },
+    include: { images: true, variants: true },
   });
 
   const breadcrumbSchema = getBreadcrumbSchema([

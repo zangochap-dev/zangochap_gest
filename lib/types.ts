@@ -24,6 +24,7 @@ export interface ProductVariant {
   id: string;
   size: string;
   color: string;
+  image?: string | null;
   stock: number;
   location?: string | null;
 }

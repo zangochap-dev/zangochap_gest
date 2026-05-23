@@ -121,7 +121,7 @@ function usePackingFilters(orders: PackingOrder[], products: ProductWithVariants
         } else if (filter !== 'all' && o.status !== filter) return false;
 
         // Filtre Recherche
-        if (search && !o.ref.toLowerCase().includes(s) && !o.customerName.toLowerCase().includes(s)) return false;
+        if (search && !o.ref?.toLowerCase().includes(s) && !o.customerName.toLowerCase().includes(s)) return false;
 
         // Filtre Date
         const created = new Date(o.createdAt).getTime();

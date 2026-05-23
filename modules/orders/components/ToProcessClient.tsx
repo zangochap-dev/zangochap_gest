@@ -1,15 +1,18 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useTransition } from "react";
 import { TableCard, EmptyState } from "@/components/UI";
 import { formatPrice, formatDate } from "@/lib/constants";
-import { ArrowRight, RefreshCw, Clock } from "lucide-react";
-import Link from "next/link";
+import { RefreshCw, Clock, Check, Trash2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { deleteOrder, takeToProcessOrder } from "@/modules/orders/actions";
+import { useToast } from "@/components/Toast";
 import "./to-process-client.css";
 
 interface ToProcessClientProps {
   orders: any[];
+  user: any;
+  callCenterUsers: any[];
 }
 
 type DatePreset = 'today' | 'yesterday' | 'custom' | 'all';
@@ -21,13 +24,17 @@ function toLocalDateInputValue(date = new Date()) {
   return `${y}-${m}-${d}`;
 }
 
-export default function ToProcessClient({ orders: initialOrders }: ToProcessClientProps) {
+export default function ToProcessClient({ orders: initialOrders, user, callCenterUsers }: ToProcessClientProps) {
   const todayStr = toLocalDateInputValue();
   const [datePreset, setDatePreset] = useState<DatePreset>('today');
   const [dateFrom, setDateFrom] = useState(todayStr);
   const [dateTo, setDateTo] = useState(todayStr);
+  const [assignees, setAssignees] = useState<Record<string, string>>({});
+  const [workingOrderId, setWorkingOrderId] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const { showToast } = useToast();
   // React Query — smooth background polling, no page flash
-  const { data, isFetching } = useQuery({
+  const { data, isFetching, refetch } = useQuery({
     queryKey: ['to-process-orders'],
     queryFn: async () => {
       const res = await fetch('/api/orders/to-process');
@@ -76,6 +83,38 @@ export default function ToProcessClient({ orders: initialOrders }: ToProcessClie
     setDateTo(value);
   };
 
+  const handleTakeOrder = (orderId: string, commercialId?: string) => {
+    setWorkingOrderId(orderId);
+    startTransition(async () => {
+      try {
+        const result = await takeToProcessOrder(orderId, commercialId);
+        showToast(`Commande ${result.order.ref} confirmee`, "success");
+        await refetch();
+      } catch (error: any) {
+        showToast(error.message || "Erreur lors de la prise en charge", "error");
+      } finally {
+        setWorkingOrderId(null);
+      }
+    });
+  };
+
+  const handleDeleteOrder = (orderId: string) => {
+    if (!confirm("Supprimer cette commande a traiter ?")) return;
+
+    setWorkingOrderId(orderId);
+    startTransition(async () => {
+      try {
+        await deleteOrder(orderId);
+        showToast("Commande supprimee", "success");
+        await refetch();
+      } catch (error: any) {
+        showToast(error.message || "Erreur lors de la suppression", "error");
+      } finally {
+        setWorkingOrderId(null);
+      }
+    });
+  };
+
   return (
     <div className="content animate-fade-in">
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12, alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -122,7 +161,7 @@ export default function ToProcessClient({ orders: initialOrders }: ToProcessClie
               {filteredOrders.map((order: any) => (
                 <tr key={order.id}>
                   <td>
-                    <div className="cell-mono" style={{ color: 'var(--orange)', fontWeight: 700 }}>{order.ref}</div>
+                    <div className="cell-mono" style={{ color: 'var(--orange)', fontWeight: 700 }}>{order.ref || "En attente"}</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
                        <Clock size={10} color="var(--brown-soft)" />
                        <span className="cell-muted" style={{ fontSize: 10 }}>{formatDate(order.createdAt)}</span>
@@ -147,9 +186,45 @@ export default function ToProcessClient({ orders: initialOrders }: ToProcessClie
                   <td><span className="cell-price">{formatPrice(order.total)}</span></td>
                   <td><span className="cell-muted">{formatDate(order.createdAt)}</span></td>
                   <td style={{ textAlign: 'right' }}>
-                    <Link href={`/zangochap-manager/orders?q=${order.ref}&status=to_process`} className="btn-orange">
-                      Traiter <ArrowRight size={14} style={{ marginLeft: 4 }} />
-                    </Link>
+                    {String(user?.role || "").toLowerCase() === "admin" ? (
+                      <div style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+                        <select
+                          className="filter-select"
+                          value={assignees[order.id] || ""}
+                          onChange={(event) => setAssignees((current) => ({ ...current, [order.id]: event.target.value }))}
+                          aria-label="Attribuer au call center"
+                        >
+                          <option value="">Call center</option>
+                          {callCenterUsers.map((staff: any) => (
+                            <option key={staff.id} value={staff.id}>{staff.name}</option>
+                          ))}
+                        </select>
+                        <button
+                          className="btn-orange"
+                          disabled={!assignees[order.id] || (isPending && workingOrderId === order.id)}
+                          onClick={() => handleTakeOrder(order.id, assignees[order.id])}
+                        >
+                          <Check size={14} /> Attribuer
+                        </button>
+                        <button
+                          className="btn-secondary"
+                          disabled={isPending && workingOrderId === order.id}
+                          onClick={() => handleDeleteOrder(order.id)}
+                          title="Supprimer la commande"
+                          aria-label="Supprimer la commande"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        className="btn-orange"
+                        disabled={isPending && workingOrderId === order.id}
+                        onClick={() => handleTakeOrder(order.id)}
+                      >
+                        <Check size={14} /> Prendre
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

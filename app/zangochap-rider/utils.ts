@@ -1,14 +1,20 @@
 import { RiderOrder } from "./types";
 
-/**
- * Calculates the total amount a rider should collect from a customer.
- * Formula: subtotal + deliveryFee - discount
- */
-export function calculateOrderCollectionTotal(order: RiderOrder): number {
+export function calculateOrderDueTotal(order: RiderOrder): number {
   const subtotal = order.total || 0;
   const fee = order.deliveryFee || 0;
   const discount = order.discount || 0;
   return Math.max(0, subtotal + fee - discount);
+}
+
+/**
+ * Calculates the total amount a rider collected or should collect.
+ */
+export function calculateOrderCollectionTotal(order: RiderOrder): number {
+  if (order.amountReceived !== null && order.amountReceived !== undefined) {
+    return Math.max(0, Number(order.amountReceived) || 0);
+  }
+  return calculateOrderDueTotal(order);
 }
 
 /**

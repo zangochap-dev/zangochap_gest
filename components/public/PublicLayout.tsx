@@ -2,6 +2,7 @@
 
 import React from "react";
 import Navbar from "@/components/public/Navbar";
+import PublicPopupLoader from "@/components/public/PublicPopupLoader";
 import Link from "next/link";
 import { Home, Search, ShoppingBag, User } from "lucide-react";
 import { useCart } from "@/lib/CartContext";
@@ -13,6 +14,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
   return (
     <div className="min-h-screen flex flex-col bg-white w-full overflow-x-clip font-body">
       <Navbar />
+      <PublicPopupLoader />
       <main className="flex-1 w-full max-w-full overflow-x-hidden">{children}</main>
 
       {/* MOBILE BOTTOM NAV */}

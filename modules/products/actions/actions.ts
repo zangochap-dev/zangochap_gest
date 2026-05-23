@@ -112,6 +112,7 @@ export async function createProduct(data: {
   variants: Array<{
     size: string;
     color: string;
+    image?: string | null;
     stock: number;
     location?: string;
   }>;
@@ -133,7 +134,12 @@ export async function createProduct(data: {
     }
   }
 
-  const totalStock = data.variants.reduce((sum, v) => sum + cleanStock(v.stock), 0);
+  const variantsWithImages = await Promise.all(data.variants.map(async (v) => ({
+    ...v,
+    image: await resolveVariantImage(v.image, `${data.name}-${v.size}-${v.color}`),
+  })));
+
+  const totalStock = variantsWithImages.reduce((sum, v) => sum + cleanStock(v.stock), 0);
   const mainLocation = data.variants.find(v => v.location)?.location || data.location || '';
   const slug = `${slugify(data.name)}-${Math.floor(Math.random() * 1000)}`;
 
@@ -185,9 +191,10 @@ export async function createProduct(data: {
         }
       } : undefined,
       variants: {
-        create: data.variants.map(v => ({
+        create: variantsWithImages.map(v => ({
           size: v.size,
           color: v.color,
+          image: v.image || null,
           stock: cleanStock(v.stock),
           location: v.location || '',
         })),
@@ -202,7 +209,7 @@ export async function createProduct(data: {
   // Initialize stock levels in selected or default warehouse
   const targetWarehouseId = data.warehouseId || (await getOrCreateDefaultWarehouse()).id;
   await Promise.all(product.variants.map(v => {
-    const initialQty = cleanStock(data.variants.find(dv => dv.size === v.size && dv.color === v.color)?.stock || 0);
+    const initialQty = cleanStock(variantsWithImages.find(dv => dv.size === v.size && dv.color === v.color)?.stock || 0);
     return prisma.stockLevel.create({
       data: {
         variantId: v.id,
@@ -224,6 +231,7 @@ export async function updateProductVariants(productId: string, variants: Array<{
   id?: string;
   size: string;
   color: string;
+  image?: string | null;
   stock: number;
   location?: string;
 }>) {
@@ -251,7 +259,7 @@ export async function updateProductVariants(productId: string, variants: Array<{
       if (v.id && existingIds.includes(v.id)) {
         await tx.productVariant.update({
           where: { id: v.id },
-            data: { size: v.size, color: v.color, stock: cleanStock(v.stock), location: v.location || '' }
+            data: { size: v.size, color: v.color, image: v.image || null, stock: cleanStock(v.stock), location: v.location || '' }
         });
 
         const stockLvl = await tx.stockLevel.findFirst({ where: { variantId: v.id, warehouseId: defaultWarehouse.id } });
@@ -267,7 +275,7 @@ export async function updateProductVariants(productId: string, variants: Array<{
         }
       } else {
         const newVariant = await tx.productVariant.create({
-          data: { productId, size: v.size, color: v.color, stock: cleanStock(v.stock), location: v.location || '' }
+          data: { productId, size: v.size, color: v.color, image: v.image || null, stock: cleanStock(v.stock), location: v.location || '' }
         });
         await tx.stockLevel.create({
           data: { variantId: newVariant.id, warehouseId: defaultWarehouse.id, quantity: cleanStock(v.stock), position: v.location || null }
@@ -314,6 +322,7 @@ export async function updateProductVariantsById(productId: string, variants: Arr
   id?: string;
   size: string;
   color: string;
+  image?: string | null;
   stock: number;
   location?: string;
 }>) {
@@ -341,11 +350,11 @@ export async function updateProductVariantsById(productId: string, variants: Arr
       if (targetVariantId && existingIds.includes(targetVariantId)) {
         await tx.productVariant.update({
           where: { id: targetVariantId },
-          data: { size: v.size, color: v.color, stock: cleanStock(v.stock), location: v.location || '' }
+          data: { size: v.size, color: v.color, image: v.image || null, stock: cleanStock(v.stock), location: v.location || '' }
         });
       } else {
         const newVariant = await tx.productVariant.create({
-          data: { productId, size: v.size, color: v.color, stock: cleanStock(v.stock), location: v.location || '' }
+          data: { productId, size: v.size, color: v.color, image: v.image || null, stock: cleanStock(v.stock), location: v.location || '' }
         });
         targetVariantId = newVariant.id;
       }
@@ -383,6 +392,13 @@ function cleanStock(value: number) {
   return Math.max(0, Math.trunc(Number(value) || 0));
 }
 
+async function resolveVariantImage(image?: string | null, fallbackName = "variant") {
+  if (!image) return null;
+  if (image.startsWith("http") || image.startsWith("/")) return image;
+  if (image.startsWith("data:image")) return uploadImage(image, `${fallbackName}.webp`);
+  return image;
+}
+
 // ============ UPDATE VARIANT STOCK LEVELS (PACKING MODAL) ============
 export async function updateProductVariantStockLevels(productId: string, data: {
   lowStockThreshold?: number;
@@ -390,6 +406,7 @@ export async function updateProductVariantStockLevels(productId: string, data: {
     id?: string;
     size: string;
     color: string;
+    image?: string | null;
     stock?: number;
     location?: string;
     stockLevels?: Array<{
@@ -436,6 +453,7 @@ export async function updateProductVariantStockLevels(productId: string, data: {
           data: {
             size: variant.size,
             color: variant.color,
+            image: variant.image || null,
             stock: totalStock,
             location: defaultLocation,
           },
@@ -446,6 +464,7 @@ export async function updateProductVariantStockLevels(productId: string, data: {
             productId,
             size: variant.size,
             color: variant.color,
+            image: variant.image || null,
             stock: totalStock,
             location: defaultLocation,
           },
@@ -524,7 +543,7 @@ export async function updateProduct(id: string, data: Partial<{
   isPublished: boolean;
   isFeatured: boolean;
   isGift: boolean;
-  variants?: Array<{ id?: string; size: string; color: string; stock: number; location: string }>;
+  variants?: Array<{ id?: string; size: string; color: string; image?: string | null; stock: number; location: string }>;
   images?: Array<{ name: string; dataUrl: string }>;
   warehouseId?: string;
 }>) {
@@ -593,7 +612,12 @@ export async function updateProduct(id: string, data: Partial<{
       include: { stockLevels: true },
     });
 
-    for (const v of data.variants) {
+    const variantsWithImages = await Promise.all(data.variants.map(async (v) => ({
+      ...v,
+      image: await resolveVariantImage(v.image, `${data.name || id}-${v.size}-${v.color}`),
+    })));
+
+    for (const v of variantsWithImages) {
       const stock = cleanStock(v.stock);
       const existing = (v.id && existingVariants.find(variant => variant.id === v.id))
         || existingVariants.find(variant => variant.size === v.size && variant.color === v.color);
@@ -643,7 +667,7 @@ export async function updateProduct(id: string, data: Partial<{
     }
 
     // Sync total stock
-    const totalStock = data.variants.reduce((sum, v) => sum + cleanStock(v.stock), 0);
+    const totalStock = variantsWithImages.reduce((sum, v) => sum + cleanStock(v.stock), 0);
     updateData.stock = totalStock;
   }
 

@@ -10,7 +10,7 @@ import { motion } from "framer-motion";
 import { formatPrice } from "@/lib/constants";
 import { StatusBadge } from "./StatusBadge";
 import { RiderOrder, RiderOrderItem } from "../types";
-import { calculateOrderCollectionTotal } from "../utils";
+import { calculateOrderCollectionTotal, calculateOrderDueTotal } from "../utils";
 
 // ── Constants ────────────────────────────────────────────────
 const QUICK_MESSAGES = [
@@ -41,8 +41,8 @@ interface OrderDetailsSheetProps {
   returnReasons: Record<string, string>;
   updateReturnReason: (id: string, reason: string) => void;
   partialSummary: { subtotal: number; total: number; fee: number };
-  onStatusUpdate: (id: string, status: string) => void;
-  onPartialConfirm: () => void;
+  onStatusUpdate: (id: string, status: string, amountReceived?: number) => void;
+  onPartialConfirm: (amountReceived?: number) => void;
   isPending: boolean;
 }
 
@@ -70,6 +70,15 @@ export function OrderDetailsSheet({
   }, [order.id]);
 
   const collectionTotal = calculateOrderCollectionTotal(order);
+  const dueTotal = calculateOrderDueTotal(order);
+  const expectedAmount = partialMode ? partialSummary.total : dueTotal;
+  const [amountReceived, setAmountReceived] = useState(expectedAmount);
+  const normalizedAmountReceived = Math.max(0, Math.trunc(Number(amountReceived) || 0));
+  const hasCustomAmount = normalizedAmountReceived !== expectedAmount;
+
+  useEffect(() => {
+    setAmountReceived(order.amountReceived ?? expectedAmount);
+  }, [order.id, order.amountReceived, expectedAmount]);
   const deliveryDay = order.deliveryDate
     ? new Date(order.deliveryDate).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })
     : "Aujourd'hui";
@@ -260,8 +269,28 @@ export function OrderDetailsSheet({
                   </div>
                 </div>
                 <p className="text-[32px] font-black tracking-tight text-[#111827] tabular-nums leading-none mb-4">
-                  {formatPrice(partialMode ? partialSummary.total : collectionTotal)}
+                  {formatPrice(collectionTotal)}
                 </p>
+                {!isClosed && (
+                  <div className="mb-4 rounded-md border border-[#E5E7EB] bg-[#F9FAFB] p-3">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-[#6B7280]">
+                      Montant reçu du client
+                    </label>
+                    <div className="mt-2 flex items-center gap-2">
+                      <input
+                        type="number"
+                        min={0}
+                        value={amountReceived}
+                        onChange={(event) => setAmountReceived(Number(event.target.value))}
+                        className="h-11 flex-1 rounded-md border border-[#E5E7EB] bg-white px-3 text-[18px] font-black text-[#111827] outline-none focus:border-[#166534]"
+                      />
+                      <span className="text-[12px] font-black text-[#6B7280]">F</span>
+                    </div>
+                    <p className={`mt-2 text-[10px] font-bold ${hasCustomAmount ? "text-[#B45309]" : "text-[#9CA3AF]"}`}>
+                      Attendu : {formatPrice(expectedAmount)}
+                    </p>
+                  </div>
+                )}
                 <div className="flex items-center justify-between pt-4 border-t border-[#F3F4F6]">
                   <span className="text-[12px] font-semibold text-[#9CA3AF]">
                     Livraison : {formatPrice(order.deliveryFee)}
@@ -408,7 +437,7 @@ export function OrderDetailsSheet({
             <div className="flex gap-3">
               <button
                 disabled={isPending || !allChecked}
-                onClick={() => onStatusUpdate(order.id, "DELIVERED")}
+                onClick={() => onStatusUpdate(order.id, "DELIVERED", normalizedAmountReceived)}
                 className="flex-[4] h-14 bg-[#166534] rounded-md text-white font-black text-[16px] flex items-center justify-center gap-2.5 active:scale-[0.98] transition-all shadow-sm disabled:opacity-40 disabled:grayscale"
               >
                 {isPending ? (
@@ -441,14 +470,14 @@ export function OrderDetailsSheet({
           ) : (
             <button
               disabled={isPending || deliveredCount === 0}
-              onClick={onPartialConfirm}
+              onClick={() => onPartialConfirm(normalizedAmountReceived)}
               className="w-full h-14 bg-[#B45309] rounded-md text-white font-black text-[16px] flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-sm disabled:opacity-40"
             >
               {isPending ? (
                 <div className="w-5 h-5 border-[3px] border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <>
-                  CONFIRMER PARTIEL · {formatPrice(partialSummary.total)}
+                  CONFIRMER PARTIEL · {formatPrice(normalizedAmountReceived)}
                   <ChevronRight size={18} strokeWidth={3} />
                 </>
               )}

@@ -97,7 +97,7 @@ export async function getOrdersListData(params: OrdersQueryParams, user: Session
 
 export async function getOrdersStaffData() {
   const staffUsers = await prisma.user.findMany({
-    select: { id: true, name: true, phone: true, email: true },
+    select: { id: true, name: true, phone: true, email: true, role: true },
   });
 
   return {

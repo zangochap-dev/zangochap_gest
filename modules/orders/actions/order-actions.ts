@@ -55,6 +55,7 @@ export async function createOrder(data: {
   deliveryDate?: string;
   paymentMethod?: string;
   status?: string;
+  source?: 'public';
   allowRefRetry?: boolean;
 }) {
   const session = await getSession();
@@ -107,16 +108,24 @@ export async function createOrder(data: {
     orderAmount: finalTotal + (data.deliveryFee || 0),
   });
 
-  // ATOMIC RETRY LOOP: handles concurrency collisions on 'ref'
+  const isWebOrder = data.source === 'public' || !session;
+  const requestedStatus = data.status?.toUpperCase();
+  const status = isWebOrder ? 'TO_PROCESS' : ((requestedStatus as any) || 'CONFIRMED');
+  const requestedRef = isWebOrder ? undefined : data.ref;
+  const shouldGenerateRef = !isWebOrder;
+
+  // ATOMIC RETRY LOOP: handles concurrency collisions on staff-created refs.
   let order;
   for (let attempt = 0; attempt < 10; attempt++) {
-    const ref = data.ref && attempt === 0
-      ? data.ref
-      : await generateUniqueRef(data.commune || undefined, data.type);
+    const ref = requestedRef && attempt === 0
+      ? requestedRef
+      : shouldGenerateRef
+        ? await generateUniqueRef(data.commune || undefined, data.type)
+        : null;
     try {
       order = await prisma.order.create({
         data: {
-          ref,
+          ...(ref ? { ref } : {}),
           customerId: customer.id,
           customerName: data.customerName,
           customerPhone: data.customerPhone,
@@ -127,16 +136,16 @@ export async function createOrder(data: {
           deliveryFee: Number(data.deliveryFee || 0),
           deliveryNote: data.deliveryNote,
           paymentMethod: data.paymentMethod,
-          status: (data.status as any) || (session ? 'CONFIRMED' : 'TO_PROCESS'),
-          commercialId: session?.id || null,
-          commercialName: session?.name || "Site Web",
+          status,
+          commercialId: isWebOrder ? null : session?.id || null,
+          commercialName: isWebOrder ? "Site Web" : session?.name || null,
           deliveryDate: data.deliveryDate ? new Date(data.deliveryDate) : null,
           promoCode: data.promoCode,
           discount: Number(data.discount || 0),
           notes: data.notes,
           type: data.type,
-          confirmedAt: new Date(),
-          confirmedByName: session ? session.name : "Client Web",
+          confirmedAt: status === 'CONFIRMED' ? new Date() : null,
+          confirmedByName: status === 'CONFIRMED' ? session?.name || null : null,
           items: {
             create: processedItems.map(item => ({
               name: item.name,
@@ -156,9 +165,9 @@ export async function createOrder(data: {
           history: [
             {
               at: new Date().toISOString(),
-              action: session ? "Commande créée par commercial" : "Commande passée sur le site web",
-              by: session ? session.email : "public",
-              byName: session ? session.name : "Client Web",
+              action: isWebOrder ? "Commande passée sur le site web" : "Commande créée par commercial",
+              by: isWebOrder ? "public" : session?.email,
+              byName: isWebOrder ? "Client Web" : session?.name,
             },
           ],
         },
@@ -170,8 +179,8 @@ export async function createOrder(data: {
     } catch (e: any) {
       // P2002 is Prisma code for Unique constraint violation
       const isRefCollision = e.code === 'P2002' && e.meta?.target?.includes('ref');
-      if (data.ref && isRefCollision && !data.allowRefRetry) {
-        throw new Error(`La référence ${data.ref} existe déjà.`);
+      if (requestedRef && isRefCollision && !data.allowRefRetry) {
+        throw new Error(`La référence ${requestedRef} existe déjà.`);
       }
       if (isRefCollision && attempt < 9) {
         console.log(`Ref collision detected on ${ref}, retrying... (attempt ${attempt + 1})`);
@@ -201,6 +210,7 @@ export async function createOrder(data: {
   }
 
   revalidatePath("/zangochap-manager/orders");
+  revalidatePath("/zangochap-manager/orders/to-process");
   revalidatePath("/zangochap-manager/dashboard");
 
   return { order: JSON.parse(JSON.stringify(order)) };
@@ -233,13 +243,16 @@ export async function deleteOrder(orderId: string) {
     data: { 
       status: 'CANCELLED',
       deletedAt: new Date(),
-      ref: order.ref.startsWith('[SUPPRIMÉ]') ? order.ref : `[SUPPRIMÉ] ${order.ref}`,
+      ...(order.ref
+        ? { ref: order.ref.startsWith('[SUPPRIMÉ]') ? order.ref : `[SUPPRIMÉ] ${order.ref}` }
+        : {}),
       history,
       stockDecremented: false // Ensure it stays false after restoration
     } 
   });
 
   revalidatePath("/zangochap-manager/orders");
+  revalidatePath("/zangochap-manager/orders/to-process");
   revalidatePath("/zangochap-manager/dashboard");
   return { success: true };
 }
@@ -360,6 +373,56 @@ export async function addOrderHistoryEntry(orderId: string, action: string) {
   await prisma.order.update({ where: { id: orderId }, data: { history } });
 }
 
+// ============ HAND OFF WEB ORDER TO CALL CENTER ============
+export async function takeToProcessOrder(orderId: string, commercialId?: string) {
+  const session = await getSession();
+  if (!session) throw new Error("Non authentifié");
+
+  const role = session.role?.toUpperCase();
+  if (!['ADMIN', 'COMMERCIAL'].includes(role)) throw new Error("Accès refusé");
+
+  const assigneeId = role === 'ADMIN' && commercialId ? commercialId : session.id;
+  const assignee = await prisma.user.findUnique({
+    where: { id: assigneeId },
+    select: { id: true, name: true, email: true, role: true },
+  });
+  if (!assignee || !['ADMIN', 'COMMERCIAL'].includes(assignee.role)) {
+    throw new Error("Call center introuvable");
+  }
+
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!order || order.deletedAt) throw new Error("Commande introuvable");
+  if (order.status !== 'TO_PROCESS') throw new Error("Cette commande est déjà prise en charge");
+
+  const history = Array.isArray(order.history) ? [...(order.history as any[])] : [];
+  history.push({
+    at: new Date().toISOString(),
+    action: `Commande prise en charge par ${assignee.name}`,
+    by: session.email,
+    byName: session.name,
+  });
+
+  const ref = order.ref || await generateUniqueRef(order.commune || undefined, order.type || undefined);
+  const updatedOrder = await prisma.order.update({
+    where: { id: orderId },
+    data: {
+      ref,
+      status: 'CONFIRMED',
+      commercialId: assignee.id,
+      commercialName: assignee.name,
+      confirmedAt: new Date(),
+      confirmedByName: assignee.name,
+      history,
+    },
+    include: { items: true },
+  });
+
+  revalidatePath("/zangochap-manager/orders");
+  revalidatePath("/zangochap-manager/orders/to-process");
+  revalidatePath("/zangochap-manager/dashboard");
+  return { order: JSON.parse(JSON.stringify(updatedOrder)) };
+}
+
 // ============ DUPLICATE ORDER ============
 export async function duplicateOrder(orderId: string, data: any) {
   const session = await getSession();
@@ -397,10 +460,18 @@ export async function reprogramOrder(orderId: string, deliveryDate: string) {
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order || !checkOrderAccess(order, session)) throw new Error("Accès refusé");
 
+  const nextDeliveryDate = new Date(deliveryDate);
+  if (Number.isNaN(nextDeliveryDate.getTime())) {
+    throw new Error("Date de livraison invalide");
+  }
+  const nextCreatedAt = new Date(nextDeliveryDate);
+  const now = new Date();
+  nextCreatedAt.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+
   const history = Array.isArray(order.history) ? [...(order.history as any[])] : [];
   history.push({
     at: new Date().toISOString(),
-    action: `Reprogrammée pour le ${deliveryDate}`,
+    action: `Reprogrammée pour le ${deliveryDate}. Date d'enregistrement mise à jour.`,
     by: session.email,
     byName: session.name
   });
@@ -408,7 +479,8 @@ export async function reprogramOrder(orderId: string, deliveryDate: string) {
   await prisma.order.update({
     where: { id: orderId },
     data: {
-      deliveryDate: new Date(deliveryDate),
+      createdAt: nextCreatedAt,
+      deliveryDate: nextDeliveryDate,
       type: "Reprogrammé",
       status: "REPROGRAMMED",
       history
@@ -416,5 +488,10 @@ export async function reprogramOrder(orderId: string, deliveryDate: string) {
   });
 
   revalidatePath("/zangochap-manager/orders");
+  revalidatePath("/zangochap-manager/logistics");
+  revalidatePath("/zangochap-manager/logistics/packing");
+  revalidatePath("/zangochap-manager/logistics/labels");
+  revalidatePath("/zangochap-manager/admin/delivery");
+  revalidatePath("/zangochap-rider");
   return { success: true };
 }

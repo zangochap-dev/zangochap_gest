@@ -1,22 +1,24 @@
 "use client";
 
 import React, { useState, useTransition, useEffect } from "react";
-import { useCart } from "@/lib/CartContext";
+import { CartItem, useCart } from "@/lib/CartContext";
 import { formatPrice } from "@/lib/constants";
-import { Trash2, ShoppingBag, ArrowRight, MapPin, Phone, User, CheckCircle2, Minus, Plus, ShieldCheck, Truck, ChevronLeft, Tag } from "lucide-react";
+import { Trash2, ShoppingBag, ArrowRight, CheckCircle2, ShieldCheck, ChevronLeft, Tag } from "lucide-react";
 import Link from "next/link";
 import { createOrder } from "@/modules/orders/actions";
 import { getAutomaticDiscountAction } from "@/modules/products/actions";
 import { useToast } from "@/components/Toast";
-import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Commune } from "@/lib/types";
 
 export default function CartPageClient({ communes = [] }: { communes?: Commune[] }) {
-  const { cart, removeFromCart, total, clearCart } = useCart();
+  const { cart, removeFromCart, clearCart } = useCart();
   const { showToast } = useToast();
-  const router = useRouter();
+  const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
   const [orderSuccess, setOrderSuccess] = useState(false);
+  const [directItem, setDirectItem] = useState<CartItem | null>(null);
+  const isBuyNow = searchParams.get("buyNow") === "1";
 
   // Promo State
   const [discount, setDiscount] = useState<{ code: string | null, amount: number, label: string | null }>({
@@ -27,13 +29,14 @@ export default function CartPageClient({ communes = [] }: { communes?: Commune[]
 
   // Fetch automatic discount
   useEffect(() => {
-    if (cart.length > 0) {
+    const checkoutItems = directItem ? [directItem] : cart;
+    if (checkoutItems.length > 0) {
       // Small optimization: only fetch if items changed
       const fetchDiscount = async () => {
         // We need to pass productId and categoryId too (CartItem in CartContext has productId)
         // Note: categoryId might be missing in CartItem, we might need to fetch it or store it in context.
         // For now, let's assume CartItem has productId.
-        const res = await getAutomaticDiscountAction(cart.map(item => ({
+        const res = await getAutomaticDiscountAction(checkoutItems.map(item => ({
           productId: item.productId,
           price: item.price,
           qty: item.qty
@@ -44,7 +47,22 @@ export default function CartPageClient({ communes = [] }: { communes?: Commune[]
     } else {
       setDiscount({ code: null, amount: 0, label: null });
     }
-  }, [cart]);
+  }, [cart, directItem]);
+
+  useEffect(() => {
+    if (!isBuyNow) {
+      setDirectItem(null);
+      return;
+    }
+
+    const saved = sessionStorage.getItem("zangochap_buy_now");
+    if (!saved) return;
+    try {
+      setDirectItem(JSON.parse(saved));
+    } catch {
+      sessionStorage.removeItem("zangochap_buy_now");
+    }
+  }, [isBuyNow]);
 
   // Form State
   const [name, setName] = useState("");
@@ -54,11 +72,13 @@ export default function CartPageClient({ communes = [] }: { communes?: Commune[]
 
   const selectedCommuneObj = communes.find(c => c.name === commune);
   const deliveryFee = selectedCommuneObj ? selectedCommuneObj.deliveryFee : 0;
-  const grandTotal = Math.max(0, total + deliveryFee - discount.amount);
+  const checkoutItems = directItem ? [directItem] : cart;
+  const checkoutTotal = checkoutItems.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const grandTotal = Math.max(0, checkoutTotal + deliveryFee - discount.amount);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (cart.length === 0) return;
+    if (checkoutItems.length === 0) return;
     if (!name || !phone || !commune || !address) {
       showToast("Veuillez remplir tous les champs de livraison", "error");
       return;
@@ -73,9 +93,10 @@ export default function CartPageClient({ communes = [] }: { communes?: Commune[]
           commune,
           deliveryFee,
           status: 'TO_PROCESS',
+          source: 'public',
           promoCode: discount.code || undefined,
           discount: discount.amount,
-          items: cart.map(item => ({
+          items: checkoutItems.map(item => ({
             productId: item.productId,
             variantId: item.variantId,
             name: item.name,
@@ -87,7 +108,11 @@ export default function CartPageClient({ communes = [] }: { communes?: Commune[]
         });
         
         showToast("Commande validée avec succès !", "success");
-        clearCart();
+        if (directItem) {
+          sessionStorage.removeItem("zangochap_buy_now");
+        } else {
+          clearCart();
+        }
         setOrderSuccess(true);
       } catch (e: any) {
         showToast(e.message || "Erreur lors de la commande", "error");
@@ -108,7 +133,7 @@ export default function CartPageClient({ communes = [] }: { communes?: Commune[]
     );
   }
 
-  if (cart.length === 0) {
+  if (checkoutItems.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] px-6 py-20 text-center animate-[fadeUp_0.5s_ease]">
         <ShoppingBag size={56} color="#ddd" strokeWidth={1.2} />
@@ -127,13 +152,13 @@ export default function CartPageClient({ communes = [] }: { communes?: Commune[]
         </Link>
       </div>
       <h1 className="text-2xl font-light tracking-[0.2em] text-[#1A1614] mb-10 uppercase">
-        PANIER <span className="text-[#bbb]">({cart.length})</span>
+        {directItem ? "ACHAT DIRECT" : "PANIER"} <span className="text-[#bbb]">({checkoutItems.length})</span>
       </h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-[60px] items-start">
         {/* ═══ ITEMS ═══ */}
         <div className="flex flex-col gap-0">
-          {cart.map((item: any) => (
+          {checkoutItems.map((item: any) => (
             <div key={item.variantId} className="flex items-center gap-6 py-7 border-b border-[#f0f0f0]">
               <div className="w-[90px] h-[110px] bg-[#F5F3EF] flex-shrink-0 overflow-hidden">
                 {item.image ? (
@@ -153,13 +178,15 @@ export default function CartPageClient({ communes = [] }: { communes?: Commune[]
               <div className="text-[15px] font-semibold text-[#1A1614] min-w-[80px] text-right">
                 {formatPrice(item.price * item.qty)}
               </div>
-              <button 
-                className="w-9 h-9 flex items-center justify-center bg-none border border-[#f0f0f0] cursor-pointer text-[#ccc] transition-all hover:border-[#C23616] hover:text-[#C23616]" 
-                onClick={() => removeFromCart(item.variantId)} 
-                aria-label="Supprimer"
-              >
-                <Trash2 size={16} />
-              </button>
+              {!directItem && (
+                <button 
+                  className="w-9 h-9 flex items-center justify-center bg-none border border-[#f0f0f0] cursor-pointer text-[#ccc] transition-all hover:border-[#C23616] hover:text-[#C23616]" 
+                  onClick={() => removeFromCart(item.variantId)} 
+                  aria-label="Supprimer"
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -213,7 +240,7 @@ export default function CartPageClient({ communes = [] }: { communes?: Commune[]
             </div>
 
             <div className="border-t border-[#e8e8e4] pt-5 flex flex-col gap-3">
-              <div className="flex justify-between text-[13px] text-[#888] font-normal"><span>Sous-total</span><span>{formatPrice(total)}</span></div>
+              <div className="flex justify-between text-[13px] text-[#888] font-normal"><span>Sous-total</span><span>{formatPrice(checkoutTotal)}</span></div>
               <div className="flex justify-between text-[13px] text-[#888] font-normal"><span>Livraison</span><span>{deliveryFee > 0 ? formatPrice(deliveryFee) : '—'}</span></div>
               
               {discount.amount > 0 && (

@@ -2,20 +2,23 @@
 
 import React, { useState, useMemo, useCallback } from "react";
 import { formatPrice } from "@/lib/constants";
-import { ShoppingBag, ChevronLeft, ShieldCheck, Truck, RotateCcw, Minus, Plus, Check, ArrowRight } from "lucide-react";
+import { ShoppingBag, ChevronLeft, ShieldCheck, Truck, RotateCcw, Check, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { getImageUrl } from "@/lib/utils";
 import { useCart } from "@/lib/CartContext";
 import { useToast } from "@/components/Toast";
+import { useRouter } from "next/navigation";
+import PublicVariantModal from "@/components/public/PublicVariantModal";
 
 export default function ProductDetailClient({ product }: { product: any }) {
   const [selectedSize, setSelectedSize] = useState<string>("");
   const [selectedColor, setSelectedColor] = useState<string>("");
-  const [qty, setQty] = useState(1);
   const [activeImg, setActiveImg] = useState(0);
   const [added, setAdded] = useState(false);
+  const [cartModalOpen, setCartModalOpen] = useState(false);
   const { addToCart } = useCart();
   const { showToast } = useToast();
+  const router = useRouter();
 
   const availableSizes = useMemo(() => {
     return Array.from(new Set(product.variants.map((v: any) => v.size)));
@@ -38,29 +41,44 @@ export default function ProductDetailClient({ product }: { product: any }) {
     return product.variants.find((v: any) => v.size === selectedSize && v.color === selectedColor);
   }, [product.variants, selectedSize, selectedColor]);
 
-  const handleAddToCart = useCallback(() => {
-    if (!selectedSize || !selectedColor) {
-      showToast("Veuillez sélectionner une taille et une couleur", "error");
-      return;
-    }
-    if (!currentVariant) return;
+  const discount = product.oldPrice ? Math.round((1 - Number(product.price) / Number(product.oldPrice)) * 100) : 0;
 
+  const addSelectedVariant = useCallback((variant: any, quantity: number) => {
     addToCart({
       productId: product.id,
-      variantId: currentVariant.id,
+      variantId: variant.id,
       name: product.name,
-      price: product.price,
-      qty,
-      size: selectedSize,
-      color: selectedColor,
-      image: product.images?.[0]?.url
+      price: Number(product.price),
+      qty: quantity,
+      size: variant.size,
+      color: variant.color,
+      image: getImageUrl(variant.image || product.images?.[0]?.url),
     });
     setAdded(true);
-    showToast("Ajouté au panier !", "success");
+    setCartModalOpen(false);
+    showToast("Ajoute au panier !", "success");
     setTimeout(() => setAdded(false), 2500);
-  }, [selectedSize, selectedColor, currentVariant, qty, product, addToCart, showToast]);
+  }, [addToCart, product, showToast]);
 
-  const discount = product.oldPrice ? Math.round((1 - Number(product.price) / Number(product.oldPrice)) * 100) : 0;
+  const handleBuyNow = useCallback(() => {
+    const variant = product.variants.find((v: any) => /standard|unique/i.test(`${v.size} ${v.color}`)) || product.variants[0];
+    if (!variant) {
+      showToast("Aucune variante disponible pour ce produit", "error");
+      return;
+    }
+
+    sessionStorage.setItem("zangochap_buy_now", JSON.stringify({
+      productId: product.id,
+      variantId: variant.id,
+      name: product.name,
+      price: Number(product.price),
+      qty: 1,
+      size: variant.size,
+      color: variant.color,
+      image: getImageUrl(variant.image || product.images?.[0]?.url),
+    }));
+    router.push("/cart?buyNow=1");
+  }, [product, router, showToast]);
 
   return (
     <div className="max-w-[1440px] mx-auto px-4 md:px-10 py-[10px] pb-10 animate-[fadeUp_0.5s_ease] font-body w-full">
@@ -170,28 +188,30 @@ export default function ProductDetailClient({ product }: { product: any }) {
                     {currentVariant.stock <= 3 ? `⚠ Plus que ${currentVariant.stock} en stock` : `✓ En stock`}
                   </span>
                 ) : (
-                  <span className="text-[#C23616]">✕ Rupture de stock</span>
+                  <span className="text-[#C23616]">Rupture en stock - commande possible</span>
                 )}
               </div>
             )}
 
-            {/* QTY + ADD */}
+            {/* PURCHASE ACTIONS */}
             <div className="flex flex-col sm:flex-row gap-3 mb-8">
-              <div className="flex items-center border border-[#e0e0e0] h-[52px]">
-                <button className="w-11 h-full flex items-center justify-center text-[#1A1614] transition-colors hover:bg-[#f5f5f5]" onClick={() => setQty(Math.max(1, qty - 1))} aria-label="Moins"><Minus size={16} /></button>
-                <span className="w-9 text-center font-semibold text-[15px] border-x border-[#e0e0e0] h-full flex items-center justify-center">{qty}</span>
-                <button className="w-11 h-full flex-shrink-0 flex items-center justify-center text-[#1A1614] transition-colors hover:bg-[#f5f5f5]" onClick={() => setQty(qty + 1)} aria-label="Plus"><Plus size={16} /></button>
-              </div>
               <button 
                 className={`flex-1 h-[52px] text-white text-[12px] font-semibold tracking-[0.15em] flex items-center justify-center gap-2.5 transition-all duration-350 ease-out active:scale-95 ${added ? 'bg-[#2D8A4E]' : 'bg-[#1A1614] hover:bg-[#333] hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0'}`} 
-                onClick={handleAddToCart} 
-                disabled={!currentVariant}
+                onClick={() => setCartModalOpen(true)}
+                disabled={!product.variants.length}
               >
                 {added ? (
                   <><Check size={18} /> AJOUTÉ</>
                 ) : (
                   <><ShoppingBag size={18} /> AJOUTER AU PANIER</>
                 )}
+              </button>
+              <button
+                className="flex-1 h-[52px] bg-[#D4541C] text-white text-[12px] font-semibold tracking-[0.15em] flex items-center justify-center gap-2.5 transition-all duration-350 hover:bg-[#B33D0E] hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50"
+                onClick={handleBuyNow}
+                disabled={!product.variants.length}
+              >
+                <ArrowRight size={18} /> ACHETER
               </button>
             </div>
 
@@ -225,6 +245,11 @@ export default function ProductDetailClient({ product }: { product: any }) {
           </div>
         </div>
       </div>
+      <PublicVariantModal
+        product={cartModalOpen ? product : null}
+        onClose={() => setCartModalOpen(false)}
+        onConfirm={addSelectedVariant}
+      />
     </div>
 
   );

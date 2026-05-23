@@ -24,6 +24,7 @@ export interface RiderOrder {
   commune?: string | null;
   total: number;
   deliveryFee: number;
+  amountReceived?: number | null;
   deliveryNote?: string | null;
   notes?: string | null;
   deliveryDate?: string | null;

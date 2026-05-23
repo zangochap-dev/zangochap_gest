@@ -4,7 +4,8 @@ import React, { useState } from "react";
 import Modal from "@/components/Modal";
 import { PackingProductVariant, ProductWithVariants } from "../types";
 import { getProductVariantsById, updateProductVariantStockLevels } from "@/modules/products/actions/actions";
-import { AlertTriangle, MapPin, Minus, Plus, RefreshCw, Warehouse } from "lucide-react";
+import { getMediaFiles, uploadMediaFile } from "@/modules/media/actions";
+import { AlertTriangle, Image as ImageIcon, MapPin, Minus, Plus, RefreshCw, Search, Upload, Warehouse, X } from "lucide-react";
 import { getImageUrl } from "@/lib/utils";
 
 type EditableStockLevel = {
@@ -17,6 +18,13 @@ type EditableStockLevel = {
 
 type EditableVariant = Omit<PackingProductVariant, "stockLevels"> & {
   stockLevels: EditableStockLevel[];
+};
+
+type MediaFile = {
+  name: string;
+  url: string;
+  size: number;
+  createdAt: string | Date;
 };
 
 interface VariantsEditorModalProps {
@@ -57,6 +65,10 @@ export default function VariantsEditorModal({ product, variants: initialVariants
   const [lowStockThreshold, setLowStockThreshold] = useState(product.lowStockThreshold || 5);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
+  const [galleryVariantIndex, setGalleryVariantIndex] = useState<number | null>(null);
+  const [gallerySearch, setGallerySearch] = useState("");
+  const [uploadingVariantIndex, setUploadingVariantIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   React.useEffect(() => {
@@ -76,6 +88,12 @@ export default function VariantsEditorModal({ product, variants: initialVariants
       .finally(() => {
         if (active) setIsLoading(false);
       });
+
+    getMediaFiles()
+      .then((files) => {
+        if (active) setMediaFiles(files as MediaFile[]);
+      })
+      .catch(() => undefined);
 
     return () => {
       active = false;
@@ -108,6 +126,60 @@ export default function VariantsEditorModal({ product, variants: initialVariants
     }));
   };
 
+  const updateVariantImage = (variantIndex: number, image: string) => {
+    setVariants((current) => current.map((variant, currentVariantIndex) => (
+      currentVariantIndex === variantIndex ? { ...variant, image } : variant
+    )));
+  };
+
+  const handleVariantImageUpload = (variantIndex: number, file: File) => {
+    if (!file.type.startsWith("image/")) {
+      setError("Seules les images sont autorisees.");
+      return;
+    }
+
+    const reader = new FileReader();
+    setUploadingVariantIndex(variantIndex);
+    setError(null);
+
+    reader.onload = async (event) => {
+      try {
+        const dataUrl = String(event.target?.result || "");
+        const result = await uploadMediaFile(dataUrl, file.name);
+
+        if (!result.success || !result.url) {
+          setError(result.error || "Erreur lors de l'upload de l'image.");
+          return;
+        }
+
+        const uploaded: MediaFile = {
+          name: result.url.split("/").pop() || file.name,
+          url: result.url,
+          size: file.size,
+          createdAt: new Date(),
+        };
+
+        setMediaFiles((current) => [uploaded, ...current]);
+        updateVariantImage(variantIndex, result.url);
+      } catch {
+        setError("Erreur lors de l'upload de l'image.");
+      } finally {
+        setUploadingVariantIndex(null);
+      }
+    };
+
+    reader.onerror = () => {
+      setUploadingVariantIndex(null);
+      setError("Erreur lors de la lecture de l'image.");
+    };
+
+    reader.readAsDataURL(file);
+  };
+
+  const filteredMediaFiles = React.useMemo(() => (
+    mediaFiles.filter((file) => file.name.toLowerCase().includes(gallerySearch.toLowerCase()))
+  ), [gallerySearch, mediaFiles]);
+
   const totalQty = variants.reduce(
     (sum, variant) => sum + variant.stockLevels.reduce((levelSum, level) => levelSum + level.quantity, 0),
     0,
@@ -124,6 +196,7 @@ export default function VariantsEditorModal({ product, variants: initialVariants
           id: variant.id,
           size: variant.size,
           color: variant.color,
+          image: variant.image || null,
           stock: variant.stock,
           location: variant.location || undefined,
           stockLevels: variant.stockLevels.map((level) => ({
@@ -216,6 +289,15 @@ export default function VariantsEditorModal({ product, variants: initialVariants
           {variants.map((variant, variantIndex) => (
             <div key={variant.id || `${variant.size}-${variant.color}-${variantIndex}`} className="variant-edit-card">
               <div className="v-card-header">
+                <div style={{ width: 42, height: 48, borderRadius: 8, overflow: "hidden", background: "var(--cream-2)", border: "1px solid var(--border)", flexShrink: 0 }}>
+                  {variant.image ? (
+                    <img src={getImageUrl(variant.image)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  ) : product.images?.[0] ? (
+                    <img src={getImageUrl(product.images[0].url)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.45 }} />
+                  ) : (
+                    <span style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 10, fontWeight: 900, color: "var(--muted)" }}>IMG</span>
+                  )}
+                </div>
                 <span className="v-card-tag">{variant.size}</span>
                 <span className="v-card-color-name">{variant.color}</span>
                 <span className="variant-total-pill">
@@ -224,6 +306,45 @@ export default function VariantsEditorModal({ product, variants: initialVariants
               </div>
 
               <div className="v-card-controls">
+                <div className="stock-level-editor" data-first="true">
+                  <div className="stock-level-warehouse">
+                    <ImageIcon size={14} className="text-orange" />
+                    <span>Image de la variante</span>
+                  </div>
+                  <div style={{ display: "grid", gap: 8 }}>
+                    <input
+                      type="text"
+                      value={variant.image || ""}
+                      onChange={(event) => updateVariantImage(variantIndex, event.target.value)}
+                      placeholder="URL image ou selection galerie"
+                      className="field-input"
+                    />
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <label className="btn-secondary" style={{ cursor: uploadingVariantIndex === variantIndex ? "not-allowed" : "pointer" }}>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          disabled={uploadingVariantIndex === variantIndex}
+                          style={{ display: "none" }}
+                          onChange={(event) => {
+                            const file = event.target.files?.[0];
+                            if (file) handleVariantImageUpload(variantIndex, file);
+                            event.target.value = "";
+                          }}
+                        />
+                        <Upload size={14} /> {uploadingVariantIndex === variantIndex ? "Upload..." : "Uploader"}
+                      </label>
+                      <button type="button" className="btn-secondary" onClick={() => setGalleryVariantIndex(variantIndex)}>
+                        <ImageIcon size={14} /> Galerie
+                      </button>
+                      {variant.image && (
+                        <button type="button" className="btn-secondary" onClick={() => updateVariantImage(variantIndex, "")}>
+                          <X size={14} /> Retirer
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
                 {variant.stockLevels.map((level, stockLevelIndex) => (
                   <div
                     key={level.id || `${level.warehouseName}-${stockLevelIndex}`}
@@ -266,6 +387,51 @@ export default function VariantsEditorModal({ product, variants: initialVariants
               </div>
             </div>
           ))}
+        </div>
+      )}
+      {galleryVariantIndex !== null && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 3000, background: "rgba(26,20,16,0.52)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ width: "min(900px, 100%)", maxHeight: "84vh", background: "#fff", borderRadius: 12, overflow: "hidden", display: "grid", gridTemplateRows: "auto auto minmax(0, 1fr)", boxShadow: "0 24px 80px rgba(0,0,0,0.25)" }}>
+            <div style={{ padding: 18, borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+              <div>
+                <div className="table-title">Choisir une image de variante</div>
+                <div className="table-meta">{filteredMediaFiles.length} image(s)</div>
+              </div>
+              <button className="btn-secondary" onClick={() => setGalleryVariantIndex(null)}>
+                <X size={14} /> Fermer
+              </button>
+            </div>
+            <div style={{ margin: 14, height: 42, border: "1px solid var(--border)", borderRadius: 8, display: "flex", alignItems: "center", gap: 10, padding: "0 12px", color: "var(--muted)" }}>
+              <Search size={16} />
+              <input
+                value={gallerySearch}
+                onChange={(event) => setGallerySearch(event.target.value)}
+                placeholder="Rechercher dans la galerie..."
+                style={{ flex: 1, border: "none", outline: "none", color: "var(--ink)", fontSize: 13 }}
+              />
+            </div>
+            <div style={{ padding: "0 14px 14px", overflowY: "auto", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 10 }}>
+              {filteredMediaFiles.map((file) => (
+                <button
+                  key={file.url}
+                  type="button"
+                  onClick={() => {
+                    updateVariantImage(galleryVariantIndex, file.url);
+                    setGalleryVariantIndex(null);
+                  }}
+                  style={{ border: "1px solid var(--border)", borderRadius: 8, background: "#fff", overflow: "hidden", padding: 0, cursor: "pointer", textAlign: "left" }}
+                >
+                  <img src={file.url} alt={file.name} style={{ width: "100%", aspectRatio: "1 / 1", objectFit: "cover", display: "block" }} />
+                  <span style={{ display: "block", padding: 8, fontSize: 10, fontWeight: 800, color: "var(--muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{file.name}</span>
+                </button>
+              ))}
+              {filteredMediaFiles.length === 0 && (
+                <div style={{ gridColumn: "1 / -1", padding: 28, textAlign: "center", color: "var(--muted)", border: "1px dashed var(--border)", borderRadius: 8 }}>
+                  Aucune image trouvee.
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </Modal>

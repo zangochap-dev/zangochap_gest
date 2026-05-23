@@ -344,11 +344,21 @@ export default function OrdersClient({
       queryClient.setQueryData(["orders", queryKey[1]], (old: any) => {
         if (!old) return old;
 
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(0, 0, 0, 0);
+
         return {
           ...old,
 
           orders: old.orders.map((o: any) =>
-            o.id === orderId ? { ...o, status } : o,
+            o.id === orderId
+              ? {
+                ...o,
+                status,
+                ...(status === "REPRO_DISPO" ? { createdAt: tomorrow, deliveryDate: tomorrow } : {}),
+              }
+              : o,
           ),
         };
       });
@@ -507,12 +517,13 @@ export default function OrdersClient({
       queryClient.setQueryData(["orders", queryKey[1]], (old: any) => {
         if (!old) return old;
 
+        const nextDate = new Date(deliveryDate);
         return {
           ...old,
 
           orders: old.orders.map((o: any) =>
             o.id === orderId
-              ? { ...o, deliveryDate: new Date(deliveryDate) }
+              ? { ...o, createdAt: nextDate, deliveryDate: nextDate }
               : o,
           ),
         };

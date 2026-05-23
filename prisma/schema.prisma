@@ -218,6 +218,7 @@ model ProductVariant {
   id             String          @id @default(cuid())
   size           String
   color          String
+  image          String?         @db.Text
   stock          Int             @default(0) // Stock global (somme des StockLevels)
   location       String? // Emplacement par défaut
   product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -251,7 +252,7 @@ model StockLevel {
 
 model Order {
   id               String      @id @default(cuid())
-  ref              String      @unique
+  ref              String?     @unique
   deletedAt        DateTime?
   customerName     String
   customerPhone    String
@@ -285,6 +286,7 @@ model Order {
   deliverymanName  String?
   deliveredAt      String? // ISO string for simple display
   paymentMethod    String? // MTN, Orange, Wave, etc.
+  amountReceived   Int?
 
   settlement   Settlement? @relation("OrderSettlement", fields: [settlementId], references: [id])
   settlementId String?
@@ -399,4 +401,12 @@ model Commune {
   deliveryFee Int      @default(0)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
+}
+
+model CmsContent {
+  key       String   @id
+  data      Json
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
 }

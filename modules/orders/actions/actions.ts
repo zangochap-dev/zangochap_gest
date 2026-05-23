@@ -47,10 +47,11 @@ export async function updateOrderDetails(orderId: string, data: any) { return or
 export async function addOrderHistoryEntry(orderId: string, action: string) { return orderActions.addOrderHistoryEntry(orderId, action); }
 export async function duplicateOrder(orderId: string, data: any) { return orderActions.duplicateOrder(orderId, data); }
 export async function reprogramOrder(orderId: string, deliveryDate: string) { return orderActions.reprogramOrder(orderId, deliveryDate); }
+export async function takeToProcessOrder(orderId: string, commercialId?: string) { return orderActions.takeToProcessOrder(orderId, commercialId); }
 
 // ── Status Changes ──
-export async function updateOrderStatus(orderId: string, newStatus: string, note?: string) { return statusActions.updateOrderStatus(orderId, newStatus, note); }
-export async function markPartialDelivery(orderId: string, deliveredQuantities: Record<string, number>, note?: string, includeDeliveryFee?: boolean) { return statusActions.markPartialDelivery(orderId, deliveredQuantities, note, includeDeliveryFee); }
+export async function updateOrderStatus(orderId: string, newStatus: string, note?: string, amountReceived?: number | null) { return statusActions.updateOrderStatus(orderId, newStatus, note, amountReceived); }
+export async function markPartialDelivery(orderId: string, deliveredQuantities: Record<string, number>, note?: string, includeDeliveryFee?: boolean, amountReceived?: number | null) { return statusActions.markPartialDelivery(orderId, deliveredQuantities, note, includeDeliveryFee, amountReceived); }
 
 // ── Delivery Assignments ──
 export async function assignOrderToDeliveryman(orderId: string, deliverymanId: string) { return deliveryActions.assignOrderToDeliveryman(orderId, deliverymanId); }

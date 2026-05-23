@@ -71,7 +71,7 @@ export default async function DeliveryPage() {
 
     return {
       id: o.id,
-      ref: o.ref,
+      ref: o.ref || o.id,
       customerName: o.customerName,
       customerPhone: o.customerPhone,
       customerPhone2: o.customerPhone2,
@@ -79,6 +79,7 @@ export default async function DeliveryPage() {
       commune: o.commune,
       total: Number(o.total),
       deliveryFee: Number(o.deliveryFee),
+      amountReceived: o.amountReceived ?? null,
       discount: Number(o.discount || 0),
       deliveryNote: o.deliveryNote,
       notes: o.notes,

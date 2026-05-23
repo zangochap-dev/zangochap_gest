@@ -25,7 +25,13 @@ export default async function SettlementsPage({ searchParams }: SettlementsPageP
   return (
     <div className="admin-page">
       <SettlementsClient
-        initialStats={stats}
+        initialStats={{
+          ...stats,
+          orders: stats.orders.map((order) => ({
+            ...order,
+            ref: order.ref || "Sans reference",
+          })),
+        }}
         initialFrom={from}
         initialTo={to}
         commercials={commercials}

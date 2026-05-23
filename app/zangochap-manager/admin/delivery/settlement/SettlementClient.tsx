@@ -89,7 +89,7 @@ export default function SettlementClient({
       return;
     }
 
-    const total = deliverableOrders.reduce((s: number, o: any) => s + (o.total + o.deliveryFee - (o.discount || 0)), 0);
+    const total = deliverableOrders.reduce((s: number, o: any) => s + (o.amountReceived ?? (o.total + o.deliveryFee - (o.discount || 0))), 0);
     const name = orders[0]?.deliverymanName || "Livreur";
 
     if (!confirm(`Valider l'encaissement de ${formatPrice(total)} de ${name} ?`)) return;
@@ -310,7 +310,7 @@ export default function SettlementClient({
                         <div className="meta">{o.paymentMethod} • Livraison: {formatPrice(o.deliveryFee)}</div>
                       </div>
                       <div className="order-price">
-                        <div className="total">{formatPrice(o.total + o.deliveryFee - (o.discount || 0))}</div>
+                        <div className="total">{formatPrice(o.amountReceived ?? (o.total + o.deliveryFee - (o.discount || 0)))}</div>
                         <div className="prod">Prod: {formatPrice(o.total - (o.discount || 0))}</div>
                       </div>
                     </div>

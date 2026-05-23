@@ -164,7 +164,7 @@ export default function DeliveryClient({
   const handleUpdateItemQty = useCallback((id: string, qty: number) => { setDeliveredQuantities((prev) => ({ ...prev, [id]: qty })); }, []);
   const handleUpdateReturnReason = useCallback((id: string, reason: string) => { setReturnReasons((prev) => ({ ...prev, [id]: reason })); }, []);
 
-  const executeStatusUpdate = useCallback((id: string, status: string, reason?: string) => {
+  const executeStatusUpdate = useCallback((id: string, status: string, reason?: string, amountReceived?: number) => {
     const normalizedStatus = status.toUpperCase();
     if (["RETURNED", "CANCELLED", "REPRO_DISPO"].includes(normalizedStatus) && !reason?.trim()) {
       setStatusReasonRequest({
@@ -179,10 +179,23 @@ export default function DeliveryClient({
       return;
     }
 
-    setLocalOrders(prev => prev.map(o => o.id === id ? { ...o, status: status as RiderOrder["status"], returnReason: reason || o.returnReason, updatedAt: new Date().toISOString() } : o));
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+    const tomorrowIso = tomorrow.toISOString();
+
+    setLocalOrders(prev => prev.map(o => o.id === id ? {
+      ...o,
+      status: status as RiderOrder["status"],
+      amountReceived: normalizedStatus === "DELIVERED" && amountReceived !== undefined ? amountReceived : o.amountReceived,
+      createdAt: normalizedStatus === "REPRO_DISPO" ? tomorrowIso : o.createdAt,
+      deliveryDate: normalizedStatus === "REPRO_DISPO" ? tomorrowIso : o.deliveryDate,
+      returnReason: reason || o.returnReason,
+      updatedAt: new Date().toISOString()
+    } : o));
     startTransition(async () => {
       try {
-        await updateOrderStatus(id, status, reason);
+        await updateOrderStatus(id, status, reason, amountReceived);
         showToast("Statut mis à jour ✓", "success");
         setStatusReasonRequest(null);
         setSelectedOrder(null);
@@ -199,7 +212,7 @@ export default function DeliveryClient({
     month: "long",
   }).format(new Date());
 
-  const handlePartialConfirm = useCallback(() => {
+  const handlePartialConfirm = useCallback((amountReceived?: number) => {
     if (!selectedOrder) return;
     const hasItems = Object.values(deliveredQuantities).some((qty) => qty > 0);
     if (!hasItems) return showToast("Sélectionnez au moins un article", "error");
@@ -220,10 +233,15 @@ export default function DeliveryClient({
     });
     const aggregatedNote = noteParts.length > 0 ? "Motifs spécifiques : " + noteParts.join(" | ") : undefined;
 
-    setLocalOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, status: 'PARTIALLY_DELIVERED', updatedAt: new Date().toISOString() } : o));
+    setLocalOrders(prev => prev.map(o => o.id === selectedOrder.id ? {
+      ...o,
+      status: 'PARTIALLY_DELIVERED',
+      amountReceived: amountReceived ?? o.amountReceived,
+      updatedAt: new Date().toISOString()
+    } : o));
     startTransition(async () => {
       try {
-        await markPartialDelivery(selectedOrder.id, deliveredQuantities, aggregatedNote, includeDeliveryFee);
+        await markPartialDelivery(selectedOrder.id, deliveredQuantities, aggregatedNote, includeDeliveryFee, amountReceived);
         showToast("Livraison partielle enregistrée", "success");
         setSelectedOrder(null); router.refresh();
       } catch (e: unknown) {
@@ -351,7 +369,7 @@ export default function DeliveryClient({
             returnReasons={returnReasons}
             updateReturnReason={handleUpdateReturnReason}
             partialSummary={partialSummary}
-            onStatusUpdate={executeStatusUpdate}
+            onStatusUpdate={(id, status, amountReceived) => executeStatusUpdate(id, status, undefined, amountReceived)}
             onPartialConfirm={handlePartialConfirm}
             isPending={isPending}
           />

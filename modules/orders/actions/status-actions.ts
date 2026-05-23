@@ -3,7 +3,7 @@
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/modules/auth/actions";
-import { checkOrderAccess } from "../helpers";
+import { checkOrderAccess, generateUniqueRef } from "../helpers";
 import { decrementStockForOrder, restoreStockForOrder, restoreStockForOrderItem } from "./stock";
 
 type UpdateOrderStatusResult = {
@@ -11,8 +11,17 @@ type UpdateOrderStatusResult = {
   order: any;
 };
 
+function normalizeAmountReceived(amountReceived?: number | null) {
+  if (amountReceived === undefined || amountReceived === null) return undefined;
+  const amount = Math.trunc(Number(amountReceived));
+  if (!Number.isFinite(amount) || amount < 0) {
+    throw new Error("Montant reçu invalide.");
+  }
+  return amount;
+}
+
 // ============ UPDATE ORDER STATUS ============
-export async function updateOrderStatus(orderId: string, newStatus: string, note?: string): Promise<UpdateOrderStatusResult> {
+export async function updateOrderStatus(orderId: string, newStatus: string, note?: string, amountReceived?: number | null): Promise<UpdateOrderStatusResult> {
   const session = await getSession();
   if (!session) throw new Error("Non authentifié");
 
@@ -45,6 +54,7 @@ export async function updateOrderStatus(orderId: string, newStatus: string, note
     'PREPARING': 'En préparation'
   };
 
+  const normalizedStatus = newStatus.toUpperCase();
   const history = Array.isArray(order.history) ? [...(order.history as any[])] : [];
   history.push({
     at: new Date().toISOString(),
@@ -61,12 +71,21 @@ export async function updateOrderStatus(orderId: string, newStatus: string, note
     });
   }
 
+  const normalizedAmountReceived = normalizeAmountReceived(amountReceived);
+  if (normalizedStatus === 'DELIVERED' && normalizedAmountReceived !== undefined) {
+    history.push({
+      at: new Date().toISOString(),
+      action: `Montant reçu livreur: ${normalizedAmountReceived} F`,
+      by: session.email,
+      byName: session.name,
+    });
+  }
+
   const updateData: any = {
-    status: newStatus.toUpperCase(),
+    status: normalizedStatus,
     history,
   };
 
-  const normalizedStatus = newStatus.toUpperCase();
   if (['RETURNED', 'CANCELLED', 'REPRO_DISPO'].includes(normalizedStatus) && !note?.trim()) {
     throw new Error("Un motif est obligatoire pour clôturer cette livraison.");
   }
@@ -74,10 +93,14 @@ export async function updateOrderStatus(orderId: string, newStatus: string, note
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   tomorrow.setHours(0, 0, 0, 0);
+  const tomorrowCreatedAt = new Date(tomorrow);
+  const now = new Date();
+  tomorrowCreatedAt.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
   let updatedOrder: any = null;
 
   await prisma.$transaction(async (tx) => {
     if (normalizedStatus === 'REPRO_DISPO') {
+      updateData.createdAt = tomorrowCreatedAt;
       updateData.deliveryDate = tomorrow;
       updateData.deliverymanId = null;
       updateData.deliverymanName = null;
@@ -88,6 +111,18 @@ export async function updateOrderStatus(orderId: string, newStatus: string, note
       updateData.packedBy = session.email;
       updateData.packedByName = session.name;
       updateData.packedAt = new Date();
+    }
+
+    if (normalizedStatus === 'CONFIRMED') {
+      updateData.confirmedAt = order.confirmedAt || new Date();
+      updateData.confirmedByName = session.name;
+      if (!order.ref) {
+        updateData.ref = await generateUniqueRef(order.commune || undefined, order.type || undefined);
+      }
+    }
+
+    if (normalizedStatus === 'DELIVERED' && normalizedAmountReceived !== undefined) {
+      updateData.amountReceived = normalizedAmountReceived;
     }
 
     if (normalizedStatus === 'PACKED') {
@@ -131,7 +166,7 @@ export async function updateOrderStatus(orderId: string, newStatus: string, note
 }
 
 // ============ PARTIAL DELIVERY ============
-export async function markPartialDelivery(orderId: string, deliveredQuantities: Record<string, number>, note?: string, includeDeliveryFee: boolean = true) {
+export async function markPartialDelivery(orderId: string, deliveredQuantities: Record<string, number>, note?: string, includeDeliveryFee: boolean = true, amountReceived?: number | null) {
   const session = await getSession();
   if (!session) throw new Error("Non authentifié");
 
@@ -168,6 +203,7 @@ export async function markPartialDelivery(orderId: string, deliveredQuantities: 
   }
 
   const history = Array.isArray(order.history) ? [...(order.history as any[])] : [];
+  const normalizedAmountReceived = normalizeAmountReceived(amountReceived);
 
   // Log original quantities for audit trail before any modification
   const originalQties = order.items.map((i: any) => `${i.name}(${i.size}/${i.color}): ${i.qty}`).join(', ');
@@ -249,6 +285,14 @@ export async function markPartialDelivery(orderId: string, deliveredQuantities: 
   }
 
   const finalDeliveryFee = includeDeliveryFee ? order.deliveryFee : 0;
+  const expectedAmount = Math.max(0, newSubtotal + finalDeliveryFee - (order.discount || 0));
+  const finalAmountReceived = normalizedAmountReceived ?? expectedAmount;
+  history.push({
+    at: new Date().toISOString(),
+    action: `Montant reçu livreur: ${finalAmountReceived} F`,
+    by: session.email,
+    byName: session.name,
+  });
 
   await prisma.order.update({
     where: { id: orderId },
@@ -256,6 +300,7 @@ export async function markPartialDelivery(orderId: string, deliveredQuantities: 
       status: 'PARTIALLY_DELIVERED',
       total: newSubtotal,
       deliveryFee: finalDeliveryFee,
+      amountReceived: finalAmountReceived,
       history,
     }
   });

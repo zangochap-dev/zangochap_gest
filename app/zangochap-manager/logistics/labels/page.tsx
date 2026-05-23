@@ -14,5 +14,8 @@ export default async function LabelsPage() {
     role: session?.role || "admin",
   };
 
-  return <LabelsClient initialOrders={orders} currentUser={currentUser} />;
+  return <LabelsClient initialOrders={orders.map((order) => ({
+    ...order,
+    ref: order.ref || "Sans reference",
+  }))} currentUser={currentUser} />;
 }

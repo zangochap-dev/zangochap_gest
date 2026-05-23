@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import prisma from "@/lib/prisma";
 import PublicLayout from "@/components/public/PublicLayout";
 import HomeClient from "./HomeClient";
+import { getHomeCmsContent } from "@/modules/cms/actions";
 import {
   SITE_NAME,
   SITE_URL,
@@ -73,7 +74,7 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const products = await prisma.product.findMany({
+  const productsPromise = prisma.product.findMany({
     where: { 
       status: 'PUBLISHED',
       category: {
@@ -82,19 +83,26 @@ export default async function HomePage() {
         }
       }
     },
-    include: { images: true, category: true },
+    include: { images: true, category: true, variants: true },
     orderBy: { createdAt: 'desc' },
     take: 40
   });
 
-  const categories = await prisma.category.findMany({
+  const categoriesPromise = prisma.category.findMany({
     include: { _count: { select: { products: true } } }
   });
 
-  const latestPromo = await prisma.promoCode.findFirst({
+  const latestPromoPromise = prisma.promoCode.findFirst({
     where: { isActive: true },
     orderBy: { createdAt: 'desc' }
   });
+
+  const [products, categories, latestPromo, homeCms] = await Promise.all([
+    productsPromise,
+    categoriesPromise,
+    latestPromoPromise,
+    getHomeCmsContent(),
+  ]);
 
   // JSON-LD Structured Data
   const organizationSchema = getOrganizationSchema();
@@ -134,6 +142,7 @@ export default async function HomePage() {
         products={JSON.parse(JSON.stringify(products))} 
         categories={JSON.parse(JSON.stringify(categories))}
         latestPromo={JSON.parse(JSON.stringify(latestPromo))}
+        cms={homeCms}
       />
     </PublicLayout>
   );

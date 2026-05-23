@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { X, RefreshCcw, Save, Sparkles, Warehouse, Check, ChevronsUpDown, Plus } from "lucide-react";
+import { X, RefreshCcw, Save, Sparkles, Warehouse, Check, ChevronsUpDown, Plus, Image as ImageIcon, Upload } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -126,6 +126,7 @@ type ProductFormVariant = {
   id?: string;
   size: string;
   color: string;
+  image?: string;
   stock: number;
   location: string;
 };
@@ -162,6 +163,7 @@ export default function ProductForm({
     id: v.id,
     size: v.size || '',
     color: v.color || '',
+    image: v.image || '',
     stock: Math.max(0, Number(v.stock) || 0),
     location: v.location || v.stockLevels?.find((level) => level.position)?.position || ''
   }));
@@ -255,7 +257,7 @@ export default function ProductForm({
         const key = `${size.toLowerCase()}|${color.toLowerCase()}`;
         if (!existing.has(key)) {
           existing.add(key);
-          added.push({ size, color, stock: 0, location: '' });
+          added.push({ size, color, image: '', stock: 0, location: '' });
         }
       });
     });
@@ -286,7 +288,7 @@ export default function ProductForm({
         const key = `${s.trim().toLowerCase()}|${c.trim().toLowerCase()}`;
         if (!existing.has(key)) {
           existing.add(key);
-          newVariants.push({ size: s, color: c, stock: 0, location: '' });
+          newVariants.push({ size: s, color: c, image: '', stock: 0, location: '' });
           addedCount++;
         }
       });
@@ -306,6 +308,20 @@ export default function ProductForm({
       [field]: field === 'stock' ? Math.max(0, parseInt(value) || 0) : value
     };
     setVariants(newVariants);
+  };
+
+  const handleVariantImageUpload = async (idx: number, file: File) => {
+    if (!file.type.startsWith('image/')) {
+      showToast("Seules les images sont autorisees", "error");
+      return;
+    }
+
+    try {
+      const optimizedDataUrl = await compressImage(file);
+      updateVariant(idx, 'image', optimizedDataUrl);
+    } catch {
+      showToast("Erreur lors de l'image variante", "error");
+    }
   };
 
   const removeVariant = (idx: number) => {
@@ -334,13 +350,13 @@ export default function ProductForm({
           const key = `${size.toLowerCase()}|${color.toLowerCase()}`;
           if (!existing.has(key)) {
             existing.add(key);
-            finalVariants.push({ size, color, stock: 0, location: '' });
+            finalVariants.push({ size, color, image: '', stock: 0, location: '' });
           }
         });
       });
     }
     if (finalVariants.length === 0 && !initialData) {
-      finalVariants = [{ size: 'Standard', color: 'Standard', stock: 0, location: '' }];
+      finalVariants = [{ size: 'Standard', color: 'Standard', image: '', stock: 0, location: '' }];
     }
     if (finalVariants.some(v => !v.size || !v.color)) {
       showToast("Chaque variante doit avoir une taille et une couleur", "error");
@@ -608,6 +624,7 @@ export default function ProductForm({
                     <table className="w-full text-left text-sm border-collapse">
                       <thead className="bg-[#FAF6F1] border-b border-[#E8DDD0]">
                         <tr>
+                          <th className="px-4 py-3 text-[10px] font-black uppercase text-[#6B4838] tracking-widest w-32">Image</th>
                           <th className="px-4 py-3 text-[10px] font-black uppercase text-[#6B4838] tracking-widest">Variante</th>
                           <th className="px-4 py-3 text-[10px] font-black uppercase text-[#6B4838] tracking-widest text-center w-24">Stock</th>
                           <th className="px-4 py-3 text-[10px] font-black uppercase text-[#6B4838] tracking-widest">Emplacement</th>
@@ -617,6 +634,41 @@ export default function ProductForm({
                       <tbody className="divide-y divide-[#F8F5F2]">
                         {variants.map((v, idx) => (
                           <tr key={idx} className="hover:bg-[#FDFCFB] transition-colors">
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <div className="w-12 h-14 rounded-md overflow-hidden bg-[#FAF6F1] border border-[#E8DDD0] flex items-center justify-center shrink-0">
+                                  {v.image ? (
+                                    <img src={getImageUrl(v.image)} alt="" className="w-full h-full object-cover" />
+                                  ) : (
+                                    <ImageIcon size={18} className="text-[#C8B8AA]" />
+                                  )}
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                  <label className="text-[10px] font-black text-[#D4541C] cursor-pointer inline-flex items-center gap-1 hover:text-[#1A1410] transition-colors">
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      className="hidden"
+                                      onChange={(event) => {
+                                        const file = event.target.files?.[0];
+                                        if (file) handleVariantImageUpload(idx, file);
+                                        event.target.value = "";
+                                      }}
+                                    />
+                                    <Upload size={12} /> Image
+                                  </label>
+                                  {v.image && (
+                                    <button
+                                      type="button"
+                                      onClick={() => updateVariant(idx, 'image', '')}
+                                      className="text-left text-[10px] font-bold text-[#8A7A6D] hover:text-[#C73E1D]"
+                                    >
+                                      Retirer
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
                             <td className="px-4 py-3">
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                 <input
@@ -662,6 +714,7 @@ export default function ProductForm({
                       </tbody>
                       <tfoot className="bg-[#FDFCFB] border-t border-[#E8DDD0]">
                         <tr>
+                          <td className="px-4 py-3"></td>
                           <td className="px-4 py-3 font-bold text-[11px] text-[#6B4838] uppercase">Total cumulé</td>
                           <td className="px-4 py-3 text-center text-lg font-black text-[#D4541C]">{variants.reduce((s, v) => s + v.stock, 0)}</td>
                           <td colSpan={2}></td>

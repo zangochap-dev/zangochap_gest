@@ -41,7 +41,7 @@ export async function getSettlementHistory() {
       by: true,
       createdAt: true,
       deliveryman: { select: { name: true } },
-      orders: { select: { id: true, ref: true, customerName: true, total: true, deliveryFee: true, discount: true } },
+      orders: { select: { id: true, ref: true, customerName: true, total: true, deliveryFee: true, discount: true, amountReceived: true } },
     },
     orderBy: { createdAt: 'desc' },
     take: 50,
@@ -70,7 +70,9 @@ export async function createSettlement(deliverymanId: string, orderIds: string[]
 
   const productsAmount = orders.reduce((sum, o) => sum + Math.max(0, Number(o.total || 0) - Number(o.discount || 0)), 0);
   const deliveryFeesAmount = orders.reduce((sum, o) => sum + Number(o.deliveryFee || 0), 0);
-  const computedAmount = productsAmount + deliveryFeesAmount;
+  const computedAmount = orders.reduce((sum, o) => (
+    sum + (o.amountReceived ?? Math.max(0, Number(o.total || 0) + Number(o.deliveryFee || 0) - Number(o.discount || 0)))
+  ), 0);
 
   const settlement = await prisma.settlement.create({
     data: {
@@ -124,6 +126,7 @@ export async function getSettlementStats(from?: string, to?: string, commercialI
       total: true,
       deliveryFee: true,
       discount: true,
+      amountReceived: true,
       paymentMethod: true,
       customerName: true,
       createdAt: true,
@@ -185,6 +188,7 @@ export async function getRiderSettlementStats(from?: string, to?: string, riderI
       total: true,
       deliveryFee: true,
       discount: true,
+      amountReceived: true,
       paymentMethod: true,
       customerName: true,
       updatedAt: true,
@@ -233,13 +237,14 @@ export async function getRiderSettlementStats(from?: string, to?: string, riderI
       const productTotal = Number(o.total || 0) - Number(o.discount || 0);
       const deliveryFee = Number(o.deliveryFee || 0);
       const grandTotal = productTotal + deliveryFee;
+      const collectedTotal = o.amountReceived ?? grandTotal;
 
       rider.totalProducts += productTotal;
       rider.totalDeliveryFees += deliveryFee;
-      rider.totalGrandTotal += grandTotal;
+      rider.totalGrandTotal += collectedTotal;
 
       if (o.paymentMethod?.toLowerCase().includes('cash')) {
-        rider.totalCashToCollect += grandTotal;
+        rider.totalCashToCollect += collectedTotal;
       }
     } else if (['RETURNED', 'CANCELLED'].includes(o.status)) {
       rider.returnedCount += 1;

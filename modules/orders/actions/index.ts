@@ -38,8 +38,12 @@ export async function reprogramOrder(orderId: string, deliveryDate: string) {
   return actions.reprogramOrder(orderId, deliveryDate);
 }
 
-export async function updateOrderStatus(orderId: string, newStatus: string, note?: string) {
-  return actions.updateOrderStatus(orderId, newStatus, note);
+export async function takeToProcessOrder(orderId: string, commercialId?: string) {
+  return actions.takeToProcessOrder(orderId, commercialId);
+}
+
+export async function updateOrderStatus(orderId: string, newStatus: string, note?: string, amountReceived?: number | null) {
+  return actions.updateOrderStatus(orderId, newStatus, note, amountReceived);
 }
 
 export async function markPartialDelivery(
@@ -47,8 +51,9 @@ export async function markPartialDelivery(
   deliveredQuantities: Record<string, number>,
   note?: string,
   includeDeliveryFee?: boolean,
+  amountReceived?: number | null,
 ) {
-  return actions.markPartialDelivery(orderId, deliveredQuantities, note, includeDeliveryFee);
+  return actions.markPartialDelivery(orderId, deliveredQuantities, note, includeDeliveryFee, amountReceived);
 }
 
 export async function assignOrderToDeliveryman(orderId: string, deliverymanId: string) {

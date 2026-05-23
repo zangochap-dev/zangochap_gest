@@ -444,10 +444,10 @@ export default function CmsClient({
             </a>
           </div>
 
-          <div style={{ flex: 1, backgroundColor: '#f0f0f0', borderRadius: '0 0 12px 12px', overflow: 'hidden', minHeight: 600 }}>
+          <div style={{ backgroundColor: '#f0f0f0', borderRadius: '0 0 12px 12px', overflow: 'hidden', height: 'calc(100vh - 120px)', minHeight: 600 }}>
             <iframe
               src="/"
-              style={{ width: '100%', height: '100%', border: 'none' }}
+              style={{ width: '100%', height: '90%', border: 'none', display: 'block' }}
               title="Apercu en direct"
             />
           </div>

@@ -638,10 +638,23 @@ export async function updateProduct(id: string, data: Partial<{
       image: await resolveVariantImage(v.image, `${data.name || id}-${v.size}-${v.color}`),
     })));
 
+    const incomingIds = variantsWithImages.map(v => v.id).filter(Boolean);
+    const removedIds = existingVariants
+      .map(variant => variant.id)
+      .filter(variantId => !incomingIds.includes(variantId));
+
+    if (removedIds.length > 0) {
+      await prisma.productVariant.deleteMany({
+        where: { id: { in: removedIds }, productId: id },
+      });
+    }
+
+    const activeExistingVariants = existingVariants.filter(variant => !removedIds.includes(variant.id));
+
     for (const v of variantsWithImages) {
       const stock = cleanStock(v.stock);
-      const existing = (v.id && existingVariants.find(variant => variant.id === v.id))
-        || existingVariants.find(variant => variant.size === v.size && variant.color === v.color);
+      const existing = (v.id && activeExistingVariants.find(variant => variant.id === v.id))
+        || activeExistingVariants.find(variant => variant.size === v.size && variant.color === v.color);
 
       const targetVariant = existing
         ? await prisma.productVariant.update({
@@ -649,6 +662,7 @@ export async function updateProduct(id: string, data: Partial<{
           data: {
             size: v.size,
             color: v.color,
+            image: v.image || null,
             stock,
             location: v.location || '',
           }
@@ -658,6 +672,7 @@ export async function updateProduct(id: string, data: Partial<{
             productId: id,
             size: v.size,
             color: v.color,
+            image: v.image || null,
             stock,
             location: v.location || '',
           }

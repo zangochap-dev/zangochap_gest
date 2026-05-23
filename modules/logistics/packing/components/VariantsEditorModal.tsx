@@ -8,6 +8,7 @@ import { getMediaFiles, uploadMediaFile } from "@/modules/media/actions";
 import { processImageFile } from "@/lib/image-upload-helper";
 import { AlertTriangle, Image as ImageIcon, MapPin, Minus, Plus, RefreshCw, Search, Upload, Warehouse, X } from "lucide-react";
 import { getImageUrl } from "@/lib/utils";
+import { clearStaleServerActionReloadFlag, reloadOnStaleServerAction } from "@/lib/stale-server-action";
 
 type EditableStockLevel = {
   id?: string;
@@ -82,9 +83,11 @@ export default function VariantsEditorModal({ product, variants: initialVariants
     getProductVariantsById(product.id)
       .then((fetchedVariants) => {
         if (!active) return;
+        clearStaleServerActionReloadFlag();
         setVariants(fetchedVariants.map((variant: PackingProductVariant) => normalizeVariant(variant)));
       })
-      .catch(() => {
+      .catch((error) => {
+        if (reloadOnStaleServerAction(error)) return;
         if (!active) return;
         setError(hasInitialStockLevels ? null : "Impossible de charger les stocks en direct.");
       })
@@ -94,9 +97,14 @@ export default function VariantsEditorModal({ product, variants: initialVariants
 
     getMediaFiles()
       .then((files) => {
-        if (active) setMediaFiles(files as MediaFile[]);
+        if (active) {
+          clearStaleServerActionReloadFlag();
+          setMediaFiles(files as MediaFile[]);
+        }
       })
-      .catch(() => undefined);
+      .catch((error) => {
+        reloadOnStaleServerAction(error);
+      });
 
     return () => {
       active = false;
@@ -164,7 +172,8 @@ export default function VariantsEditorModal({ product, variants: initialVariants
 
         setMediaFiles((current) => [uploaded, ...current]);
         updateVariantImage(variantIndex, result.url);
-      } catch {
+      } catch (error) {
+        if (reloadOnStaleServerAction(error)) return;
         setError("Erreur lors de l'upload de l'image.");
       } finally {
         setUploadingVariantIndex(null);
@@ -214,7 +223,8 @@ export default function VariantsEditorModal({ product, variants: initialVariants
 
       if (onSave) onSave(variants);
       else onClose();
-    } catch {
+    } catch (error) {
+      if (reloadOnStaleServerAction(error)) return;
       setError("Erreur lors de l'enregistrement des stocks.");
     } finally {
       setIsSaving(false);

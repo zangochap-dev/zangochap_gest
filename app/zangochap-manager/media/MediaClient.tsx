@@ -26,6 +26,7 @@ import { processImageFile } from "@/lib/image-upload-helper";
 import { useToast } from "@/components/Toast";
 import Topbar from "@/components/Topbar";
 import Link from "next/link";
+import { reloadOnStaleServerAction } from "@/lib/stale-server-action";
 import "./media-client.css";
 
 interface MediaFile {
@@ -81,6 +82,7 @@ export default function MediaClient({ initialFiles }: MediaClientProps) {
         showToast(res.error || "Erreur lors de l'upload", "error");
       }
     } catch (error) {
+      if (reloadOnStaleServerAction(error)) return;
       showToast(error instanceof Error ? error.message : "Erreur lors de la lecture du fichier", "error");
     } finally {
       setIsUploading(false);
@@ -99,6 +101,7 @@ export default function MediaClient({ initialFiles }: MediaClientProps) {
         showToast(res.error || "Erreur lors de la suppression", "error");
       }
     } catch (error) {
+      if (reloadOnStaleServerAction(error)) return;
       showToast("Erreur réseau lors de la suppression", "error");
     } finally {
       setDeleting(null);

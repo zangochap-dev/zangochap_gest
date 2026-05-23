@@ -332,6 +332,7 @@ export async function setVariantWarehouseStock(data: {
   newQuantity: number;
   reason?: string;
   session: StockSession;
+  sync?: boolean;
 }, tx: StockTx = prisma) {
   const newQuantity = cleanQty(data.newQuantity);
   const current = await tx.stockLevel.findUnique({
@@ -371,7 +372,9 @@ export async function setVariantWarehouseStock(data: {
     }, tx);
   }
 
-  await syncVariantAndProductStockTx(tx, data.variantId);
+  if (data.sync !== false) {
+    await syncVariantAndProductStockTx(tx, data.variantId);
+  }
 }
 
 export async function transferVariantStock(data: {

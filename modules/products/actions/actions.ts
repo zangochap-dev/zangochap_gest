@@ -490,6 +490,7 @@ export async function updateProductVariantStockLevels(productId: string, data: {
           newQuantity: quantity,
           reason: "Edition stock depuis le modal packing",
           session,
+          sync: false,
         }, tx as any);
 
         await tx.stockLevel.update({
@@ -510,7 +511,7 @@ export async function updateProductVariantStockLevels(productId: string, data: {
         data: { lowStockThreshold: Math.max(0, Number(data.lowStockThreshold) || 0) },
       });
     }
-  });
+  }, { timeout: 15000 });
 
   await syncProductStock(productId);
 

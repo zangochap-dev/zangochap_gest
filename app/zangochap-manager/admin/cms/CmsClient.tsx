@@ -26,6 +26,7 @@ import { saveHomeCmsContent, resetHomeCmsContent } from "@/modules/cms/actions";
 import { uploadMediaFile } from "@/modules/media/actions";
 import { processImageFile } from "@/lib/image-upload-helper";
 import { HomeCmsContent } from "@/modules/cms/types";
+import { reloadOnStaleServerAction } from "@/lib/stale-server-action";
 
 type Field = {
   key: keyof HomeCmsContent;
@@ -273,6 +274,7 @@ export default function CmsClient({
       }
       showToast("Image ajoutee", "success");
     } catch (error) {
+      if (reloadOnStaleServerAction(error)) return;
       showToast(error instanceof Error ? error.message : "Erreur lors de l'upload", "error");
     } finally {
       setIsUploading(false);
@@ -285,6 +287,7 @@ export default function CmsClient({
         await saveHomeCmsContent(content);
         showToast("Contenu public enregistre", "success");
       } catch (error) {
+        if (reloadOnStaleServerAction(error)) return;
         showToast(error instanceof Error ? error.message : "Erreur lors de l'enregistrement", "error");
       }
     });
@@ -298,6 +301,7 @@ export default function CmsClient({
         await resetHomeCmsContent();
         window.location.reload();
       } catch (error) {
+        if (reloadOnStaleServerAction(error)) return;
         showToast(error instanceof Error ? error.message : "Erreur lors de la reinitialisation", "error");
       }
     });

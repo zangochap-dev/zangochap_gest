@@ -7,6 +7,7 @@ import { markProductSent } from "@/modules/products/actions";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Image as ImageIcon } from "lucide-react";
 import { getImageUrl } from "@/lib/utils";
+import { reloadOnStaleServerAction } from "@/lib/stale-server-action";
 
 export default function ShortagesClient({ oosData }: { oosData: Array<{ product: any; waitingOrders: any[] }> }) {
   const [isPending, startTransition] = useTransition();
@@ -20,6 +21,7 @@ export default function ShortagesClient({ oosData }: { oosData: Array<{ product:
         showToast('Produit marqué envoyé ✓', 'success');
         router.refresh();
       } catch (e: any) {
+        if (reloadOnStaleServerAction(e)) return;
         showToast(e.message || 'Erreur', 'error');
       }
     });

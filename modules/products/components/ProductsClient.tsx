@@ -14,6 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn, getImageUrl } from "@/lib/utils";
 import VariantsEditorModal from "../../logistics/packing/components/VariantsEditorModal";
+import { reloadOnStaleServerAction } from "@/lib/stale-server-action";
 
 const PRODUCTS_PER_PAGE = 30;
 
@@ -98,6 +99,7 @@ export default function ProductsClient({ initialProducts, user, totalCount, oosC
                   showToast(`${res.count} produits synchronisés ✓`, 'success');
                   router.refresh();
                 } catch (e) {
+                  if (reloadOnStaleServerAction(e)) return;
                   showToast('Erreur de synchronisation', 'error');
                 } finally {
                   setIsSyncing(false);
@@ -377,6 +379,7 @@ export default function ProductsClient({ initialProducts, user, totalCount, oosC
         showToast('Produit supprimé', 'success');
         router.refresh();
       } catch (e: any) {
+        if (reloadOnStaleServerAction(e)) return;
         showToast(e.message || 'Erreur', 'error');
       }
     });
@@ -412,6 +415,7 @@ export default function ProductsClient({ initialProducts, user, totalCount, oosC
         showToast('Produit dupliqué ✓', 'success');
         router.refresh();
       } catch (e: any) {
+        if (reloadOnStaleServerAction(e)) return;
         showToast(e.message || 'Erreur', 'error');
       }
     });

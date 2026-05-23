@@ -196,11 +196,17 @@ export default function AdminDeliveryClient({ activeOrders, archivedOrders, deli
 
   const filteredOrders = useMemo(() => {
     return activeOrders.filter(o => {
+      const safeSearchTerm = (searchTerm || "").toLowerCase();
+      const refText = String(o.ref || "").toLowerCase();
+      const customerText = String(o.customerName || "").toLowerCase();
+      const driverText = String(o.deliverymanName || "").toLowerCase();
+      const communeText = String(o.commune || "").toLowerCase();
+      
       const matchesSearch =
-        (o.ref || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (o.customerName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (o.deliverymanName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (o.commune || "").toLowerCase().includes(searchTerm.toLowerCase());
+        refText.includes(safeSearchTerm) ||
+        customerText.includes(safeSearchTerm) ||
+        driverText.includes(safeSearchTerm) ||
+        communeText.includes(safeSearchTerm);
 
       const matchesStatus = filterStatus === "ALL" ||
         (filterStatus === "UNASSIGNED" && !o.deliverymanId) ||
@@ -218,11 +224,17 @@ export default function AdminDeliveryClient({ activeOrders, archivedOrders, deli
 
   const filteredArchivedOrders = useMemo(() => {
     return archivedOrders.filter(o => {
+      const safeSearchTerm = (searchTerm || "").toLowerCase();
+      const refText = String(o.ref || "").toLowerCase();
+      const customerText = String(o.customerName || "").toLowerCase();
+      const driverText = String(o.deliverymanName || "").toLowerCase();
+      const communeText = String(o.commune || "").toLowerCase();
+      
       const matchesSearch =
-        (o.ref || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (o.customerName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (o.deliverymanName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (o.commune || "").toLowerCase().includes(searchTerm.toLowerCase());
+        refText.includes(safeSearchTerm) ||
+        customerText.includes(safeSearchTerm) ||
+        driverText.includes(safeSearchTerm) ||
+        communeText.includes(safeSearchTerm);
 
       const matchesDriver = filterDeliveryman === "ALL" || o.deliverymanId === filterDeliveryman;
       const matchesCommune = filterCommune === "ALL" || o.commune === filterCommune;

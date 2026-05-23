@@ -16,12 +16,13 @@ export type HomeCmsContent = {
   featuredCategoryIds: string[];
   collectionsEyebrow: string;
   collectionsTitle: string;
-  shoesTitle: string;
-  shoesHref: string;
-  clothingTitle: string;
-  clothingHref: string;
-  accessoriesTitle: string;
-  accessoriesHref: string;
+  collectionsEnabled: boolean;
+  collectionsList: Array<{
+    id: string;
+    title: string;
+    href: string;
+    image: string;
+  }>;
   flashTitle: string;
   flashDescription: string;
   flashEnabled: boolean;
@@ -67,12 +68,27 @@ export const DEFAULT_HOME_CMS: HomeCmsContent = {
   featuredCategoryIds: [],
   collectionsEyebrow: "SELECTION",
   collectionsTitle: "NOS UNIVERS",
-  shoesTitle: "CHAUSSURES",
-  shoesHref: "/shop?category=Chaussures",
-  clothingTitle: "VETEMENTS",
-  clothingHref: "/shop?category=Vetements",
-  accessoriesTitle: "ACCESSOIRES",
-  accessoriesHref: "/shop?category=Accessoires",
+  collectionsEnabled: true,
+  collectionsList: [
+    {
+      id: "shoes",
+      title: "CHAUSSURES",
+      href: "/shop?category=Chaussures",
+      image: "/images/collection_shoes.png",
+    },
+    {
+      id: "clothing",
+      title: "VETEMENTS",
+      href: "/shop?category=Vetements",
+      image: "/images/collection_clothing.png",
+    },
+    {
+      id: "accessories",
+      title: "ACCESSOIRES",
+      href: "/shop?category=Accessoires",
+      image: "",
+    },
+  ],
   flashTitle: "VENTES FLASH",
   flashDescription: "Offres a duree limitee pour nos clients privilegies",
   flashEnabled: true,
@@ -116,6 +132,12 @@ export function normalizeHomeCms(data: unknown): HomeCmsContent {
     flashEnabled: typeof source.flashEnabled === "boolean"
       ? source.flashEnabled
       : DEFAULT_HOME_CMS.flashEnabled,
+    collectionsEnabled: typeof source.collectionsEnabled === "boolean"
+      ? source.collectionsEnabled
+      : DEFAULT_HOME_CMS.collectionsEnabled,
+    collectionsList: Array.isArray(source.collectionsList)
+      ? source.collectionsList
+      : DEFAULT_HOME_CMS.collectionsList,
     newArrivalsEnabled: typeof source.newArrivalsEnabled === "boolean"
       ? source.newArrivalsEnabled
       : DEFAULT_HOME_CMS.newArrivalsEnabled,

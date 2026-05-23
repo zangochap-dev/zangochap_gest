@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Suspense } from "react";
 import type { Metadata } from "next";
 import prisma from "@/lib/prisma";
 import PublicLayout from "@/components/public/PublicLayout";
@@ -95,10 +95,12 @@ export default async function ShopPage() {
           __html: JSON.stringify(productListSchema),
         }}
       />
-      <ShopClient 
-        initialProducts={JSON.parse(JSON.stringify(products))} 
-        categories={JSON.parse(JSON.stringify(categories))}
-      />
+      <Suspense fallback={<div className="min-h-screen py-10 text-center">Chargement de la boutique...</div>}>
+        <ShopClient 
+          initialProducts={JSON.parse(JSON.stringify(products))} 
+          categories={JSON.parse(JSON.stringify(categories))}
+        />
+      </Suspense>
     </PublicLayout>
   );
 }

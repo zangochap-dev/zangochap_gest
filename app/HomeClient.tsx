@@ -111,20 +111,37 @@ export default function HomeClient({ products, categories, latestPromo, cms }: {
             <h2 className="font-display text-[26px] md:text-[32px] font-bold text-[#1A1614] uppercase">{content.categoriesTitle}</h2>
             <p className="mt-3 text-[14px] text-[#777] max-w-[620px] mx-auto">{content.categoriesDescription}</p>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+          <motion.div 
+            variants={containerVars}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4"
+          >
             {featuredCategories.map((category) => (
-              <Link
-                key={category.id}
-                href={`/shop?category=${encodeURIComponent(category.name)}`}
-                className="group flex min-h-[96px] flex-col justify-between rounded-lg border border-[#ECE8E2] bg-[#FAF9F6] p-4 text-[#1A1614] transition hover:border-[#D4541C] hover:bg-white hover:shadow-sm"
-              >
-                <span className="font-display text-[16px] md:text-[20px] font-bold uppercase leading-tight">{category.name}</span>
-                <span className="mt-4 flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.18em] text-[#D4541C]">
-                  Voir le rayon <ArrowRight size={12} className="transition group-hover:translate-x-1" />
-                </span>
-              </Link>
+              <motion.div key={category.id} variants={itemVars}>
+                <Link
+                  href={`/shop?category=${encodeURIComponent(category.name)}`}
+                  className="group relative flex min-h-[120px] flex-col justify-between overflow-hidden rounded-sm border border-[#ECE8E2] bg-white p-5 text-[#1A1614] transition-all hover:border-[#D4541C]"
+                >
+                  <div className="absolute top-0 right-0 w-16 h-16 bg-[#FAF9F6] rounded-bl-full z-0 transition-transform duration-500 group-hover:scale-150 group-hover:bg-[#FFF5F0]"></div>
+                  
+                  <div className="flex items-start justify-between z-10 relative">
+                    <span className="font-display text-[16px] md:text-[18px] font-bold uppercase leading-tight pr-2">{category.name}</span>
+                    <span className="flex items-center justify-center bg-white text-[#777] text-[10px] font-bold px-2 py-1 rounded-sm border border-[#ECE8E2] group-hover:bg-[#D4541C] group-hover:text-white group-hover:border-[#D4541C] transition-colors whitespace-nowrap shadow-sm">
+                      {category._count?.products || 0}
+                    </span>
+                  </div>
+                  
+                  <div className="mt-5 flex items-center justify-between z-10 relative">
+                    <span className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-[#777] group-hover:text-[#D4541C] flex items-center gap-2 transition-colors">
+                      Découvrir <ArrowRight size={12} className="transition-transform group-hover:translate-x-1" />
+                    </span>
+                  </div>
+                </Link>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         </section>
       )}
 
@@ -136,36 +153,41 @@ export default function HomeClient({ products, categories, latestPromo, cms }: {
         </div>
       )}
 
-      <section className="max-w-[1300px] mx-auto px-5 py-10 md:py-[60px]">
-        <div className="mb-8 md:mb-10 text-center">
-          <span className="text-[9px] md:text-[10px] font-extrabold tracking-[0.3em] text-[#D4541C] block mb-2 md:mb-3 uppercase">{content.collectionsEyebrow}</span>
-          <h2 className="font-display text-[26px] md:text-[32px] font-bold text-[#1A1614] mb-2 md:mb-3 uppercase">{content.collectionsTitle}</h2>
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-4 md:gap-6 lg:h-[600px]">
-          <Link href={content.shoesHref || "/shop"} className="group relative overflow-hidden rounded-lg block h-[300px] lg:h-full">
-            <Image src="/images/collection_shoes.png" alt="Collection chaussures" fill sizes="(max-width: 1024px) 100vw, 60vw" className="object-cover transition-transform duration-1000 group-hover:scale-105" />
-            <div className="absolute inset-x-0 bottom-0 p-6 md:p-10 bg-gradient-to-t from-black/80 to-transparent flex flex-col gap-1 md:gap-2">
-              <h3 className="font-display text-[20px] md:text-[24px] lg:text-[40px] font-bold tracking-wider text-white uppercase leading-none">{content.shoesTitle}</h3>
-              <span className="text-[10px] md:text-[12px] font-bold tracking-[0.2em] flex items-center gap-2 opacity-80 text-white uppercase">VOIR LA COLLECTION <ArrowRight size={12} /></span>
-            </div>
-          </Link>
-          <div className="grid grid-cols-2 lg:flex lg:flex-col gap-4 md:gap-6">
-            <Link href={content.clothingHref || "/shop"} className="group relative overflow-hidden rounded-lg block h-[200px] md:h-[250px] lg:h-auto lg:flex-1">
-              <Image src="/images/collection_clothing.png" alt="Collection vetements" fill sizes="(max-width: 1024px) 50vw, 40vw" className="object-cover transition-transform duration-1000 group-hover:scale-105" />
-              <div className="absolute inset-x-0 bottom-0 p-5 md:p-10 bg-gradient-to-t from-black/80 to-transparent flex flex-col gap-1">
-                <h3 className="font-display text-[16px] md:text-[24px] font-bold tracking-wider text-white uppercase leading-none">{content.clothingTitle}</h3>
-                <span className="hidden md:flex text-[10px] md:text-[12px] font-bold tracking-[0.2em] items-center gap-2 opacity-80 text-white uppercase">EXPLORER <ArrowRight size={12} /></span>
-              </div>
-            </Link>
-            <Link href={content.accessoriesHref || "/shop"} className="group relative overflow-hidden rounded-lg block h-[200px] md:h-[250px] lg:h-auto lg:flex-1 bg-[#F3F1ED]">
-              <div className="absolute inset-x-0 bottom-0 p-5 md:p-10 bg-gradient-to-t from-black/20 to-transparent flex flex-col gap-1">
-                <h3 className="font-display text-[16px] md:text-[24px] font-bold tracking-wider text-[#1A1614] lg:text-white uppercase leading-none text-center lg:text-left">{content.accessoriesTitle}</h3>
-                <span className="hidden lg:flex text-[12px] font-bold tracking-[0.2em] items-center gap-2 opacity-80 text-white uppercase">DECOUVRIR <ArrowRight size={12} /></span>
-              </div>
-            </Link>
+      {content.collectionsEnabled && (
+        <section className="max-w-[1300px] mx-auto px-5 py-10 md:py-[60px]">
+          <div className="mb-8 md:mb-10 text-center">
+            <span className="text-[9px] md:text-[10px] font-extrabold tracking-[0.3em] text-[#D4541C] block mb-2 md:mb-3 uppercase">{content.collectionsEyebrow}</span>
+            <h2 className="font-display text-[26px] md:text-[32px] font-bold text-[#1A1614] mb-2 md:mb-3 uppercase">{content.collectionsTitle}</h2>
           </div>
-        </div>
-      </section>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+            {(content.collectionsList || []).map((collection) => (
+              <Link 
+                key={collection.id} 
+                href={collection.href || "/shop"} 
+                className="group relative overflow-hidden rounded-sm block h-[250px] md:h-[300px] lg:h-[400px] bg-[#F3F1ED]"
+              >
+                {collection.image && (
+                  <Image 
+                    src={collection.image} 
+                    alt={collection.title} 
+                    fill 
+                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw" 
+                    className="object-cover transition-transform duration-1000 group-hover:scale-105" 
+                  />
+                )}
+                <div className="absolute inset-x-0 bottom-0 p-6 md:p-8 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex flex-col gap-1 md:gap-2">
+                  <h3 className="font-display text-[20px] md:text-[28px] font-bold tracking-wider text-white uppercase leading-none">
+                    {collection.title}
+                  </h3>
+                  <span className="text-[10px] md:text-[12px] font-bold tracking-[0.2em] flex items-center gap-2 opacity-80 text-white uppercase">
+                    EXPLORER <ArrowRight size={12} className="transition-transform group-hover:translate-x-1" />
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {content.flashEnabled && flashSales.length > 0 && (
         <section className="max-w-[1300px] mx-auto px-6 py-[60px]">

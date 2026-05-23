@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { formatPrice } from "@/lib/constants";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Filter, X, ChevronDown, SlidersHorizontal } from "lucide-react";
 import { Product, Category } from "@/lib/types";
 import ProductCard from "@/components/public/ProductCard";
@@ -12,13 +13,22 @@ export default function ShopClient({ initialProducts, categories }: {
   initialProducts: Product[], 
   categories: Category[] 
 }) {
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(searchParams.get("category") || null);
   const [selectedSubCategory, setSelectedSubCategory] = useState<string | null>(null);
   const [priceRange, setPriceRange] = useState<number>(500000);
   const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState("newest");
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 24;
+
+  useEffect(() => {
+    const cat = searchParams.get("category");
+    if (cat) {
+      setSelectedCategory(cat);
+      setCurrentPage(1);
+    }
+  }, [searchParams]);
 
   // Filter Logic
   const filteredProducts = useMemo(() => {

@@ -29,7 +29,7 @@ type Field = {
   key: keyof HomeCmsContent;
   label: string;
   hint?: string;
-  type?: "input" | "textarea" | "checkbox" | "categories" | "select" | "image";
+  type?: "input" | "textarea" | "checkbox" | "categories" | "select" | "image" | "collectionsList" | "divider";
   options?: Array<{ label: string; value: string }>;
   span?: "full";
 };
@@ -63,10 +63,12 @@ const TABS: CmsTab[] = [
     description: "Premier ecran, bandeau et boutons principaux.",
     icon: <LayoutTemplate size={17} />,
     fields: [
-      { key: "announcement", label: "Bandeau haut", hint: "Texte court affiche au-dessus du hero.", span: "full" },
-      { key: "heroEyebrow", label: "Petit titre" },
+      { key: "announcement", label: "Bandeau d'annonce", hint: "Texte court affiche au-dessus du hero.", span: "full" },
+      { key: "div_hero1" as keyof HomeCmsContent, label: "Section Principale", type: "divider", span: "full" },
+      { key: "heroEyebrow", label: "Petit titre (Eyebrow)" },
       { key: "heroTitle", label: "Grand titre", type: "textarea", span: "full" },
       { key: "heroDescription", label: "Description", type: "textarea", span: "full" },
+      { key: "div_hero2" as keyof HomeCmsContent, label: "Boutons & Actions", type: "divider", span: "full" },
       { key: "heroPrimaryLabel", label: "Bouton principal" },
       { key: "heroPrimaryHref", label: "Lien principal", hint: "Ex: /shop" },
       { key: "heroSecondaryLabel", label: "Bouton secondaire" },
@@ -102,14 +104,10 @@ const TABS: CmsTab[] = [
     description: "Les trois univers visuels mis en avant.",
     icon: <ImageIcon size={17} />,
     fields: [
-      { key: "collectionsEyebrow", label: "Petit titre" },
-      { key: "collectionsTitle", label: "Titre section" },
-      { key: "shoesTitle", label: "Titre bloc 1" },
-      { key: "shoesHref", label: "Lien bloc 1" },
-      { key: "clothingTitle", label: "Titre bloc 2" },
-      { key: "clothingHref", label: "Lien bloc 2" },
-      { key: "accessoriesTitle", label: "Titre bloc 3" },
-      { key: "accessoriesHref", label: "Lien bloc 3" },
+      { key: "collectionsEnabled", label: "Afficher les collections", type: "checkbox", span: "full" },
+      { key: "collectionsEyebrow", label: "Petit titre", span: "full" },
+      { key: "collectionsTitle", label: "Titre section", span: "full" },
+      { key: "collectionsList", label: "Liste des collections", type: "collectionsList", span: "full" },
     ],
   },
   {
@@ -119,6 +117,7 @@ const TABS: CmsTab[] = [
     icon: <Megaphone size={17} />,
     fields: [
       { key: "popupEnabled", label: "Activer la popup", type: "checkbox", span: "full" },
+      { key: "div_popup1" as keyof HomeCmsContent, label: "Comportement & Apparence", type: "divider", span: "full" },
       { key: "popupTheme", label: "Theme", type: "select", options: [
         { label: "Clair", value: "light" },
         { label: "Sombre", value: "dark" },
@@ -134,22 +133,28 @@ const TABS: CmsTab[] = [
         { label: "Standard", value: "medium" },
         { label: "Large", value: "large" },
       ] },
-      { key: "popupFrequency", label: "Frequence", type: "select", options: [
+      { key: "popupFrequency", label: "Frequence d'affichage", type: "select", options: [
         { label: "Une fois par session", value: "session" },
         { label: "Une fois par navigateur", value: "once" },
         { label: "A chaque visite", value: "always" },
       ] },
-      { key: "popupDelayMs", label: "Delai en millisecondes", hint: "900 = presque immediat, 3000 = apres 3 secondes." },
-      { key: "popupShowImage", label: "Afficher l'image", type: "checkbox" },
-      { key: "popupImage", label: "Image", type: "image", hint: "Uploadez une nouvelle image ou selectionnez-la dans la galerie.", span: "full" },
-      { key: "popupEyebrow", label: "Petit titre" },
-      { key: "popupTitle", label: "Titre" },
+      { key: "popupDelayMs", label: "Delai d'apparition (ms)", hint: "900 = presque immediat, 3000 = apres 3 secondes." },
+      
+      { key: "div_popup2" as keyof HomeCmsContent, label: "Visuel", type: "divider", span: "full" },
+      { key: "popupShowImage", label: "Afficher l'image", type: "checkbox", span: "full" },
+      { key: "popupImage", label: "Image (Optionnelle)", type: "image", span: "full" },
+      
+      { key: "div_popup3" as keyof HomeCmsContent, label: "Contenu Textuel", type: "divider", span: "full" },
+      { key: "popupEyebrow", label: "Surtitre (Eyebrow)" },
+      { key: "popupTitle", label: "Titre principal" },
       { key: "popupDescription", label: "Message", type: "textarea", span: "full" },
+      
+      { key: "div_popup4" as keyof HomeCmsContent, label: "Actions", type: "divider", span: "full" },
       { key: "popupButtonLabel", label: "Bouton principal" },
       { key: "popupButtonHref", label: "Lien principal" },
       { key: "popupSecondaryLabel", label: "Bouton secondaire" },
       { key: "popupSecondaryHref", label: "Lien secondaire", hint: "Laissez vide pour fermer la popup." },
-      { key: "popupCloseLabel", label: "Texte fermeture" },
+      { key: "popupCloseLabel", label: "Texte de fermeture", hint: "Texte discret en bas de popup" },
     ],
   },
   {
@@ -158,15 +163,18 @@ const TABS: CmsTab[] = [
     description: "Ventes flash, nouveautes et bouton catalogue.",
     icon: <PackageOpen size={17} />,
     fields: [
-      { key: "flashEnabled", label: "Afficher ventes flash", type: "checkbox" },
-      { key: "flashTitle", label: "Titre ventes flash" },
-      { key: "flashDescription", label: "Description ventes flash", type: "textarea", span: "full" },
-      { key: "newArrivalsEnabled", label: "Afficher nouveautes", type: "checkbox" },
-      { key: "newArrivalsLimit", label: "Nombre de produits" },
-      { key: "newArrivalsEyebrow", label: "Petit titre nouveautes" },
-      { key: "newArrivalsTitle", label: "Titre nouveautes" },
-      { key: "newArrivalsDescription", label: "Description nouveautes", type: "textarea", span: "full" },
-      { key: "catalogButtonLabel", label: "Bouton catalogue" },
+      { key: "div_prod1" as keyof HomeCmsContent, label: "Ventes Flash", type: "divider", span: "full" },
+      { key: "flashEnabled", label: "Afficher la section Ventes Flash", type: "checkbox", span: "full" },
+      { key: "flashTitle", label: "Titre" },
+      { key: "flashDescription", label: "Description", type: "textarea", span: "full" },
+      
+      { key: "div_prod2" as keyof HomeCmsContent, label: "Nouveautés", type: "divider", span: "full" },
+      { key: "newArrivalsEnabled", label: "Afficher la section Nouveautes", type: "checkbox", span: "full" },
+      { key: "newArrivalsLimit", label: "Nombre limite de produits", hint: "Ex: 24" },
+      { key: "newArrivalsEyebrow", label: "Petit titre (Eyebrow)" },
+      { key: "newArrivalsTitle", label: "Titre principal" },
+      { key: "newArrivalsDescription", label: "Description", type: "textarea", span: "full" },
+      { key: "catalogButtonLabel", label: "Texte du bouton catalogue", span: "full" },
     ],
   },
 ];
@@ -183,7 +191,7 @@ export default function CmsClient({
   const [content, setContent] = useState<HomeCmsContent>(initialContent);
   const [activeTab, setActiveTab] = useState(TABS[0].id);
   const [files, setFiles] = useState<MediaFile[]>(mediaFiles);
-  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [activeGalleryField, setActiveGalleryField] = useState<string | null>(null);
   const [gallerySearch, setGallerySearch] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -199,7 +207,7 @@ export default function CmsClient({
     [files, gallerySearch],
   );
 
-  const updateField = (key: keyof HomeCmsContent, value: string | boolean) => {
+  const updateField = (key: keyof HomeCmsContent, value: any) => {
     setContent((current) => ({ ...current, [key]: value }));
   };
 
@@ -212,7 +220,7 @@ export default function CmsClient({
     }));
   };
 
-  const handleImageUpload = (file: File) => {
+  const handleImageUpload = (file: File, fieldKey: string) => {
     if (!file.type.startsWith("image/")) {
       showToast("Seules les images sont autorisees", "error");
       return;
@@ -239,9 +247,21 @@ export default function CmsClient({
         };
 
         setFiles((current) => [uploaded, ...current]);
-        updateField("popupImage", result.url);
-        updateField("popupShowImage", true);
-        showToast("Image popup ajoutee", "success");
+        
+        if (fieldKey.startsWith("collectionsList:")) {
+          const idx = parseInt(fieldKey.split(":")[1]);
+          const currentList = [...(content.collectionsList || [])];
+          if (currentList[idx]) {
+            currentList[idx].image = result.url;
+            updateField("collectionsList", currentList);
+          }
+        } else {
+          updateField(fieldKey as keyof HomeCmsContent, result.url);
+          if (fieldKey === "popupImage") {
+            updateField("popupShowImage", true);
+          }
+        }
+        showToast("Image ajoutee", "success");
       } catch (error) {
         showToast(error instanceof Error ? error.message : "Erreur lors de l'upload", "error");
       } finally {
@@ -381,20 +401,31 @@ export default function CmsClient({
                 content={content}
                 categories={categories}
                 mediaFiles={filteredMediaFiles}
-                galleryOpen={galleryOpen}
+                galleryOpen={activeGalleryField === field.key}
                 gallerySearch={gallerySearch}
                 isUploading={isUploading}
                 onChange={updateField}
                 onToggleCategory={toggleCategory}
-                onOpenGallery={() => setGalleryOpen(true)}
-                onCloseGallery={() => setGalleryOpen(false)}
+                onOpenGallery={(subfield) => setActiveGalleryField(subfield || field.key)}
+                onCloseGallery={() => setActiveGalleryField(null)}
                 onGallerySearch={setGallerySearch}
                 onSelectImage={(url) => {
-                  updateField("popupImage", url);
-                  updateField("popupShowImage", true);
-                  setGalleryOpen(false);
+                  if (activeGalleryField?.startsWith("collectionsList:")) {
+                    const idx = parseInt(activeGalleryField.split(":")[1]);
+                    const currentList = [...(content.collectionsList || [])];
+                    if (currentList[idx]) {
+                      currentList[idx].image = url;
+                      updateField("collectionsList", currentList);
+                    }
+                  } else {
+                    updateField(field.key, url);
+                    if (field.key === "popupImage") {
+                      updateField("popupShowImage", true);
+                    }
+                  }
+                  setActiveGalleryField(null);
                 }}
-                onUploadImage={handleImageUpload}
+                onUploadImage={(file, subfield) => handleImageUpload(file, subfield || activeGalleryField || field.key)}
               />
             ))}
           </div>
@@ -470,15 +501,23 @@ function CmsField({
   galleryOpen: boolean;
   gallerySearch: string;
   isUploading: boolean;
-  onChange: (key: keyof HomeCmsContent, value: string | boolean) => void;
+  onChange: (key: keyof HomeCmsContent, value: any) => void;
   onToggleCategory: (id: string) => void;
-  onOpenGallery: () => void;
+  onOpenGallery: (subfield?: string) => void;
   onCloseGallery: () => void;
   onGallerySearch: (value: string) => void;
   onSelectImage: (url: string) => void;
-  onUploadImage: (file: File) => void;
+  onUploadImage: (file: File, subfield?: string) => void;
 }) {
-  const spanFull = field.span === "full" || field.type === "textarea" || field.type === "categories" || field.type === "image";
+  const spanFull = field.span === "full" || field.type === "textarea" || field.type === "categories" || field.type === "image" || field.type === "collectionsList";
+
+  if (field.type === "divider") {
+    return (
+      <div style={{ gridColumn: "1 / -1", marginTop: 16, marginBottom: 0, paddingBottom: 8, borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 8 }}>
+        <h3 style={{ margin: 0, fontSize: 12, fontWeight: 900, color: "var(--orange)", textTransform: "uppercase", letterSpacing: "0.12em" }}>{field.label}</h3>
+      </div>
+    );
+  }
 
   return (
     <label className="form-row" style={{ ...styles.field, ...(spanFull ? styles.fieldFull : {}) }}>
@@ -540,7 +579,7 @@ function CmsField({
                 />
                 <Upload size={14} /> {isUploading ? "Upload..." : "Uploader"}
               </label>
-              <button type="button" className="btn-secondary" onClick={onOpenGallery}>
+              <button type="button" className="btn-secondary" onClick={() => onOpenGallery()}>
                 <ImageIcon size={14} /> Galerie
               </button>
               {String(content[field.key]) && (
@@ -592,6 +631,81 @@ function CmsField({
               </div>
             </div>
           )}
+        </div>
+      ) : field.type === "collectionsList" ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {(content.collectionsList || []).map((collection, index) => (
+            <div key={index} style={{ padding: 12, border: "1px solid var(--border)", borderRadius: 8, display: "flex", flexDirection: "column", gap: 8, background: "#fafafa" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <strong>Collection {index + 1}</strong>
+                <button type="button" onClick={() => {
+                  const newList = [...(content.collectionsList || [])];
+                  newList.splice(index, 1);
+                  onChange("collectionsList", newList);
+                }} className="btn-secondary" style={{ padding: "4px 8px", color: "red", borderColor: "rgba(255,0,0,0.2)" }}>
+                  <X size={12} /> Retirer
+                </button>
+              </div>
+              <input
+                className="field-input"
+                value={collection.title}
+                onChange={(e) => {
+                  const newList = [...(content.collectionsList || [])];
+                  newList[index].title = e.target.value;
+                  onChange("collectionsList", newList);
+                }}
+                placeholder="Titre (ex: CHAUSSURES)"
+              />
+              <input
+                className="field-input"
+                value={collection.href}
+                onChange={(e) => {
+                  const newList = [...(content.collectionsList || [])];
+                  newList[index].href = e.target.value;
+                  onChange("collectionsList", newList);
+                }}
+                placeholder="Lien (ex: /shop?category=Chaussures)"
+              />
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                {collection.image && <img src={collection.image} alt="" style={{ width: 36, height: 36, objectFit: "cover", borderRadius: 4 }} />}
+                <input
+                  className="field-input"
+                  value={collection.image}
+                  onChange={(e) => {
+                    const newList = [...(content.collectionsList || [])];
+                    newList[index].image = e.target.value;
+                    onChange("collectionsList", newList);
+                  }}
+                  placeholder="Image URL"
+                  style={{ flex: 1 }}
+                />
+                <label className={`btn-secondary ${isUploading ? "disabled" : ""}`} style={{ cursor: isUploading ? "not-allowed" : "pointer", padding: "4px 8px" }}>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={isUploading}
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (file) onUploadImage(file, `collectionsList:${index}`);
+                      event.target.value = "";
+                    }}
+                    style={{ display: "none" }}
+                  />
+                  <Upload size={14} /> {isUploading ? "Upload..." : "Uploader"}
+                </label>
+                <button type="button" className="btn-secondary" style={{ padding: "4px 8px" }} onClick={() => onOpenGallery(`collectionsList:${index}`)}>
+                  <ImageIcon size={14} /> Galerie
+                </button>
+              </div>
+            </div>
+          ))}
+          <button type="button" className="btn-secondary" style={{ alignSelf: "flex-start" }} onClick={() => {
+            const newList = [...(content.collectionsList || [])];
+            newList.push({ id: Math.random().toString(36).substring(7), title: "NOUVELLE COLLECTION", href: "/shop", image: "" });
+            onChange("collectionsList", newList);
+          }}>
+            + Ajouter une collection
+          </button>
         </div>
       ) : field.type === "checkbox" ? (
         <span style={styles.switchRow}>
@@ -765,10 +879,10 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: "flex-start",
   },
   formGrid: {
-    padding: 18,
+    padding: 24,
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 240px), 1fr))",
-    gap: 14,
+    gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))",
+    gap: 20,
   },
   field: {
     minWidth: 0,

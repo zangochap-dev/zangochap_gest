@@ -1,20 +1,20 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { X, RefreshCcw, Save, Sparkles, Warehouse, Check, ChevronsUpDown, Plus, Image as ImageIcon, Upload } from "lucide-react";
+import { X, RefreshCcw, Save, Sparkles, Warehouse, Check, ChevronsUpDown, Plus, Image as ImageIcon, Upload, Link as LinkIcon, Clipboard } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn, getImageUrl } from "@/lib/utils";
 import { useToast } from "@/components/Toast";
+import { processImageFile } from "@/lib/image-upload-helper";
 
 /**
  * Compresse et redimensionne une image côté client
  */
-const compressImage = (file: File): Promise<string> => {
+const compressImage = async (file: File): Promise<string> => {
+  const { dataUrl } = await processImageFile(file);
   return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
@@ -45,9 +45,7 @@ const compressImage = (file: File): Promise<string> => {
 
         resolve(canvas.toDataURL('image/webp', 0.7));
       };
-      img.src = e.target?.result as string;
-    };
-    reader.readAsDataURL(file);
+      img.src = dataUrl;
   });
 };
 
@@ -80,7 +78,7 @@ function SupplierCombobox({ suppliers, value, onChange }: { suppliers: any[], va
                   setOpen(false);
                 }}
               >
-                <Plus size={14} /> Créer "{search}"
+                <Plus size={14} /> Creer {search}
               </button>
             </CommandEmpty>
             <CommandGroup>
@@ -197,6 +195,8 @@ export default function ProductForm({
   const [colors, setColors] = useState<string[]>(Array.from(new Set(initialVariants.map(v => v.color).filter(Boolean))));
   const [sizeInput, setSizeInput] = useState('');
   const [colorInput, setColorInput] = useState('');
+  const [imageUrlInput, setImageUrlInput] = useState('');
+  const [isDraggingImages, setIsDraggingImages] = useState(false);
 
   const [variants, setVariants] = useState<ProductFormVariant[]>(initialVariants);
   const [isUnpublished, setIsUnpublished] = useState(initialData ? initialData.status !== 'PUBLISHED' : false);
@@ -204,17 +204,52 @@ export default function ProductForm({
   const [isGift, setIsGift] = useState(initialData?.isGift ?? false);
 
   // -- Handlers --
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    files.forEach(async (file) => {
+  const addImageFiles = async (files: File[]) => {
+    const imageFiles = files.filter((file) => file.type.startsWith('image/') || /\.(heic|heif)$/i.test(file.name));
+    if (!imageFiles.length) {
+      showToast("Aucune image valide trouvee", "error");
+      return;
+    }
+
+    await Promise.all(imageFiles.map(async (file) => {
       try {
         const optimizedDataUrl = await compressImage(file);
         setImages(prev => [...prev, { name: file.name, dataUrl: optimizedDataUrl }]);
       } catch (err) {
-        console.error("Erreur d'optimisation image:", err);
+        showToast(err instanceof Error ? err.message : "Erreur d'optimisation image", "error");
       }
-    });
+    }));
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    addImageFiles(Array.from(e.target.files || []));
     e.target.value = '';
+  };
+
+  const addImageUrl = () => {
+    const url = imageUrlInput.trim();
+    if (!url) return;
+    if (!/^https?:\/\/.+/i.test(url) && !url.startsWith('/')) {
+      showToast("URL d'image invalide", "error");
+      return;
+    }
+    const name = url.split('/').pop()?.split('?')[0] || `image-${images.length + 1}`;
+    setImages(prev => [...prev, { name, dataUrl: url }]);
+    setImageUrlInput('');
+    showToast("Image ajoutee depuis l'URL", "success");
+  };
+
+  const handleImagePaste = (event: React.ClipboardEvent<HTMLDivElement>) => {
+    const files = Array.from(event.clipboardData.files || []);
+    if (files.length) {
+      addImageFiles(files);
+      return;
+    }
+    const text = event.clipboardData.getData('text').trim();
+    if (/^(https?:\/\/|\/).+\.(png|jpe?g|webp|gif|avif)(\?.*)?$/i.test(text)) {
+      setImages(prev => [...prev, { name: text.split('/').pop()?.split('?')[0] || `image-${prev.length + 1}`, dataUrl: text }]);
+      showToast("Image collee depuis l'URL", "success");
+    }
   };
 
   const removeImage = (idx: number) => {
@@ -317,7 +352,7 @@ export default function ProductForm({
   };
 
   const handleVariantImageUpload = async (idx: number, file: File) => {
-    if (!file.type.startsWith('image/')) {
+    if (!file.type.startsWith('image/') && !/\.(heic|heif)$/i.test(file.name)) {
       showToast("Seules les images sont autorisees", "error");
       return;
     }
@@ -386,12 +421,13 @@ export default function ProductForm({
       description,
       material,
       origin,
+      location: finalVariants.find(v => v.location)?.location || '',
       supplier: supplier || 'Non spécifié',
       isPublished: !isUnpublished,
       isFeatured,
       isGift,
       variants: finalVariants,
-      images: images.length > 0 ? images : undefined,
+      images: initialData || images.length > 0 ? images : undefined,
       emoji: initialData?.emoji || "📦",
       warehouseId: selectedWarehouse,
       creatorId: isAdmin ? selectedCreatorId : undefined
@@ -472,18 +508,53 @@ export default function ProductForm({
                   <Plus size={14} /> Ajouter
                 </button>
               </div>
-              <div className="p-6">
+              <div className="p-6" onPaste={handleImagePaste}>
                 <div
                   onClick={() => imgInputRef.current?.click()}
-                  className="group border-2 border-dashed border-[#E8DDD0] hover:border-[#D4541C] bg-[#FAF6F1]/50 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition-all"
+                  onDragOver={(event) => { event.preventDefault(); setIsDraggingImages(true); }}
+                  onDragLeave={() => setIsDraggingImages(false)}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    setIsDraggingImages(false);
+                    addImageFiles(Array.from(event.dataTransfer.files || []));
+                  }}
+                  className={cn(
+                    "group border-2 border-dashed bg-[#FAF6F1]/50 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition-all",
+                    isDraggingImages ? "border-[#D4541C] ring-4 ring-[#D4541C]/10 bg-[#D4541C]/5" : "border-[#E8DDD0] hover:border-[#D4541C]"
+                  )}
                 >
                   <div className="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center text-[#D4541C] group-hover:scale-110 transition-transform">
-                    <Plus size={24} />
+                    <Upload size={24} />
                   </div>
                   <p className="mt-4 text-sm font-bold text-[#1A1410]">Ajouter des images</p>
-                  <p className="text-xs text-[#6B4838] mt-1">PNG, JPG, WebP jusqu'à 10MB</p>
+                  <p className="text-xs text-[#6B4838] mt-1">PNG, JPG, WebP, HEIC, 10MB max</p>
                 </div>
-                <input type="file" ref={imgInputRef} multiple accept="image/*" className="hidden" onChange={handleImageUpload} />
+                <input type="file" ref={imgInputRef} multiple accept="image/*,.heic,.heif" className="hidden" onChange={handleImageUpload} />
+
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
+                  <div className="relative">
+                    <LinkIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8A7A6D]" />
+                    <input
+                      type="url"
+                      value={imageUrlInput}
+                      onChange={e => setImageUrlInput(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addImageUrl())}
+                      placeholder="Coller une URL d'image"
+                      className="w-full bg-white border border-[#E8DDD0] rounded-lg py-2.5 pl-10 pr-3 text-sm font-semibold outline-none focus:border-[#D4541C]"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={addImageUrl}
+                    className="px-4 py-2.5 bg-[#1A1410] text-white rounded-lg text-[12px] font-bold flex items-center justify-center gap-2 hover:bg-[#D4541C] transition-colors"
+                  >
+                    <Plus size={14} /> URL
+                  </button>
+                </div>
+                <div className="mt-3 flex items-center gap-2 text-[11px] font-semibold text-[#6B4838]">
+                  <Clipboard size={14} />
+                  <span>Tu peux aussi coller directement une capture ou une image copiee.</span>
+                </div>
 
                 {images.length > 0 && (
                   <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4 mt-6">
@@ -551,7 +622,7 @@ export default function ProductForm({
                       />
                       <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-[#6B4838]">FCFA</span>
                     </div>
-                    <p className="text-[10px] text-[#6B4838]/60 italic">Pour afficher un badge "Promo"</p>
+                    <p className="text-[10px] text-[#6B4838]/60 italic">Pour afficher un badge Promo</p>
                   </div>
                 </div>
               </div>
@@ -569,11 +640,20 @@ export default function ProductForm({
                   <RefreshCcw size={12} /> Générer
                 </button>
               </div>
-              <div className="p-6 space-y-8">
+              <div className="p-4 sm:p-6 space-y-6">
                 {/* Configuration des attributs */}
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-3">
+                <div className="rounded-xl border border-[#E8DDD0] bg-[#FDFCFB] p-4 sm:p-5 space-y-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                      <h3 className="text-[14px] font-black text-[#1A1410]">Créer les variantes</h3>
+                      <p className="text-[11px] font-semibold text-[#6B4838] mt-1">Saisis plusieurs valeurs avec des virgules, puis ajoute ou génère.</p>
+                    </div>
+                    <div className="rounded-lg bg-white border border-[#E8DDD0] px-3 py-2 text-[12px] font-black text-[#D4541C]">
+                      {variants.length} variante(s)
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-white border border-[#E8DDD0] rounded-xl p-3 space-y-3">
                       <label className="text-[11px] font-bold uppercase tracking-wider text-[#6B4838]">Tailles</label>
                       <div className="flex gap-2">
                         <input
@@ -594,7 +674,7 @@ export default function ProductForm({
                         ))}
                       </div>
                     </div>
-                    <div className="space-y-3">
+                    <div className="bg-white border border-[#E8DDD0] rounded-xl p-3 space-y-3">
                       <label className="text-[11px] font-bold uppercase tracking-wider text-[#6B4838]">Couleurs</label>
                       <div className="flex gap-2">
                         <input
@@ -616,19 +696,135 @@ export default function ProductForm({
                       </div>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={addManualVariants}
-                    className="w-full md:w-auto px-4 py-2 bg-[#1A1410] text-white rounded-lg text-[12px] font-bold flex items-center justify-center gap-2 hover:bg-[#D4541C] transition-colors"
-                  >
-                    <Plus size={14} /> Ajouter variante
-                  </button>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={addManualVariants}
+                      className="w-full px-4 py-2.5 bg-[#1A1410] text-white rounded-lg text-[12px] font-bold flex items-center justify-center gap-2 hover:bg-[#D4541C] transition-colors"
+                    >
+                      <Plus size={14} /> Ajouter
+                    </button>
+                    <button
+                      type="button"
+                      onClick={generateAllVariants}
+                      className="w-full px-4 py-2.5 bg-[#D4541C]/10 text-[#D4541C] rounded-lg text-[12px] font-bold flex items-center justify-center gap-2 hover:bg-[#D4541C]/20 transition-colors"
+                    >
+                      <RefreshCcw size={14} /> Générer tout
+                    </button>
+                  </div>
                 </div>
 
-                {/* Table des variantes */}
+                {/* Cartes des variantes */}
                 {variants.length > 0 && (
-                  <div className="border border-[#E8DDD0] rounded-xl overflow-hidden">
-                    <table className="w-full text-left text-sm border-collapse">
+                  <div className="space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                      <div>
+                        <h3 className="text-[14px] font-black text-[#1A1410]">Liste des variantes</h3>
+                        <p className="text-[11px] font-semibold text-[#6B4838]">Chaque variante garde son stock, son image et son emplacement.</p>
+                      </div>
+                      <div className="rounded-lg bg-[#D4541C]/10 text-[#D4541C] px-3 py-2 text-[13px] font-black">
+                        Total: {variants.reduce((s, v) => s + v.stock, 0)}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {variants.map((v, idx) => (
+                        <div key={`${v.id || 'new'}-${idx}`} className="rounded-xl border border-[#E8DDD0] bg-white p-3 sm:p-4 shadow-sm">
+                          <div className="flex items-start gap-3">
+                            <div className="w-16 h-20 rounded-lg overflow-hidden bg-[#FAF6F1] border border-[#E8DDD0] flex items-center justify-center shrink-0">
+                              {v.image ? (
+                                <img src={getImageUrl(v.image)} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <ImageIcon size={20} className="text-[#C8B8AA]" />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <p className="text-[11px] font-black uppercase tracking-wider text-[#8A7A6D]">Variante #{idx + 1}</p>
+                                  <p className="truncate text-[14px] font-black text-[#1A1410]">{v.size || 'Taille'} / {v.color || 'Couleur'}</p>
+                                </div>
+                                <button type="button" onClick={() => removeVariant(idx)} className="w-8 h-8 rounded-lg bg-red-50 text-[#C73E1D] flex items-center justify-center hover:bg-red-100 transition-colors" title="Retirer">
+                                  <X size={16} />
+                                </button>
+                              </div>
+
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                <label className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-[#FDFCFB] text-[11px] font-black text-[#D4541C] cursor-pointer inline-flex items-center gap-1.5 hover:border-[#D4541C] transition-colors">
+                                  <input
+                                    type="file"
+                                    accept="image/*,.heic,.heif"
+                                    className="hidden"
+                                    onChange={(event) => {
+                                      const file = event.target.files?.[0];
+                                      if (file) handleVariantImageUpload(idx, file);
+                                      event.target.value = "";
+                                    }}
+                                  />
+                                  <Upload size={13} /> Image
+                                </label>
+                                {v.image && (
+                                  <button
+                                    type="button"
+                                    onClick={() => updateVariant(idx, 'image', '')}
+                                    className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-white text-[11px] font-bold text-[#8A7A6D] hover:text-[#C73E1D] hover:border-[#C73E1D]/30"
+                                  >
+                                    Retirer image
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] font-black uppercase tracking-wider text-[#6B4838]">Taille</label>
+                              <input
+                                type="text"
+                                value={v.size}
+                                onChange={e => updateVariant(idx, 'size', e.target.value)}
+                                placeholder="Taille"
+                                className="w-full bg-white border border-[#E8DDD0] rounded-lg p-2.5 text-sm font-bold outline-none focus:border-[#D4541C]"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] font-black uppercase tracking-wider text-[#6B4838]">Couleur</label>
+                              <input
+                                type="text"
+                                value={v.color}
+                                onChange={e => updateVariant(idx, 'color', e.target.value)}
+                                placeholder="Couleur"
+                                className="w-full bg-white border border-[#E8DDD0] rounded-lg p-2.5 text-sm font-semibold outline-none focus:border-[#D4541C]"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] font-black uppercase tracking-wider text-[#6B4838]">Stock</label>
+                              <input
+                                type="number"
+                                value={v.stock}
+                                onChange={e => updateVariant(idx, 'stock', e.target.value)}
+                                className="w-full bg-white border border-[#E8DDD0] rounded-lg p-2.5 text-sm text-center font-black outline-none focus:border-[#D4541C]"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] font-black uppercase tracking-wider text-[#6B4838]">Emplacement</label>
+                              <input
+                                type="text"
+                                value={v.location}
+                                onChange={e => updateVariant(idx, 'location', e.target.value)}
+                                placeholder="A1-24"
+                                className="w-full bg-[#FAF6F1]/40 border border-[#E8DDD0] rounded-lg p-2.5 text-sm font-mono font-bold outline-none focus:border-[#D4541C] focus:bg-white transition-all"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {false && variants.length > 0 && (
+                  <div className="border border-[#E8DDD0] rounded-xl overflow-x-auto">
+                    <table className="w-full min-w-[760px] text-left text-sm border-collapse">
                       <thead className="bg-[#FAF6F1] border-b border-[#E8DDD0]">
                         <tr>
                           <th className="px-4 py-3 text-[10px] font-black uppercase text-[#6B4838] tracking-widest w-32">Image</th>
@@ -654,7 +850,7 @@ export default function ProductForm({
                                   <label className="text-[10px] font-black text-[#D4541C] cursor-pointer inline-flex items-center gap-1 hover:text-[#1A1410] transition-colors">
                                     <input
                                       type="file"
-                                      accept="image/*"
+                                      accept="image/*,.heic,.heif"
                                       className="hidden"
                                       onChange={(event) => {
                                         const file = event.target.files?.[0];
@@ -784,14 +980,14 @@ export default function ProductForm({
                       className="w-5 h-5 accent-[#D4541C] rounded border-[#E8DDD0]"
                     />
                   </label>
-                  <p className="text-[10px] text-[#6B4838] mt-2">S'affichera dans la section "Nouveautés" ou "Populaire".</p>
+                  <p className="text-[10px] text-[#6B4838] mt-2">Visible dans les sections Nouveautes ou Populaire.</p>
                 </div>
 
                 <div className="pt-4 border-t border-[#F8F5F2]">
                   <label className="flex items-center justify-between cursor-pointer group">
                     <div className="flex items-center gap-2">
                       <Plus size={16} className={isGift ? "text-[#D4541C]" : "text-[#6B4838]"} />
-                      <span className="text-[13px] font-bold text-[#1A1410]">C'est un CADEAU</span>
+                      <span className="text-[13px] font-bold text-[#1A1410]">Produit cadeau</span>
                     </div>
                     <input
                       type="checkbox"

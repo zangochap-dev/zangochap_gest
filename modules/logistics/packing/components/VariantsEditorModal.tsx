@@ -38,6 +38,7 @@ interface VariantsEditorModalProps {
 
 export default function VariantsEditorModal({ product, variants: initialVariants, onClose, onSave }: VariantsEditorModalProps) {
   const hasInitialVariants = (initialVariants?.length || 0) > 0;
+  const hasInitialStockLevels = (initialVariants || []).some((variant) => Array.isArray(variant.stockLevels));
 
   const normalizeVariant = React.useCallback((variant: PackingProductVariant): EditableVariant => {
     const stockLevels = variant.stockLevels?.length
@@ -85,7 +86,7 @@ export default function VariantsEditorModal({ product, variants: initialVariants
       })
       .catch(() => {
         if (!active) return;
-        setError(hasInitialVariants ? null : "Impossible de charger les stocks en direct.");
+        setError(hasInitialStockLevels ? null : "Impossible de charger les stocks en direct.");
       })
       .finally(() => {
         if (active) setIsLoading(false);
@@ -100,7 +101,7 @@ export default function VariantsEditorModal({ product, variants: initialVariants
     return () => {
       active = false;
     };
-  }, [hasInitialVariants, normalizeVariant, product.id]);
+  }, [hasInitialStockLevels, normalizeVariant, product.id]);
 
   const updateStockLevel = (
     variantIndex: number,

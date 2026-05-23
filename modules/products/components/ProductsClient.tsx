@@ -323,7 +323,16 @@ export default function ProductsClient({ initialProducts, user, totalCount, oosC
 
         {/* VARIANTS EDITOR MODAL */}
         {editingVariants && (
-          <VariantsEditorModal product={editingVariants.product} variants={editingVariants.variants} onClose={() => setEditingVariants(null)} />
+          <VariantsEditorModal
+            product={editingVariants.product}
+            variants={editingVariants.variants}
+            onClose={() => setEditingVariants(null)}
+            onSave={() => {
+              showToast('Stock mis a jour', 'success');
+              setEditingVariants(null);
+              router.refresh();
+            }}
+          />
         )}
 
 

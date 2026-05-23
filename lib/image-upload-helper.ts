@@ -1,5 +1,3 @@
-import heic2any from "heic2any";
-
 export async function processImageFile(file: File): Promise<{ dataUrl: string; fileName: string }> {
   let processedFile = file;
 
@@ -11,6 +9,7 @@ export async function processImageFile(file: File): Promise<{ dataUrl: string; f
     file.name.toLowerCase().endsWith(".heif")
   ) {
     try {
+      const { default: heic2any } = await import("heic2any");
       const blob = await heic2any({
         blob: file,
         toType: "image/jpeg",
@@ -21,8 +20,7 @@ export async function processImageFile(file: File): Promise<{ dataUrl: string; f
       const newName = file.name.replace(/\.heic$/i, ".jpg").replace(/\.heif$/i, ".jpg");
       
       processedFile = new File([resultBlob], newName, { type: "image/jpeg" });
-    } catch (error) {
-      console.error("HEIC conversion error:", error);
+    } catch {
       throw new Error("Impossible de convertir l'image HEIC. Veuillez utiliser une image JPG ou PNG.");
     }
   }

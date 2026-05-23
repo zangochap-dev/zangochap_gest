@@ -298,7 +298,6 @@ export async function updateProductVariants(productId: string, variants: Array<{
 
 // ============ GET PRODUCT VARIANTS BY ID ============
 export async function getProductVariantsById(productId: string) {
-  console.log("=== SERVER ACTION getProductVariantsById APPELÉE POUR ===", productId);
   await ensureAuth(["admin", "stock", "packing", "collection", "commercial"]);
 
   const variants = await prisma.productVariant.findMany({
@@ -313,7 +312,6 @@ export async function getProductVariantsById(productId: string) {
     orderBy: { size: "asc" },
   });
 
-  console.log("=== SERVER ACTION getProductVariantsById RÉSULTAT DB ===", variants);
   return JSON.parse(JSON.stringify(variants));
 }
 

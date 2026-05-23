@@ -67,6 +67,7 @@ export default function CartPageClient({ communes = [] }: { communes?: Commune[]
   // Form State
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [phone2, setPhone2] = useState("");
   const [commune, setCommune] = useState("");
   const [address, setAddress] = useState("");
 
@@ -89,6 +90,7 @@ export default function CartPageClient({ communes = [] }: { communes?: Commune[]
         await createOrder({
           customerName: name,
           customerPhone: phone,
+          customerPhone2: phone2 || undefined,
           customerLocation: address,
           commune,
           deliveryFee,
@@ -212,6 +214,15 @@ export default function CartPageClient({ communes = [] }: { communes?: Commune[]
                 onChange={e => setPhone(e.target.value)} 
                 placeholder="07 00 00 00 00" 
                 required 
+                className="w-full p-3.5 border border-[#e8e8e4] bg-white text-sm text-[#1A1614] outline-none transition-colors focus:border-[#1A1614]"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="block text-[10px] font-medium tracking-[0.12em] text-[#999] uppercase">DEUXIÈME TÉLÉPHONE (FACULTATIF)</label>
+              <input 
+                value={phone2} 
+                onChange={e => setPhone2(e.target.value)} 
+                placeholder="05 00 00 00 00" 
                 className="w-full p-3.5 border border-[#e8e8e4] bg-white text-sm text-[#1A1614] outline-none transition-colors focus:border-[#1A1614]"
               />
             </div>

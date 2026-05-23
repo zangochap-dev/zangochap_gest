@@ -11,7 +11,7 @@ export async function getCollectionPageData() {
     prisma.order.findMany({
       where: {
         deletedAt: null,
-        status: { in: ["CONFIRMED", "TO_PROCESS", "PENDING", "PARTIAL"] },
+        status: { in: ["CONFIRMED", "PENDING", "PARTIAL"] },
       },
       include: { items: true },
       orderBy: { createdAt: "desc" },

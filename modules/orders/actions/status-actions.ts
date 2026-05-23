@@ -55,6 +55,10 @@ export async function updateOrderStatus(orderId: string, newStatus: string, note
   };
 
   const normalizedStatus = newStatus.toUpperCase();
+  if (normalizedStatus === 'TO_PROCESS') {
+    throw new Error("Le statut A traiter est reserve aux commandes du site public.");
+  }
+
   const history = Array.isArray(order.history) ? [...(order.history as any[])] : [];
   history.push({
     at: new Date().toISOString(),

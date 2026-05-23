@@ -24,6 +24,13 @@ type OrderHistoryEntry = {
 
 export const ORDERS_PAGE_SIZE = 50;
 
+const WEB_TO_PROCESS_WHERE = {
+  deletedAt: null,
+  status: OrderStatus.TO_PROCESS,
+  commercialId: null,
+  commercialName: "Site Web",
+};
+
 function todayIso() {
   return new Date().toISOString().split("T")[0];
 }
@@ -34,7 +41,9 @@ export function buildOrdersWhere(params: OrdersQueryParams, user: SessionUser | 
 
   const where: Record<string, unknown> = { deletedAt: null };
 
-  if (params.status && params.status !== "all") {
+  if (params.status?.toUpperCase() === OrderStatus.TO_PROCESS) {
+    where.id = "__to_process_orders_are_only_visible_on_the_to_process_page__";
+  } else if (params.status && params.status !== "all") {
     where.status = params.status.toUpperCase() as OrderStatus;
   } else {
     where.status = { not: OrderStatus.TO_PROCESS };
@@ -108,7 +117,7 @@ export async function getOrdersStaffData() {
 
 export async function getToProcessOrders() {
   return prisma.order.findMany({
-    where: { deletedAt: null, status: "TO_PROCESS" },
+    where: WEB_TO_PROCESS_WHERE,
     orderBy: { createdAt: "asc" },
     include: { items: true },
   });
@@ -136,7 +145,7 @@ export async function getNonPackedOrdersData(user: SessionUser | null | undefine
 
   const where: Record<string, unknown> = {
     deletedAt: null,
-    status: { in: ["CONFIRMED", "PENDING", "TO_PROCESS", "PARTIAL", "UNAVAILABLE", "ALTERNATIVE"] },
+    status: { in: ["CONFIRMED", "PENDING", "PARTIAL", "UNAVAILABLE", "ALTERNATIVE"] },
     createdAt: { gte: yesterday, lt: today },
   };
 

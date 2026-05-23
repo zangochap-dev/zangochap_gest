@@ -27,10 +27,10 @@ export default async function CommercialDashboard({ user }: { user: any }) {
 
   const todayOrders = myOrders.filter(o => new Date(o.createdAt) >= today);
   const delivered = myOrders.filter(o => o.status === 'DELIVERED');
-  const pending = myOrders.filter(o => o.status === 'PENDING' || o.status === 'TO_PROCESS');
+  const pending = myOrders.filter(o => o.status === 'PENDING');
   const confirmed = myOrders.filter(o => o.status === 'CONFIRMED');
   const cancelled = myOrders.filter(o => o.status === 'CANCELLED');
-  const nonPacked = myOrders.filter(o => ['CONFIRMED', 'PENDING', 'TO_PROCESS'].includes(o.status));
+  const nonPacked = myOrders.filter(o => ['CONFIRMED', 'PENDING'].includes(o.status));
   const ca = delivered.reduce((s, o) => s + o.total, 0);
   const todayCa = delivered.filter(o => new Date(o.createdAt) >= today).reduce((s, o) => s + o.total, 0);
   const conv = myOrders.length ? Math.round(delivered.length / myOrders.length * 100) : 0;

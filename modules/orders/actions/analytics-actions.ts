@@ -2,7 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import { ensureAuth } from "@/lib/auth";
-import type { Prisma } from "@prisma/client";
+import { OrderStatus, type Prisma } from "@prisma/client";
 import {
   emptySidebarCounts,
   getSidebarCountsForUser,
@@ -28,14 +28,20 @@ export async function getDashboardStats() {
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const publicToProcessWhere = {
+    deletedAt: null,
+    status: OrderStatus.TO_PROCESS,
+    commercialId: null,
+    commercialName: 'Site Web',
+  };
 
   // 1. Core Counts
   const [todayOrders, monthOrders, productsCount, toProcessCount, packingQueueCount] = await Promise.all([
-    prisma.order.count({ where: { deletedAt: null, createdAt: { gte: todayStart } } }),
-    prisma.order.count({ where: { deletedAt: null, createdAt: { gte: monthStart } } }),
+    prisma.order.count({ where: { deletedAt: null, status: { not: OrderStatus.TO_PROCESS }, createdAt: { gte: todayStart } } }),
+    prisma.order.count({ where: { deletedAt: null, status: { not: OrderStatus.TO_PROCESS }, createdAt: { gte: monthStart } } }),
     prisma.product.count(),
-    prisma.order.count({ where: { deletedAt: null, status: 'TO_PROCESS' } }),
-    prisma.order.count({ where: { deletedAt: null, status: 'CONFIRMED' } }),
+    prisma.order.count({ where: publicToProcessWhere }),
+    prisma.order.count({ where: { deletedAt: null, status: OrderStatus.CONFIRMED } }),
   ]);
 
   // 2. Revenue (Delivered only)
@@ -74,7 +80,7 @@ export async function getDashboardStats() {
 
   // 5. Recent Activity
   const recentOrders = await prisma.order.findMany({
-    where: { deletedAt: null },
+    where: { deletedAt: null, status: { not: OrderStatus.TO_PROCESS } },
     orderBy: { createdAt: 'desc' },
     take: 8,
     include: { items: true }
@@ -97,7 +103,7 @@ export async function getDashboardStats() {
   const activeOrders = await prisma.order.findMany({
     where: {
       deletedAt: null,
-      status: { in: ['CONFIRMED', 'TO_PROCESS', 'PENDING', 'PARTIAL'] },
+      status: { in: [OrderStatus.CONFIRMED, OrderStatus.PENDING, OrderStatus.PARTIAL] },
     },
     include: { items: true },
     orderBy: { createdAt: 'desc' },

@@ -1,5 +1,6 @@
 export type HomeCmsContent = {
   announcement: string;
+  heroImage: string;
   heroEyebrow: string;
   heroTitle: string;
   heroDescription: string;
@@ -13,6 +14,7 @@ export type HomeCmsContent = {
   categoriesEyebrow: string;
   categoriesTitle: string;
   categoriesDescription: string;
+  categoriesEnabled: boolean;
   featuredCategoryIds: string[];
   collectionsEyebrow: string;
   collectionsTitle: string;
@@ -52,6 +54,7 @@ export type HomeCmsContent = {
 
 export const DEFAULT_HOME_CMS: HomeCmsContent = {
   announcement: "LIVRAISON OFFERTE A ABIDJAN - CODE ZANGO10 : -10% SUR VOTRE 1ERE COMMANDE",
+  heroImage: "/images/hero_banner.png",
   heroEyebrow: "NOUVELLE COLLECTION 2026",
   heroTitle: "MIEUX S'HABILLER A PRIX BAS",
   heroDescription: "Zangochap offre une selection exceptionnelle de produits de qualite a des prix competitifs. Profitez d'une experience d'achat intuitive et d'un service client reactif.",
@@ -65,6 +68,7 @@ export const DEFAULT_HOME_CMS: HomeCmsContent = {
   categoriesEyebrow: "RAYONS",
   categoriesTitle: "CATEGORIES A DECOUVRIR",
   categoriesDescription: "Accedez rapidement aux rayons les plus importants du moment.",
+  categoriesEnabled: true,
   featuredCategoryIds: [],
   collectionsEyebrow: "SELECTION",
   collectionsTitle: "NOS UNIVERS",
@@ -121,8 +125,9 @@ export function normalizeHomeCms(data: unknown): HomeCmsContent {
   return {
     ...DEFAULT_HOME_CMS,
     ...Object.fromEntries(
-      Object.entries(source).filter(([, value]) => typeof value === "string"),
+      Object.entries(source).filter(([, value]) => typeof value === "string" && value !== ""),
     ),
+    heroImage: typeof source.heroImage === "string" && source.heroImage.trim() !== "" ? source.heroImage : DEFAULT_HOME_CMS.heroImage,
     popupEnabled: typeof source.popupEnabled === "boolean"
       ? source.popupEnabled
       : DEFAULT_HOME_CMS.popupEnabled,
@@ -141,6 +146,9 @@ export function normalizeHomeCms(data: unknown): HomeCmsContent {
     newArrivalsEnabled: typeof source.newArrivalsEnabled === "boolean"
       ? source.newArrivalsEnabled
       : DEFAULT_HOME_CMS.newArrivalsEnabled,
+    categoriesEnabled: typeof source.categoriesEnabled === "boolean"
+      ? source.categoriesEnabled
+      : DEFAULT_HOME_CMS.categoriesEnabled,
     featuredCategoryIds: Array.isArray(source.featuredCategoryIds)
       ? source.featuredCategoryIds.filter((value): value is string => typeof value === "string")
       : DEFAULT_HOME_CMS.featuredCategoryIds,

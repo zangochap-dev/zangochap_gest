@@ -5,6 +5,7 @@ import Modal from "@/components/Modal";
 import { PackingProductVariant, ProductWithVariants } from "../types";
 import { getProductVariantsById, updateProductVariantStockLevels } from "@/modules/products/actions/actions";
 import { getMediaFiles, uploadMediaFile } from "@/modules/media/actions";
+import { processImageFile } from "@/lib/image-upload-helper";
 import { AlertTriangle, Image as ImageIcon, MapPin, Minus, Plus, RefreshCw, Search, Upload, Warehouse, X } from "lucide-react";
 import { getImageUrl } from "@/lib/utils";
 
@@ -18,6 +19,7 @@ type EditableStockLevel = {
 
 type EditableVariant = Omit<PackingProductVariant, "stockLevels"> & {
   stockLevels: EditableStockLevel[];
+  image?: string | null;
 };
 
 type MediaFile = {
@@ -144,8 +146,8 @@ export default function VariantsEditorModal({ product, variants: initialVariants
 
     reader.onload = async (event) => {
       try {
-        const dataUrl = String(event.target?.result || "");
-        const result = await uploadMediaFile(dataUrl, file.name);
+        const { dataUrl, fileName } = await processImageFile(file);
+        const result = await uploadMediaFile(dataUrl, fileName);
 
         if (!result.success || !result.url) {
           setError(result.error || "Erreur lors de l'upload de l'image.");

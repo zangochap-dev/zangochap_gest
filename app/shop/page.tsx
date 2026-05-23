@@ -1,6 +1,7 @@
 import React, { Suspense } from "react";
 import type { Metadata } from "next";
 import prisma from "@/lib/prisma";
+import { getHomeCmsContent } from "@/modules/cms/actions";
 import PublicLayout from "@/components/public/PublicLayout";
 import ShopClient from "./ShopClient";
 import {
@@ -57,12 +58,19 @@ export default async function ShopPage() {
         }
       }
     },
-    include: { images: true, category: true, variants: true },
+    include: { images: true, category: true, variants: true, subCategory: true },
     orderBy: { createdAt: 'desc' }
   });
 
+  const cms = await getHomeCmsContent();
+  const featuredCategoryIds = cms.featuredCategoryIds || [];
+
   const categories = await prisma.category.findMany({
-    include: { _count: { select: { products: true } } }
+    where: featuredCategoryIds.length > 0 ? { id: { in: featuredCategoryIds } } : undefined,
+    include: { 
+      subCategories: true,
+      _count: { select: { products: true } } 
+    }
   });
 
   // JSON-LD

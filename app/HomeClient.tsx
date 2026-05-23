@@ -59,7 +59,7 @@ export default function HomeClient({ products, categories, latestPromo, cms }: {
 
       <section className="relative h-[75vh] md:h-[90vh] min-h-[500px] md:min-h-[600px] flex items-center justify-center md:justify-start px-6 md:px-[8%] text-white bg-[#1A1614] overflow-hidden">
         <div className="absolute inset-0 z-[1] w-full h-full">
-          <Image src="/images/hero_banner.png" alt="ZangoChap Hero" fill priority className="object-cover opacity-70" sizes="100vw" />
+          <Image src={content.heroImage || "/images/hero_banner.png"} alt="ZangoChap Hero" fill priority className="object-cover opacity-70" sizes="100vw" />
           <div className="absolute inset-0 bg-gradient-to-r from-[#1A1614]/90 via-[#1A1614]/40 to-transparent"></div>
         </div>
         <div className="relative z-[2] max-w-[600px] w-full text-center md:text-left">
@@ -104,7 +104,7 @@ export default function HomeClient({ products, categories, latestPromo, cms }: {
         </div>
       </section>
 
-      {featuredCategories.length > 0 && (
+      {content.categoriesEnabled && featuredCategories.length > 0 && (
         <section className="max-w-[1300px] mx-auto px-5 py-10 md:py-[54px]">
           <div className="mb-7 text-center">
             <span className="text-[9px] md:text-[10px] font-extrabold tracking-[0.3em] text-[#D4541C] block mb-2 uppercase">{content.categoriesEyebrow}</span>
@@ -159,19 +159,19 @@ export default function HomeClient({ products, categories, latestPromo, cms }: {
             <span className="text-[9px] md:text-[10px] font-extrabold tracking-[0.3em] text-[#D4541C] block mb-2 md:mb-3 uppercase">{content.collectionsEyebrow}</span>
             <h2 className="font-display text-[26px] md:text-[32px] font-bold text-[#1A1614] mb-2 md:mb-3 uppercase">{content.collectionsTitle}</h2>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+          <div className="flex md:grid md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 overflow-x-auto snap-x snap-mandatory pb-4 -mx-5 px-5 md:mx-0 md:px-0 md:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {(content.collectionsList || []).map((collection) => (
               <Link 
                 key={collection.id} 
                 href={collection.href || "/shop"} 
-                className="group relative overflow-hidden rounded-sm block h-[250px] md:h-[300px] lg:h-[400px] bg-[#F3F1ED]"
+                className="group relative overflow-hidden rounded-sm block flex-none w-[75vw] sm:w-[45vw] md:w-auto h-[280px] sm:h-[300px] md:h-[300px] lg:h-[400px] bg-[#F3F1ED] snap-center"
               >
                 {collection.image && (
                   <Image 
                     src={collection.image} 
                     alt={collection.title} 
                     fill 
-                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw" 
+                    sizes="(max-width: 768px) 75vw, (max-width: 1024px) 50vw, 33vw" 
                     className="object-cover transition-transform duration-1000 group-hover:scale-105" 
                   />
                 )}

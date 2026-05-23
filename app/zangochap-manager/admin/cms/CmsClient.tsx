@@ -6,6 +6,7 @@ import {
   ArrowRight,
   Bell,
   Check,
+  ExternalLink,
   Eye,
   Grid3X3,
   Image as ImageIcon,
@@ -23,6 +24,7 @@ import {
 import { useToast } from "@/components/Toast";
 import { saveHomeCmsContent, resetHomeCmsContent } from "@/modules/cms/actions";
 import { uploadMediaFile } from "@/modules/media/actions";
+import { processImageFile } from "@/lib/image-upload-helper";
 import { HomeCmsContent } from "@/modules/cms/types";
 
 type Field = {
@@ -65,6 +67,7 @@ const TABS: CmsTab[] = [
     fields: [
       { key: "announcement", label: "Bandeau d'annonce", hint: "Texte court affiche au-dessus du hero.", span: "full" },
       { key: "div_hero1" as keyof HomeCmsContent, label: "Section Principale", type: "divider", span: "full" },
+      { key: "heroImage", label: "Image de fond (Background)", type: "image", span: "full" },
       { key: "heroEyebrow", label: "Petit titre (Eyebrow)" },
       { key: "heroTitle", label: "Grand titre", type: "textarea", span: "full" },
       { key: "heroDescription", label: "Description", type: "textarea", span: "full" },
@@ -92,6 +95,7 @@ const TABS: CmsTab[] = [
     description: "Raccourcis de navigation visibles sur la home.",
     icon: <Grid3X3 size={17} />,
     fields: [
+      { key: "categoriesEnabled", label: "Afficher la section Rayons / Categories", type: "checkbox", span: "full" },
       { key: "categoriesEyebrow", label: "Petit titre" },
       { key: "categoriesTitle", label: "Titre" },
       { key: "categoriesDescription", label: "Description", type: "textarea", span: "full" },
@@ -118,37 +122,45 @@ const TABS: CmsTab[] = [
     fields: [
       { key: "popupEnabled", label: "Activer la popup", type: "checkbox", span: "full" },
       { key: "div_popup1" as keyof HomeCmsContent, label: "Comportement & Apparence", type: "divider", span: "full" },
-      { key: "popupTheme", label: "Theme", type: "select", options: [
-        { label: "Clair", value: "light" },
-        { label: "Sombre", value: "dark" },
-        { label: "Orange", value: "orange" },
-      ] },
-      { key: "popupPosition", label: "Position", type: "select", options: [
-        { label: "Centre", value: "center" },
-        { label: "Bas droite", value: "bottom-right" },
-        { label: "Bas centre", value: "bottom-center" },
-      ] },
-      { key: "popupSize", label: "Taille", type: "select", options: [
-        { label: "Compacte", value: "small" },
-        { label: "Standard", value: "medium" },
-        { label: "Large", value: "large" },
-      ] },
-      { key: "popupFrequency", label: "Frequence d'affichage", type: "select", options: [
-        { label: "Une fois par session", value: "session" },
-        { label: "Une fois par navigateur", value: "once" },
-        { label: "A chaque visite", value: "always" },
-      ] },
+      {
+        key: "popupTheme", label: "Theme", type: "select", options: [
+          { label: "Clair", value: "light" },
+          { label: "Sombre", value: "dark" },
+          { label: "Orange", value: "orange" },
+        ]
+      },
+      {
+        key: "popupPosition", label: "Position", type: "select", options: [
+          { label: "Centre", value: "center" },
+          { label: "Bas droite", value: "bottom-right" },
+          { label: "Bas centre", value: "bottom-center" },
+        ]
+      },
+      {
+        key: "popupSize", label: "Taille", type: "select", options: [
+          { label: "Compacte", value: "small" },
+          { label: "Standard", value: "medium" },
+          { label: "Large", value: "large" },
+        ]
+      },
+      {
+        key: "popupFrequency", label: "Frequence d'affichage", type: "select", options: [
+          { label: "Une fois par session", value: "session" },
+          { label: "Une fois par navigateur", value: "once" },
+          { label: "A chaque visite", value: "always" },
+        ]
+      },
       { key: "popupDelayMs", label: "Delai d'apparition (ms)", hint: "900 = presque immediat, 3000 = apres 3 secondes." },
-      
+
       { key: "div_popup2" as keyof HomeCmsContent, label: "Visuel", type: "divider", span: "full" },
       { key: "popupShowImage", label: "Afficher l'image", type: "checkbox", span: "full" },
       { key: "popupImage", label: "Image (Optionnelle)", type: "image", span: "full" },
-      
+
       { key: "div_popup3" as keyof HomeCmsContent, label: "Contenu Textuel", type: "divider", span: "full" },
       { key: "popupEyebrow", label: "Surtitre (Eyebrow)" },
       { key: "popupTitle", label: "Titre principal" },
       { key: "popupDescription", label: "Message", type: "textarea", span: "full" },
-      
+
       { key: "div_popup4" as keyof HomeCmsContent, label: "Actions", type: "divider", span: "full" },
       { key: "popupButtonLabel", label: "Bouton principal" },
       { key: "popupButtonHref", label: "Lien principal" },
@@ -167,7 +179,7 @@ const TABS: CmsTab[] = [
       { key: "flashEnabled", label: "Afficher la section Ventes Flash", type: "checkbox", span: "full" },
       { key: "flashTitle", label: "Titre" },
       { key: "flashDescription", label: "Description", type: "textarea", span: "full" },
-      
+
       { key: "div_prod2" as keyof HomeCmsContent, label: "Nouveautés", type: "divider", span: "full" },
       { key: "newArrivalsEnabled", label: "Afficher la section Nouveautes", type: "checkbox", span: "full" },
       { key: "newArrivalsLimit", label: "Nombre limite de produits", hint: "Ex: 24" },
@@ -220,61 +232,51 @@ export default function CmsClient({
     }));
   };
 
-  const handleImageUpload = (file: File, fieldKey: string) => {
+  const handleImageUpload = async (file: File, fieldKey: string) => {
     if (!file.type.startsWith("image/")) {
       showToast("Seules les images sont autorisees", "error");
       return;
     }
 
-    const reader = new FileReader();
     setIsUploading(true);
 
-    reader.onload = async (event) => {
-      try {
-        const dataUrl = String(event.target?.result || "");
-        const result = await uploadMediaFile(dataUrl, file.name);
+    try {
+      const { dataUrl, fileName } = await processImageFile(file);
+      const result = await uploadMediaFile(dataUrl, fileName);
 
-        if (!result.success || !result.url) {
-          showToast(result.error || "Erreur lors de l'upload", "error");
-          return;
-        }
-
-        const uploaded: MediaFile = {
-          name: result.url.split("/").pop() || file.name,
-          url: result.url,
-          size: file.size,
-          createdAt: new Date(),
-        };
-
-        setFiles((current) => [uploaded, ...current]);
-        
-        if (fieldKey.startsWith("collectionsList:")) {
-          const idx = parseInt(fieldKey.split(":")[1]);
-          const currentList = [...(content.collectionsList || [])];
-          if (currentList[idx]) {
-            currentList[idx].image = result.url;
-            updateField("collectionsList", currentList);
-          }
-        } else {
-          updateField(fieldKey as keyof HomeCmsContent, result.url);
-          if (fieldKey === "popupImage") {
-            updateField("popupShowImage", true);
-          }
-        }
-        showToast("Image ajoutee", "success");
-      } catch (error) {
-        showToast(error instanceof Error ? error.message : "Erreur lors de l'upload", "error");
-      } finally {
-        setIsUploading(false);
+      if (!result.success || !result.url) {
+        showToast(result.error || "Erreur lors de l'upload", "error");
+        return;
       }
-    };
 
-    reader.onerror = () => {
+      const uploaded: MediaFile = {
+        name: result.url.split("/").pop() || fileName,
+        url: result.url,
+        size: file.size,
+        createdAt: new Date(),
+      };
+
+      setFiles((current) => [uploaded, ...current]);
+
+      if (fieldKey.startsWith("collectionsList:")) {
+        const idx = parseInt(fieldKey.split(":")[1]);
+        const currentList = [...(content.collectionsList || [])];
+        if (currentList[idx]) {
+          currentList[idx].image = result.url;
+          updateField("collectionsList", currentList);
+        }
+      } else {
+        updateField(fieldKey as keyof HomeCmsContent, result.url);
+        if (fieldKey === "popupImage") {
+          updateField("popupShowImage", true);
+        }
+      }
+      showToast("Image ajoutee", "success");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Erreur lors de l'upload", "error");
+    } finally {
       setIsUploading(false);
-      showToast("Erreur lors de la lecture du fichier", "error");
-    };
-
-    reader.readAsDataURL(file);
+    }
   };
 
   const handleSave = () => {
@@ -432,45 +434,22 @@ export default function CmsClient({
         </section>
 
         <aside className="table-card cms-preview" style={styles.previewPanel}>
-          <div className="table-head">
+          <div className="table-head" style={{ marginBottom: 0, paddingBottom: 10, borderBottom: '1px solid var(--border)' }}>
             <div>
-              <div className="table-title">Apercu rapide</div>
-              <div className="table-meta">Controle visuel avant publication</div>
+              <div className="table-title">Apercu en direct</div>
+              <div className="table-meta">N'oubliez pas d'enregistrer pour voir vos modifications</div>
             </div>
+            <a href="/" target="_blank" rel="noopener noreferrer" className="btn-secondary" style={{ textDecoration: 'none' }}>
+              <Eye size={14} /> Ouvrir
+            </a>
           </div>
 
-          <div style={styles.heroPreview}>
-            <div style={styles.previewEyebrow}>{content.heroEyebrow}</div>
-            <h3 style={styles.previewHeroTitle}>{content.heroTitle}</h3>
-            <p style={styles.previewText}>{content.heroDescription}</p>
-            <div style={styles.previewButtons}>
-              <span className="btn-orange">{content.heroPrimaryLabel}</span>
-              <span className="btn-secondary" style={styles.previewDarkButton}>
-                {content.heroSecondaryLabel} <ArrowRight size={12} />
-              </span>
-            </div>
-          </div>
-
-          <div style={styles.summaryStack}>
-            <SummaryRow icon={<Grid3X3 size={15} />} label="Categories" value={selectedCategories.length > 0 ? `${selectedCategories.length} selectionnee(s)` : "Auto"} />
-            <SummaryRow icon={<Bell size={15} />} label="Popup" value={content.popupEnabled ? "Active" : "Inactive"} />
-            <SummaryRow icon={<MousePointerClick size={15} />} label="Nouveautes" value={content.newArrivalsEnabled ? `${content.newArrivalsLimit} produits` : "Masquees"} />
-          </div>
-
-          <div style={{ ...styles.popupPreview, ...getPopupPreviewTheme(content.popupTheme) }}>
-            {content.popupShowImage && content.popupImage && <img src={content.popupImage} alt="" style={styles.popupImage} />}
-            <div style={styles.popupBody}>
-              <div style={styles.popupEyebrow}>{content.popupEyebrow}</div>
-              <strong style={styles.popupTitle}>{content.popupTitle}</strong>
-              <p style={styles.popupText}>{content.popupDescription}</p>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <span className="btn-orange" style={{ width: "fit-content" }}>{content.popupButtonLabel}</span>
-                {content.popupSecondaryLabel && (
-                  <span className="btn-secondary" style={{ width: "fit-content" }}>{content.popupSecondaryLabel}</span>
-                )}
-              </div>
-              <small style={{ color: "var(--muted)", fontWeight: 800 }}>{content.popupCloseLabel}</small>
-            </div>
+          <div style={{ flex: 1, backgroundColor: '#f0f0f0', borderRadius: '0 0 12px 12px', overflow: 'hidden', minHeight: 600 }}>
+            <iframe
+              src="/"
+              style={{ width: '100%', height: '100%', border: 'none' }}
+              title="Apercu en direct"
+            />
           </div>
         </aside>
       </div>

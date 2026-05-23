@@ -22,6 +22,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
 import { deleteMediaFile, uploadMediaFile } from "@/modules/media/actions";
+import { processImageFile } from "@/lib/image-upload-helper";
 import { useToast } from "@/components/Toast";
 import Topbar from "@/components/Topbar";
 import Link from "next/link";
@@ -63,29 +64,25 @@ export default function MediaClient({ initialFiles }: MediaClientProps) {
 
     try {
       setIsUploading(true);
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        const dataUrl = event.target?.result as string;
-        const res = await uploadMediaFile(dataUrl, file.name);
-        
-        if (res.success) {
-          showToast("Image ajoutée avec succès", "success");
-          // Refresh list
-          const newFile: MediaFile = {
-            name: res.url!.split('/').pop()!,
-            url: res.url!,
-            size: file.size,
-            createdAt: new Date()
-          };
-          setFiles(prev => [newFile, ...prev]);
-        } else {
-          showToast(res.error || "Erreur lors de l'upload", "error");
-        }
-        setIsUploading(false);
-      };
-      reader.readAsDataURL(file);
+      const { dataUrl, fileName } = await processImageFile(file);
+      const res = await uploadMediaFile(dataUrl, fileName);
+      
+      if (res.success) {
+        showToast("Image ajoutée avec succès", "success");
+        // Refresh list
+        const newFile: MediaFile = {
+          name: res.url!.split('/').pop()!,
+          url: res.url!,
+          size: file.size,
+          createdAt: new Date()
+        };
+        setFiles(prev => [newFile, ...prev]);
+      } else {
+        showToast(res.error || "Erreur lors de l'upload", "error");
+      }
     } catch (error) {
-      showToast("Erreur lors de la lecture du fichier", "error");
+      showToast(error instanceof Error ? error.message : "Erreur lors de la lecture du fichier", "error");
+    } finally {
       setIsUploading(false);
     }
   };

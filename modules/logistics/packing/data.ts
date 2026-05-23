@@ -9,6 +9,7 @@ const PACKING_ORDER_STATUSES: OrderStatus[] = [
   OrderStatus.PARTIAL,
   OrderStatus.UNAVAILABLE,
   OrderStatus.PACKED,
+  OrderStatus.REPROGRAMMED,
 ];
 
 export async function getPackingOrders(): Promise<PackingOrder[]> {

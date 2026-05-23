@@ -15,7 +15,7 @@ export default function ProductDetailClient({ product }: { product: any }) {
   const [selectedColor, setSelectedColor] = useState<string>("");
   const [activeImg, setActiveImg] = useState(0);
   const [added, setAdded] = useState(false);
-  const [cartModalOpen, setCartModalOpen] = useState(false);
+  const [modalType, setModalType] = useState<"cart" | "buy" | null>(null);
   const { addToCart } = useCart();
   const { showToast } = useToast();
   const router = useRouter();
@@ -55,33 +55,28 @@ export default function ProductDetailClient({ product }: { product: any }) {
       image: getImageUrl(variant.image || product.images?.[0]?.url),
     });
     setAdded(true);
-    setCartModalOpen(false);
+    setModalType(null);
     showToast("Ajoute au panier !", "success");
     setTimeout(() => setAdded(false), 2500);
   }, [addToCart, product, showToast]);
 
-  const handleBuyNow = useCallback(() => {
-    const variant = product.variants.find((v: any) => /standard|unique/i.test(`${v.size} ${v.color}`)) || product.variants[0];
-    if (!variant) {
-      showToast("Aucune variante disponible pour ce produit", "error");
-      return;
-    }
-
+  const handleBuyNow = useCallback((variant: any, quantity: number) => {
     sessionStorage.setItem("zangochap_buy_now", JSON.stringify({
       productId: product.id,
       variantId: variant.id,
       name: product.name,
       price: Number(product.price),
-      qty: 1,
+      qty: quantity,
       size: variant.size,
       color: variant.color,
       image: getImageUrl(variant.image || product.images?.[0]?.url),
     }));
+    setModalType(null);
     router.push("/cart?buyNow=1");
-  }, [product, router, showToast]);
+  }, [product, router]);
 
   return (
-    <div className="max-w-[1440px] mx-auto px-4 md:px-10 py-[10px] pb-10 animate-[fadeUp_0.5s_ease] font-body w-full">
+    <div className="max-w-[1440px] relative mx-auto px-4 md:px-10 py-[10px] pb-28 sm:pb-10 animate-[fadeUp_0.5s_ease] font-body w-full">
       {/* BREADCRUMB */}
       <div className="mb-2.5">
         <Link href="/" className="no-underline text-[#999] text-[12px] inline-flex items-center gap-1 font-medium tracking-wider transition-colors hover:text-[#1A1614]">
@@ -194,10 +189,10 @@ export default function ProductDetailClient({ product }: { product: any }) {
             )}
 
             {/* PURCHASE ACTIONS */}
-            <div className="flex flex-col sm:flex-row gap-3 mb-8">
-              <button 
-                className={`flex-1 h-[52px] text-white text-[12px] font-semibold tracking-[0.15em] flex items-center justify-center gap-2.5 transition-all duration-350 ease-out active:scale-95 ${added ? 'bg-[#2D8A4E]' : 'bg-[#1A1614] hover:bg-[#333] hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0'}`} 
-                onClick={() => setCartModalOpen(true)}
+            <div className="fixed bottom-10 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-[#f0f0f0] p-4 z-40 flex flex-row gap-3 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] sm:static sm:p-0 sm:border-0 sm:shadow-none sm:bg-transparent sm:backdrop-blur-none sm:z-auto sm:mb-8 sm:flex-row sm:gap-3">
+              <button
+                className={`flex-1 h-[54px] sm:h-[52px] text-white text-[10px] xs:text-[11px] sm:text-[12px] font-semibold tracking-[0.1em] sm:tracking-[0.15em] flex items-center justify-center gap-1.5 sm:gap-2.5 transition-all duration-350 ease-out active:scale-95 ${added ? 'bg-[#2D8A4E]' : 'bg-[#1A1614] hover:bg-[#333] hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0'}`}
+                onClick={() => setModalType("cart")}
                 disabled={!product.variants.length}
               >
                 {added ? (
@@ -207,8 +202,8 @@ export default function ProductDetailClient({ product }: { product: any }) {
                 )}
               </button>
               <button
-                className="flex-1 h-[52px] bg-[#D4541C] text-white text-[12px] font-semibold tracking-[0.15em] flex items-center justify-center gap-2.5 transition-all duration-350 hover:bg-[#B33D0E] hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50"
-                onClick={handleBuyNow}
+                className="flex-1 h-[54px] sm:h-[52px] bg-[#D4541C] text-white text-[10px] xs:text-[11px] sm:text-[12px] font-semibold tracking-[0.1em] sm:tracking-[0.15em] flex items-center justify-center gap-1.5 sm:gap-2.5 transition-all duration-350 hover:bg-[#B33D0E] hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50"
+                onClick={() => setModalType("buy")}
                 disabled={!product.variants.length}
               >
                 <ArrowRight size={18} /> ACHETER
@@ -246,9 +241,11 @@ export default function ProductDetailClient({ product }: { product: any }) {
         </div>
       </div>
       <PublicVariantModal
-        product={cartModalOpen ? product : null}
-        onClose={() => setCartModalOpen(false)}
-        onConfirm={addSelectedVariant}
+        product={modalType ? product : null}
+        onClose={() => setModalType(null)}
+        onConfirm={modalType === "buy" ? handleBuyNow : addSelectedVariant}
+        title={modalType === "buy" ? "Acheter ce produit" : "Choisir la variante"}
+        actionLabel={modalType === "buy" ? "Acheter" : "Valider le panier"}
       />
     </div>
 

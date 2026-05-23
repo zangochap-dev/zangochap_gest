@@ -3,10 +3,7 @@
 import React, { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import {
-  ArrowRight,
-  Bell,
   Check,
-  ExternalLink,
   Eye,
   Grid3X3,
   Image as ImageIcon,
@@ -60,6 +57,28 @@ type MediaFile = {
 };
 
 const TABS: CmsTab[] = [
+  {
+    id: "seo",
+    title: "SEO",
+    description: "Titre Google, description et image de partage.",
+    icon: <Search size={17} />,
+    fields: [
+      { key: "siteSeoTitle", label: "Titre SEO du site", hint: "Idealement 50 a 60 caracteres.", span: "full" },
+      { key: "siteSeoDescription", label: "Description SEO", type: "textarea", hint: "Idealement 140 a 160 caracteres.", span: "full" },
+      { key: "siteSeoKeywords", label: "Mots-cles", hint: "Separez les mots-cles par des virgules.", span: "full" },
+      { key: "siteOgImage", label: "Image de partage (Open Graph)", type: "image", span: "full" },
+    ],
+  },
+  {
+    id: "tracking",
+    title: "Tracking",
+    description: "Google Analytics et Facebook Pixel.",
+    icon: <MousePointerClick size={17} />,
+    fields: [
+      { key: "googleAnalyticsId", label: "Google Analytics Measurement ID", hint: "Format attendu : G-XXXXXXXXXX", span: "full" },
+      { key: "facebookPixelId", label: "Facebook Pixel ID", hint: "Uniquement l'identifiant numerique du pixel.", span: "full" },
+    ],
+  },
   {
     id: "hero",
     title: "Hero",
@@ -211,16 +230,12 @@ export default function CmsClient({
   const { showToast } = useToast();
 
   const currentTab = TABS.find((tab) => tab.id === activeTab) || TABS[0];
-  const selectedCategories = useMemo(
-    () => categories.filter((category) => content.featuredCategoryIds.includes(category.id)),
-    [categories, content.featuredCategoryIds],
-  );
   const filteredMediaFiles = useMemo(
     () => files.filter((file) => file.name.toLowerCase().includes(gallerySearch.toLowerCase())),
     [files, gallerySearch],
   );
 
-  const updateField = (key: keyof HomeCmsContent, value: any) => {
+  const updateField = (key: keyof HomeCmsContent, value: HomeCmsContent[keyof HomeCmsContent]) => {
     setContent((current) => ({ ...current, [key]: value }));
   };
 
@@ -441,7 +456,7 @@ export default function CmsClient({
           <div className="table-head" style={{ marginBottom: 0, paddingBottom: 10, borderBottom: '1px solid var(--border)' }}>
             <div>
               <div className="table-title">Apercu en direct</div>
-              <div className="table-meta">N'oubliez pas d'enregistrer pour voir vos modifications</div>
+              <div className="table-meta">N&apos;oubliez pas d&apos;enregistrer pour voir vos modifications</div>
             </div>
             <a href="/" target="_blank" rel="noopener noreferrer" className="btn-secondary" style={{ textDecoration: 'none' }}>
               <Eye size={14} /> Ouvrir
@@ -484,7 +499,7 @@ function CmsField({
   galleryOpen: boolean;
   gallerySearch: string;
   isUploading: boolean;
-  onChange: (key: keyof HomeCmsContent, value: any) => void;
+  onChange: (key: keyof HomeCmsContent, value: HomeCmsContent[keyof HomeCmsContent]) => void;
   onToggleCategory: (id: string) => void;
   onOpenGallery: (subfield?: string) => void;
   onCloseGallery: () => void;
@@ -734,28 +749,6 @@ function CmsField({
 
 function StatusPill({ label }: { label: string }) {
   return <span style={styles.statusPill}>{label}</span>;
-}
-
-function SummaryRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  return (
-    <div style={styles.summaryRow}>
-      <span style={styles.summaryIcon}>{icon}</span>
-      <span style={{ flex: 1 }}>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
-}
-
-function getPopupPreviewTheme(theme: string): React.CSSProperties {
-  if (theme === "dark") {
-    return { background: "#1A1614", color: "#fff" };
-  }
-
-  if (theme === "orange") {
-    return { background: "var(--orange-soft)", color: "var(--ink)", borderTopColor: "rgba(212,84,28,0.22)", borderRightColor: "rgba(212,84,28,0.22)", borderBottomColor: "rgba(212,84,28,0.22)", borderLeftColor: "rgba(212,84,28,0.22)" };
-  }
-
-  return {};
 }
 
 const styles: Record<string, React.CSSProperties> = {

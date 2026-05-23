@@ -116,6 +116,8 @@ interface ProductFormProps {
   categories: any[];
   suppliers: any[];
   warehouses: any[];
+  commercials?: any[];
+  user?: any;
   onSubmit: (data: any) => Promise<void>;
   onCancel: () => void;
   isPending: boolean;
@@ -151,6 +153,8 @@ export default function ProductForm({
   categories,
   suppliers,
   warehouses,
+  commercials = [],
+  user,
   onSubmit,
   onCancel,
   isPending,
@@ -186,6 +190,8 @@ export default function ProductForm({
   const [origin, setOrigin] = useState(initialData?.origin || '');
   const [supplier, setSupplier] = useState(initialData?.supplier?.name || '');
   const [selectedWarehouse, setSelectedWarehouse] = useState(initialWarehouseId);
+  const isAdmin = String(user?.role || '').toLowerCase() === 'admin';
+  const [selectedCreatorId, setSelectedCreatorId] = useState(initialData?.creatorId || user?.id || '');
 
   const [sizes, setSizes] = useState<string[]>(Array.from(new Set(initialVariants.map(v => v.size).filter(Boolean))));
   const [colors, setColors] = useState<string[]>(Array.from(new Set(initialVariants.map(v => v.color).filter(Boolean))));
@@ -387,7 +393,8 @@ export default function ProductForm({
       variants: finalVariants,
       images: images.length > 0 ? images : undefined,
       emoji: initialData?.emoji || "📦",
-      warehouseId: selectedWarehouse
+      warehouseId: selectedWarehouse,
+      creatorId: isAdmin ? selectedCreatorId : undefined
     });
   };
 
@@ -838,6 +845,24 @@ export default function ProductForm({
                   <label className="text-[11px] font-bold uppercase tracking-wider text-[#6B4838]">Fournisseur</label>
                   <SupplierCombobox suppliers={suppliers} value={supplier} onChange={setSupplier} />
                 </div>
+
+                {isAdmin && (
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-[#6B4838]">Commercial attribuÃ©</label>
+                    <Select value={selectedCreatorId || undefined} onValueChange={(val) => { if (val) setSelectedCreatorId(val); }}>
+                      <SelectTrigger className="w-full bg-white border border-[#E8DDD0] rounded-lg h-11 font-semibold focus:ring-2 focus:ring-[#D4541C]/10 outline-none">
+                        <SelectValue placeholder="Choisir un commercial..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {commercials.map((commercial) => (
+                          <SelectItem key={commercial.id} value={commercial.id}>
+                            {commercial.name || commercial.email}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">

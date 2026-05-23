@@ -80,8 +80,9 @@ export default async function ShopPage() {
   ]);
 
   const productListSchema = getProductListSchema(
-    products.map((p: any) => ({
+    products.map((p: { id: string; slug: string; name: string; price: unknown; images: { url: string }[] }) => ({
       id: p.id,
+      slug: p.slug,
       name: p.name,
       price: Number(p.price),
       images: p.images,

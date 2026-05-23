@@ -19,28 +19,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "daily",
       priority: 0.9,
     },
-    {
-      url: `${SITE_URL}/cart`,
-      lastModified: new Date(),
-      changeFrequency: "weekly",
-      priority: 0.3,
-    },
-    {
-      url: `${SITE_URL}/compte`,
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.3,
-    },
   ];
 
   // Dynamic product pages
   const products = await prisma.product.findMany({
-    where: { status: "PUBLISHED" },
-    select: { id: true, updatedAt: true },
+    where: {
+      status: "PUBLISHED",
+      category: {
+        name: {
+          notIn: ["Entrepots", "Entrepôts", "cadeau", "Cadeau", "Gift"],
+        },
+      },
+    },
+    select: { id: true, slug: true, updatedAt: true },
   });
 
-  const productPages: MetadataRoute.Sitemap = products.map((product: { id: string; updatedAt: Date }) => ({
-    url: `${SITE_URL}/product/${product.id}`,
+  const productPages: MetadataRoute.Sitemap = products.map((product: { id: string; slug: string; updatedAt: Date }) => ({
+    url: `${SITE_URL}/product/${product.slug || product.id}`,
     lastModified: product.updatedAt,
     changeFrequency: "weekly" as const,
     priority: 0.8,
@@ -48,6 +43,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Category pages (as search queries)
   const categories = await prisma.category.findMany({
+    where: {
+      name: {
+        notIn: ["Entrepots", "Entrepôts", "cadeau", "Cadeau", "Gift"],
+      },
+    },
     select: { name: true },
   });
 
@@ -59,6 +59,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   const subCategories = await prisma.subCategory.findMany({
+    where: {
+      category: {
+        name: {
+          notIn: ["Entrepots", "Entrepôts", "cadeau", "Cadeau", "Gift"],
+        },
+      },
+    },
     select: { name: true },
   });
 

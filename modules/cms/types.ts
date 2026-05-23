@@ -1,4 +1,10 @@
 export type HomeCmsContent = {
+  siteSeoTitle: string;
+  siteSeoDescription: string;
+  siteSeoKeywords: string;
+  siteOgImage: string;
+  googleAnalyticsId: string;
+  facebookPixelId: string;
   announcement: string;
   heroImage: string;
   heroEyebrow: string;
@@ -53,6 +59,12 @@ export type HomeCmsContent = {
 };
 
 export const DEFAULT_HOME_CMS: HomeCmsContent = {
+  siteSeoTitle: "Zangochap - Boutique de mode en ligne en Cote d'Ivoire",
+  siteSeoDescription: "Achetez vetements, chaussures et accessoires sur Zangochap. Nouveautes mode, prix accessibles et livraison rapide a Abidjan.",
+  siteSeoKeywords: "mode Cote d'Ivoire, vetements Abidjan, chaussures Abidjan, boutique en ligne, Zangochap",
+  siteOgImage: "/og-image.png",
+  googleAnalyticsId: "",
+  facebookPixelId: "",
   announcement: "LIVRAISON OFFERTE A ABIDJAN - CODE ZANGO10 : -10% SUR VOTRE 1ERE COMMANDE",
   heroImage: "/images/hero_banner.png",
   heroEyebrow: "NOUVELLE COLLECTION 2026",

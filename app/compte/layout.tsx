@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     title: `Mon Compte — ${SITE_NAME}`,
     description: `Connectez-vous à votre compte ${SITE_NAME}.`,
   },
-  robots: { index: true, follow: true },
+  robots: { index: false, follow: true },
 };
 
 export default function CompteLayout({

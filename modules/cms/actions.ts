@@ -34,6 +34,8 @@ export async function saveHomeCmsContent(data: HomeCmsContent) {
   });
 
   revalidatePath("/");
+  revalidatePath("/shop");
+  revalidatePath("/sitemap.xml");
   revalidatePath("/zangochap-manager/admin/cms");
   return { success: true };
 }
@@ -55,6 +57,8 @@ export async function resetHomeCmsContent() {
   });
 
   revalidatePath("/");
+  revalidatePath("/shop");
+  revalidatePath("/sitemap.xml");
   revalidatePath("/zangochap-manager/admin/cms");
   return { success: true };
 }

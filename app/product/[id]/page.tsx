@@ -9,7 +9,10 @@ import {
   SITE_URL,
   SITE_LOCALE,
   SITE_CURRENCY,
+  buildProductSeoDescription,
+  getAbsoluteUrl,
   getProductSchema,
+  getProductUrl,
   getBreadcrumbSchema,
 } from "@/lib/seo";
 
@@ -23,9 +26,12 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
 
-  const product = await prisma.product.findUnique({
-    where: { id },
-    include: { images: true, category: true },
+  const product = await prisma.product.findFirst({
+    where: {
+      status: "PUBLISHED",
+      OR: [{ id }, { slug: id }],
+    },
+    include: { images: true, category: true, variants: true },
   });
 
   if (!product) {
@@ -34,18 +40,21 @@ export async function generateMetadata({
     };
   }
 
-  const title = `${product.name} — ${SITE_NAME}`;
-  const description =
-    product.description ||
-    `Achetez ${product.name} sur ${SITE_NAME}. Livraison rapide à Abidjan et en Côte d'Ivoire.`;
-  const imageUrl = product.images?.[0]?.url || `${SITE_URL}/og-image.png`;
-  const productUrl = `${SITE_URL}/product/${product.id}`;
+  const title = product.name;
+  const description = buildProductSeoDescription({
+    name: product.name,
+    description: product.description,
+    category: product.category,
+  });
+  const imageUrl = getAbsoluteUrl(product.images?.[0]?.url || "/og-image.png");
+  const productUrl = getProductUrl(product);
+  const inStock = product.stock > 0 || product.variants.some((variant) => variant.stock > 0);
 
   return {
     title,
     description,
     alternates: {
-      canonical: `/product/${product.id}`,
+      canonical: `/product/${product.slug || product.id}`,
     },
     openGraph: {
       type: "website",
@@ -73,7 +82,7 @@ export async function generateMetadata({
       // Facebook / Instagram Shopping
       "product:price:amount": String(Number(product.price)),
       "product:price:currency": SITE_CURRENCY,
-      "product:availability": "in stock",
+      "product:availability": inStock ? "in stock" : "out of stock",
       "product:condition": "new",
       "product:brand": SITE_NAME,
       ...(product.category && {
@@ -91,8 +100,11 @@ export default async function ProductPage({
 }) {
   const { id } = await params;
 
-  const product = await prisma.product.findUnique({
-    where: { id },
+  const product = await prisma.product.findFirst({
+    where: {
+      status: "PUBLISHED",
+      OR: [{ id }, { slug: id }],
+    },
     include: { images: true, variants: true, category: true },
   });
 
@@ -125,7 +137,7 @@ export default async function ProductPage({
           },
         ]
       : []),
-    { name: product.name, url: `${SITE_URL}/product/${product.id}` },
+    { name: product.name, url: getProductUrl(product) },
   ]);
 
   return (

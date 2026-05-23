@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getSession } from "@/modules/auth/actions";
 import { ensureAuth } from "@/lib/auth";
 import { uploadImage, deleteImageFromR2 } from "@/lib/upload";
-import { Prisma } from "@prisma/client";
+import { Prisma, Role } from "@prisma/client";
 import { getOrCreateDefaultWarehouse } from "@/modules/orders/helpers";
 import { syncProductStock } from "@/lib/stock-sync";
 import { getBestAutomaticDiscount, CartItem } from "@/lib/promo-engine";
@@ -118,8 +118,19 @@ export async function createProduct(data: {
   }>;
   images?: Array<{ name: string; dataUrl: string }>;
   warehouseId?: string;
+  creatorId?: string;
 }) {
   const session = await ensureAuth(["admin", "stock", "commercial"]);
+  const canAssignCreator = session.role?.toLowerCase() === "admin";
+  const creatorId = canAssignCreator && data.creatorId ? data.creatorId : session.id;
+
+  if (creatorId !== session.id) {
+    const creator = await prisma.user.findFirst({
+      where: { id: creatorId, role: { in: [Role.ADMIN, Role.COMMERCIAL] } },
+      select: { id: true },
+    });
+    if (!creator) throw new Error("Commercial attribue introuvable.");
+  }
 
   // 1. Upload images to S3
   const imageUrls = [];
@@ -181,7 +192,7 @@ export async function createProduct(data: {
       status: data.isPublished === false ? 'DRAFT' : 'PUBLISHED',
       isFeatured: data.isFeatured ?? false,
       isGift: data.isGift ?? false,
-      createdBy: { connect: { id: session.id } },
+      createdBy: { connect: { id: creatorId } },
       category: resolvedCategoryId ? { connect: { id: resolvedCategoryId } } : undefined,
       subCategory: resolvedSubCategoryId ? { connect: { id: resolvedSubCategoryId } } : undefined,
       supplier: data.supplier ? {
@@ -545,8 +556,9 @@ export async function updateProduct(id: string, data: Partial<{
   variants?: Array<{ id?: string; size: string; color: string; image?: string | null; stock: number; location: string }>;
   images?: Array<{ name: string; dataUrl: string }>;
   warehouseId?: string;
+  creatorId?: string;
 }>) {
-  await ensureAuth(["admin", "stock", "commercial"]);
+  const session = await ensureAuth(["admin", "stock", "commercial"]);
   const updateData: any = { ...data };
 
   // Remove UI-only fields and relation strings to prevent Prisma validation errors
@@ -557,10 +569,20 @@ export async function updateProduct(id: string, data: Partial<{
   delete updateData.variants;
   delete updateData.images;
   delete updateData.warehouseId;
+  delete updateData.creatorId;
 
   if (data.price !== undefined) updateData.price = new Prisma.Decimal(data.price);
   if (data.oldPrice !== undefined) updateData.oldPrice = data.oldPrice ? new Prisma.Decimal(data.oldPrice) : null;
   if (data.isPublished !== undefined) updateData.status = data.isPublished ? 'PUBLISHED' : 'DRAFT';
+
+  if (data.creatorId !== undefined && session.role?.toLowerCase() === "admin") {
+    const creator = await prisma.user.findFirst({
+      where: { id: data.creatorId, role: { in: [Role.ADMIN, Role.COMMERCIAL] } },
+      select: { id: true },
+    });
+    if (!creator) throw new Error("Commercial attribue introuvable.");
+    updateData.createdBy = { connect: { id: creator.id } };
+  }
 
   // Handle Category & SubCategory
   if (data.category !== undefined) {

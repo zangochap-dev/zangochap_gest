@@ -49,7 +49,7 @@ export default function ProductCard({ p }: { p: Product }) {
 
   return (
     <article className="group block relative no-underline text-inherit">
-      <Link href={`/product/${p.id}`} className="block relative aspect-[3.5/4.5] bg-[#F7F6F3] overflow-hidden mb-4 rounded-sm">
+      <Link href={`/product/${p.slug || p.id}`} className="block relative aspect-[3.5/4.5] bg-[#F7F6F3] overflow-hidden mb-4 rounded-sm">
         {p.images?.[0] ? (
           <img 
             src={getImageUrl(p.images[0].url)} 

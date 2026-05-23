@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import ProductForm from "@/modules/products/components/ProductForm";
 import { reloadOnStaleServerAction } from "@/lib/stale-server-action";
 
-export default function NewProductClient({ warehouses, categories, suppliers = [] }: { warehouses: any[], categories: any[], suppliers?: any[] }) {
+export default function NewProductClient({ warehouses, categories, suppliers = [], commercials = [], user }: { warehouses: any[], categories: any[], suppliers?: any[], commercials?: any[], user?: any }) {
   const [isPending, startTransition] = useTransition();
   const { showToast } = useToast();
   const router = useRouter();
@@ -31,6 +31,8 @@ export default function NewProductClient({ warehouses, categories, suppliers = [
       warehouses={warehouses}
       categories={categories}
       suppliers={suppliers}
+      commercials={commercials}
+      user={user}
       onSubmit={handleSubmit}
       onCancel={() => router.back()}
       isPending={isPending}

@@ -14,6 +14,47 @@ export const SITE_EMAIL = "contact@zangochap.ci";
 
 export const DEFAULT_OG_IMAGE = `${SITE_URL}/og-image.png`;
 
+export function getAbsoluteUrl(pathOrUrl?: string | null) {
+  if (!pathOrUrl) return SITE_URL;
+  if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
+  return `${SITE_URL}${pathOrUrl.startsWith("/") ? pathOrUrl : `/${pathOrUrl}`}`;
+}
+
+export function getProductUrl(product: { id: string; slug?: string | null }) {
+  return `${SITE_URL}/product/${product.slug || product.id}`;
+}
+
+export function buildProductSeoDescription(product: {
+  name: string;
+  description?: string | null;
+  category?: { name: string } | null;
+}) {
+  const source = product.description?.trim();
+  const fallbackParts = [
+    `Achetez ${product.name} sur ${SITE_NAME}`,
+    product.category?.name ? `rayon ${product.category.name}` : "mode",
+    "livraison rapide a Abidjan et en Cote d'Ivoire",
+  ];
+  const description = source && source.length >= 70 ? source : `${fallbackParts.join(", ")}.`;
+  return description.length > 160 ? `${description.slice(0, 157).trim()}...` : description;
+}
+
+export function parseSeoKeywords(value?: string | null) {
+  return (value || "")
+    .split(",")
+    .map((keyword) => keyword.trim())
+    .filter(Boolean)
+    .slice(0, 20);
+}
+
+export function isGoogleAnalyticsId(value?: string | null) {
+  return /^G-[A-Z0-9]{6,}$/i.test((value || "").trim());
+}
+
+export function isFacebookPixelId(value?: string | null) {
+  return /^\d{8,30}$/.test((value || "").trim());
+}
+
 // ============ JSON-LD HELPERS ============
 
 /** Organization schema — appears on home + all pages */
@@ -96,7 +137,8 @@ export function getProductSchema(product: {
   stock?: number;
   variants?: { size: string; color: string; stock: number }[];
 }) {
-  const imageUrls = product.images.map((img) => img.url);
+  const imageUrls = product.images.map((img) => getAbsoluteUrl(img.url));
+  const productUrl = getProductUrl(product);
   const inStock = (product.stock ?? 0) > 0 ||
     (product.variants?.some((v) => v.stock > 0) ?? false);
 
@@ -108,8 +150,8 @@ export function getProductSchema(product: {
       product.description ||
       `${product.name} — Disponible sur Zangochap, votre boutique de mode en Côte d'Ivoire.`,
     image: imageUrls,
-    url: `${SITE_URL}/product/${product.id}`,
-    sku: product.id,
+    url: productUrl,
+    sku: product.slug || product.id,
     brand: {
       "@type": "Brand",
       name: SITE_NAME,
@@ -128,7 +170,7 @@ export function getProductSchema(product: {
     }),
     offers: {
       "@type": "Offer",
-      url: `${SITE_URL}/product/${product.id}`,
+      url: productUrl,
       priceCurrency: SITE_CURRENCY,
       price: product.price,
       ...(product.oldPrice && {
@@ -203,6 +245,7 @@ export function getProductSchema(product: {
 export function getProductListSchema(
   products: {
     id: string;
+    slug?: string | null;
     name: string;
     price: number;
     images: { url: string }[];
@@ -217,9 +260,9 @@ export function getProductListSchema(
     itemListElement: products.slice(0, 30).map((p, idx) => ({
       "@type": "ListItem",
       position: idx + 1,
-      url: `${SITE_URL}/product/${p.id}`,
+      url: getProductUrl(p),
       name: p.name,
-      image: p.images?.[0]?.url,
+      image: getAbsoluteUrl(p.images?.[0]?.url),
     })),
   };
 }

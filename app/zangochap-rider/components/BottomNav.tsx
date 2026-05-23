@@ -57,24 +57,23 @@ function NavBtn({ icon: Icon, label, active, badge, onClick }: NavBtnProps) {
   return (
     <button
       onClick={onClick}
-      className="relative flex flex-col items-center justify-center gap-1 py-2 px-5 rounded-md transition-colors duration-150"
-      style={active ? { backgroundColor: "rgba(51,65,85,0.08)" } : undefined}
+      className="relative flex flex-col items-center justify-center gap-1 pt-1.5 pb-1 px-4 transition-colors duration-150"
     >
       <div className="relative">
         <Icon
-          size={22}
-          strokeWidth={active ? 2.5 : 1.8}
-          className={active ? "text-[#334155]" : "text-[#9CA3AF]"}
+          size={20}
+          strokeWidth={active ? 2.5 : 2}
+          className={active ? "text-[#111827]" : "text-[#9CA3AF]"}
         />
         {badge !== undefined && badge > 0 && (
-          <span className="absolute -top-1.5 -right-2.5 min-w-[16px] h-4 flex items-center justify-center rounded-sm bg-[#FF453A] text-[9px] font-bold text-white px-1">
+          <span className="absolute -top-1.5 -right-2.5 min-w-[14px] h-3.5 flex items-center justify-center rounded-sm bg-[#FF453A] text-[8px] font-bold text-white px-1">
             {badge > 9 ? "9+" : badge}
           </span>
         )}
       </div>
       <span
-        className={`text-[10px] font-semibold ${
-          active ? "text-[#334155]" : "text-[#9CA3AF]"
+        className={`text-[9px] font-bold tracking-wide ${
+          active ? "text-[#111827]" : "text-[#9CA3AF]"
         }`}
       >
         {label}

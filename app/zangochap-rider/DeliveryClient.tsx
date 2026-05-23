@@ -260,10 +260,10 @@ export default function DeliveryClient({
           </div>
         )}
 
-        <header className="shrink-0 px-4 pt-5 pb-3.5 bg-[#0F172A] text-white border-b border-black/10">
+        <header className="shrink-0 px-3 pt-3 pb-3 bg-[#0F172A] text-white border-b border-black/10">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-md bg-[#1E293B] border border-white/10 flex items-center justify-center text-sm font-bold text-white shadow-sm">{user?.name?.[0]?.toUpperCase()}</div>
+              <div className="w-10 h-10 rounded-sm bg-[#1E293B] border border-white/10 flex items-center justify-center text-sm font-bold text-white shadow-none">{user?.name?.[0]?.toUpperCase()}</div>
               <div>
                 <h1 className="text-[16px] font-black leading-none mb-1">{user?.name?.split(" ")[0]}</h1>
                 <div className="flex items-center gap-1">
@@ -274,7 +274,7 @@ export default function DeliveryClient({
             </div>
             {activeTab === "missions" && (
               <div className="flex items-center gap-2">
-                <div className="px-3 py-1.5 bg-white/10 rounded-md flex items-center gap-1.5 border border-white/10">
+                <div className="px-2 py-1 bg-white/10 rounded-sm flex items-center gap-1.5 border border-white/10">
                   <span className="text-[11px] font-black text-white">{new Intl.NumberFormat("fr-FR").format(stats.cash)} F</span>
                 </div>
               </div>
@@ -282,31 +282,19 @@ export default function DeliveryClient({
           </div>
           {activeTab === "missions" && (
             <div className="space-y-3">
-              <div className="rounded-md bg-white text-[#111827] p-3.5 shadow-sm border border-[#E5E7EB]">
-                <div className="flex items-center justify-between gap-3 mb-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-[#475569]">
-                      <CalendarDays size={12} />
-                      {todayLabel}
-                    </div>
-                    <p className="text-[16px] font-black mt-1">Tournée du jour</p>
-                    {nextMission && (
-                      <p className="mt-1 text-[11px] font-semibold text-[#64748B] truncate">
-                        Prochaine mission: #{nextMission.ref} · {nextMission.commune || "zone non définie"}
-                      </p>
-                    )}
+              <div className="rounded-sm bg-white text-[#111827] p-3 border border-[#E5E7EB]">
+                <div className="flex items-center justify-between gap-3 mb-2">
+                  <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#111827]">
+                    <CalendarDays size={14} className="text-[#64748B]" />
+                    {todayLabel}
                   </div>
-                  <div className="w-10 h-10 rounded-md bg-[#0F172A] text-white flex items-center justify-center">
-                    <Route size={18} />
+                  <div className="text-[10px] font-black uppercase tracking-wider text-[#64748B]">
+                    {routeProgress}%
                   </div>
                 </div>
-                <div className="mb-3">
-                  <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-[#64748B] mb-1.5">
-                    <span>Progression</span>
-                    <span>{routeProgress}%</span>
-                  </div>
-                  <div className="h-2 bg-[#E5E7EB] rounded-sm overflow-hidden">
-                    <div className="h-full bg-[#334155]" style={{ width: `${routeProgress}%` }} />
+                <div className="mb-4">
+                  <div className="h-1.5 bg-[#F3F4F6] rounded-full overflow-hidden">
+                    <div className="h-full bg-[#111827] rounded-full transition-all duration-500 ease-out" style={{ width: `${routeProgress}%` }} />
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
@@ -315,16 +303,44 @@ export default function DeliveryClient({
                   <RouteStat label="À suivre" value={routeStats.issues} tone="orange" />
                 </div>
               </div>
-              <div className="flex gap-1.5">
-                {[{ id: "pending", label: "À traiter", count: stats.count }, { id: "current", label: "En route", count: stats.inProgressCount }, { id: "history", label: "Clôturées" }].map((t) => (
-                  <button key={t.id} onClick={() => setMissionFilter(t.id as MissionFilter)} className={`flex-1 py-1.5 rounded-md text-[11px] font-bold transition-all ${missionFilter === t.id ? 'bg-[#111827] text-white' : 'bg-[#F3F4F6] text-[#6B7280]'}`}>
-                    {t.label} {t.count !== undefined && <span className="ml-1 opacity-60">({t.count})</span>}
+              <div className="flex p-1 bg-[#F3F4F6] rounded-sm border border-[#E5E7EB]">
+                {[
+                  { id: "pending", label: "À traiter", count: stats.count },
+                  { id: "current", label: "En route", count: stats.inProgressCount },
+                  { id: "history", label: "Clôturées" }
+                ].map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => setMissionFilter(t.id as MissionFilter)}
+                    className={`flex-1 py-1.5 rounded text-[11px] font-bold transition-all flex items-center justify-center gap-1.5 ${
+                      missionFilter === t.id
+                        ? "bg-white text-[#111827] shadow-sm"
+                        : "text-[#6B7280] active:scale-95"
+                    }`}
+                  >
+                    {t.label}
+                    {t.count !== undefined && t.count > 0 && (
+                      <span
+                        className={`px-1.5 py-0.5 rounded text-[9px] font-black leading-none ${
+                          missionFilter === t.id
+                            ? "bg-[#111827] text-white"
+                            : "bg-[#E5E7EB] text-[#6B7280]"
+                        }`}
+                      >
+                        {t.count}
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
-              <div className="relative">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
-                <input type="text" placeholder="Rechercher une mission..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full h-10 bg-[#F3F4F6] border-none rounded-md pl-9 pr-4 text-[13px] outline-none" />
+              <div className="relative group mt-1">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] group-focus-within:text-[#111827] transition-colors" />
+                <input type="text" placeholder="Rechercher client, réf, lieu..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full h-11 bg-white border border-[#E5E7EB] focus:border-[#111827] focus:ring-1 focus:ring-[#111827] rounded-md pl-9 pr-4 text-[13px] outline-none transition-all shadow-sm placeholder:text-[#9CA3AF] text-[#111827]" />
+                {searchQuery && (
+                  <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-full bg-[#F3F4F6] text-[#6B7280] active:scale-90 transition-transform">
+                    <span className="text-[14px] leading-none mb-0.5">×</span>
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -392,7 +408,7 @@ function RouteStat({ label, value, tone }: { label: string; value: number; tone:
   const toneClass = tone === "green" ? "text-[#16A34A]" : tone === "orange" ? "text-[#334155]" : "text-[#111827]";
   const Icon = tone === "green" ? CheckCircle2 : tone === "orange" ? AlertTriangle : Package;
   return (
-    <div className="rounded-md bg-[#F3F4F6] px-3 py-2">
+    <div className="rounded-sm bg-[#F3F4F6] px-2 py-1.5">
       <div className={`flex items-center gap-1 ${toneClass}`}>
         <Icon size={12} />
         <span className="text-[15px] font-black tabular-nums">{value}</span>
@@ -432,11 +448,11 @@ function StatusReasonModal({
         initial={{ y: "100%" }}
         animate={{ y: 0 }}
         exit={{ y: "100%" }}
-        className="relative z-10 w-full max-w-md bg-white rounded-t-md p-5 shadow-md"
+        className="relative z-10 w-full max-w-md bg-white rounded-t-sm p-4 border-t border-[#E5E7EB]"
       >
         <div className="w-10 h-1 rounded-sm bg-[#E5E7EB] mx-auto mb-4" />
         <div className="flex items-start gap-3 mb-4">
-          <div className="w-10 h-10 rounded-md bg-[#334155]/10 text-[#334155] flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-sm bg-[#334155]/10 text-[#334155] flex items-center justify-center shrink-0">
             <AlertTriangle size={20} />
           </div>
           <div>
@@ -449,7 +465,7 @@ function StatusReasonModal({
             <button
               key={reasonOption}
               onClick={() => setSelected(reasonOption)}
-              className={`min-h-10 px-3 py-2 rounded-md text-[11px] font-black text-left border transition-all ${
+              className={`min-h-9 px-2.5 py-1.5 rounded-sm text-[11px] font-black text-left border transition-all ${
                 selected === reasonOption ? "bg-[#111827] text-white border-[#111827]" : "bg-[#F3F4F6] text-[#374151] border-[#E5E7EB]"
               }`}
             >
@@ -461,18 +477,12 @@ function StatusReasonModal({
           value={details}
           onChange={(event) => setDetails(event.target.value)}
           placeholder="Détail utile pour le bureau..."
-          className="w-full min-h-20 rounded-md bg-[#F9FAFB] border border-[#E5E7EB] px-3 py-3 text-[13px] font-semibold outline-none resize-none"
+          className="w-full min-h-20 rounded-[4px] bg-[#F9FAFB] border border-[#E5E7EB] px-3 py-3 text-[13px] font-semibold outline-none resize-none"
         />
-        <div className="flex gap-3 mt-4">
-          <button onClick={onClose} className="flex-1 h-12 rounded-md bg-[#F3F4F6] text-[#374151] text-[13px] font-black">
-            Annuler
-          </button>
-          <button
-            disabled={isPending || !reason}
-            onClick={() => onConfirm(reason)}
-            className="flex-[1.4] h-12 rounded-md bg-[#334155] text-white text-[13px] font-black disabled:opacity-40"
-          >
-            Valider le motif
+        <div className="flex gap-2 mt-3">
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-sm bg-[#F3F4F6] text-[#374151] font-bold text-[13px]">Annuler</button>
+          <button onClick={() => onConfirm(reason)} disabled={!reason || isPending} className="flex-[1.4] py-2.5 rounded-sm bg-[#111827] text-white font-bold text-[13px] disabled:opacity-50 flex justify-center items-center gap-2">
+            {isPending && <div className="w-4 h-4 rounded-full border-2 border-white/20 border-t-white animate-spin" />} Confirmer
           </button>
         </div>
       </motion.div>

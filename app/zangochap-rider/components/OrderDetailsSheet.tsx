@@ -129,11 +129,11 @@ export function OrderDetailsSheet({
         animate={{ y: 0 }}
         exit={{ y: "100%" }}
         transition={{ type: "spring", damping: 25, stiffness: 200 }}
-        className="relative z-10 w-full max-w-md h-[92dvh] bg-[#F3F4F6] rounded-t-md flex flex-col overflow-hidden shadow-md"
+        className="relative z-10 w-full max-w-md h-[92dvh] bg-[#F3F4F6] rounded-t-sm flex flex-col overflow-hidden border-t border-[#E5E7EB]"
       >
         {/* ── Header ── */}
-        <div className="shrink-0 px-5 pt-3 pb-4 bg-white border-b border-[#F3F4F6]">
-          <div className="flex justify-center mb-3">
+        <div className="shrink-0 px-3 pt-2 pb-3 bg-white border-b border-[#F3F4F6]">
+          <div className="flex justify-center mb-2">
             <div className="w-10 h-1 rounded-sm bg-[#E5E7EB]" />
           </div>
 
@@ -171,10 +171,10 @@ export function OrderDetailsSheet({
 
         {/* ── Scrollable Content ── */}
         <div className="flex-1 overflow-y-auto overscroll-contain pb-32">
-          <div className="p-3.5 space-y-3.5">
+          <div className="p-2.5 space-y-2">
             
             {/* Quick Actions Card */}
-            <div className="bg-white rounded-md p-4 border border-[#F3F4F6] shadow-sm space-y-4">
+            <div className="bg-white rounded-sm p-2.5 border border-[#E5E7EB] space-y-2">
               <div className="flex items-center justify-between">
                 <div className="min-w-0">
                   <h3 className="text-[16px] font-extrabold text-[#111827] truncate mb-0.5">
@@ -219,24 +219,6 @@ export function OrderDetailsSheet({
                 ))}
               </div>
 
-              {/* Enhanced Location/Navigation */}
-              <button 
-                onClick={openMaps}
-                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-md bg-[#F8FAFC] border border-[#E2E8F0] active:bg-[#EFF6FF] transition-colors group"
-              >
-                <div className="w-8 h-8 rounded-md bg-[#1E40AF] flex items-center justify-center text-white shrink-0 shadow-sm group-active:scale-90 transition-transform">
-                  <Navigation size={16} fill="white" />
-                </div>
-                <div className="flex-1 text-left min-w-0">
-                  <p className="text-[13px] font-bold text-[#111827] truncate leading-tight">
-                    {order.customerLocation || "Adresse non précisée"}
-                  </p>
-                  <p className="text-[10px] font-bold text-[#1E40AF] uppercase tracking-wider">
-                    Lancer l&apos;itinéraire
-                  </p>
-                </div>
-                <ChevronRight size={14} className="text-[#1E40AF]/50" />
-              </button>
             </div>
 
             {/* Checklist Info Banner */}
@@ -253,100 +235,9 @@ export function OrderDetailsSheet({
               </motion.div>
             )}
 
-            {/* Amount Card */}
-            <div className="bg-white rounded-md p-5 border border-[#F3F4F6] shadow-sm relative overflow-hidden">
-              <div className="absolute -right-6 -top-6 text-[#F3F4F6]/50">
-                <Banknote size={100} strokeWidth={1} />
-              </div>
-              <div className="relative z-10">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-bold text-[#6B7280] uppercase tracking-[0.1em]">
-                    {partialMode ? "Encaissement Partiel" : "Montant à Encaisser"}
-                  </span>
-                  <div className="flex items-center gap-1.5 text-[#166534] bg-[#166534]/10 px-2.5 py-0.5 rounded border border-[#166534]/10">
-                    <Banknote size={12} />
-                    <span className="text-[9px] font-black uppercase">Cash</span>
-                  </div>
-                </div>
-                <p className="text-[32px] font-black tracking-tight text-[#111827] tabular-nums leading-none mb-4">
-                  {formatPrice(collectionTotal)}
-                </p>
-                {!isClosed && (
-                  <div className="mb-4 rounded-md border border-[#E5E7EB] bg-[#F9FAFB] p-3">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-[#6B7280]">
-                      Montant reçu du client
-                    </label>
-                    <div className="mt-2 flex items-center gap-2">
-                      <input
-                        type="number"
-                        min={0}
-                        value={amountReceived}
-                        onChange={(event) => setAmountReceived(Number(event.target.value))}
-                        className="h-11 flex-1 rounded-md border border-[#E5E7EB] bg-white px-3 text-[18px] font-black text-[#111827] outline-none focus:border-[#166534]"
-                      />
-                      <span className="text-[12px] font-black text-[#6B7280]">F</span>
-                    </div>
-                    <p className={`mt-2 text-[10px] font-bold ${hasCustomAmount ? "text-[#B45309]" : "text-[#9CA3AF]"}`}>
-                      Attendu : {formatPrice(expectedAmount)}
-                    </p>
-                  </div>
-                )}
-                <div className="flex items-center justify-between pt-4 border-t border-[#F3F4F6]">
-                  <span className="text-[12px] font-semibold text-[#9CA3AF]">
-                    Livraison : {formatPrice(order.deliveryFee)}
-                  </span>
-                  {partialMode && (
-                    <button
-                      onClick={() => setIncludeDeliveryFee(!includeDeliveryFee)}
-                      className={`text-[9px] font-black uppercase tracking-wider px-2.5 py-1.5 rounded transition-all ${
-                        includeDeliveryFee
-                          ? "bg-[#166534] text-white shadow-sm"
-                          : "bg-[#F3F4F6] text-[#9CA3AF]"
-                      }`}
-                    >
-                      {includeDeliveryFee ? "Livraison Incluse" : "Exclure Frais"}
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Items Section */}
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between px-1">
-                <span className="text-[11px] font-black text-[#6B7280] uppercase tracking-[0.1em]">
-                  Articles ({order.items.length})
-                </span>
-                <button
-                  onClick={() => setPartialMode(!partialMode)}
-                  className={`text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded transition-all border ${
-                    partialMode
-                      ? "bg-[#B91C1C] text-white border-[#B91C1C] shadow-sm shadow-red-100"
-                      : "bg-white text-[#334155] border-[#334155]/30"
-                  }`}
-                >
-                  {partialMode ? "Annuler Partiel" : "Mode Partiel"}
-                </button>
-              </div>
-
-              {order.items.map((item: RiderOrderItem, idx) => (
-                <ItemRow
-                  key={item.id}
-                  item={item}
-                  index={idx}
-                  partialMode={partialMode}
-                  deliveredQty={deliveredQuantities[item.id] ?? 0}
-                  onQtyChange={(qty) => updateItemQty(item.id, qty)}
-                  reason={returnReasons[item.id]}
-                  onReasonChange={(reason) => updateReturnReason(item.id, reason)}
-                  checked={checkedItems[item.id] || false}
-                  onCheck={() => toggleCheck(item.id)}
-                />
-              ))}
-            </div>
-
+            {/* Notes Section (Moved up for priority) */}
             {(order.deliveryNote || order.notes || hasIssueReason) && (
-              <div className="bg-white rounded-md p-4 border border-[#F3F4F6] shadow-sm space-y-3">
+              <div className="bg-white rounded-sm p-2.5 border border-[#E5E7EB] space-y-2">
                 <div className="flex items-center gap-2 px-0.5">
                   <div className="w-7 h-7 rounded bg-[#F8FAFC] flex items-center justify-center text-[#475569] border border-[#E2E8F0]">
                     <StickyNote size={14} />
@@ -384,8 +275,97 @@ export function OrderDetailsSheet({
               </div>
             )}
 
+            {/* Items Section */}
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-[11px] font-black text-[#6B7280] uppercase tracking-[0.1em]">
+                  Articles ({order.items.length})
+                </span>
+                <button
+                  onClick={() => setPartialMode(!partialMode)}
+                  className={`text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded transition-all border ${
+                    partialMode
+                      ? "bg-[#B91C1C] text-white border-[#B91C1C] shadow-sm shadow-red-100"
+                      : "bg-white text-[#334155] border-[#334155]/30"
+                  }`}
+                >
+                  {partialMode ? "Annuler Partiel" : "Mode Partiel"}
+                </button>
+              </div>
+
+              {order.items.map((item: RiderOrderItem, idx) => (
+                <ItemRow
+                  key={item.id}
+                  item={item}
+                  index={idx}
+                  partialMode={partialMode}
+                  deliveredQty={deliveredQuantities[item.id] ?? 0}
+                  onQtyChange={(qty) => updateItemQty(item.id, qty)}
+                  reason={returnReasons[item.id]}
+                  onReasonChange={(reason) => updateReturnReason(item.id, reason)}
+                  checked={checkedItems[item.id] || false}
+                  onCheck={() => toggleCheck(item.id)}
+                />
+              ))}
+            </div>
+
+            {/* Amount Card */}
+            <div className="bg-white rounded-sm p-3 border border-[#E5E7EB] relative overflow-hidden">
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-bold text-[#6B7280] uppercase tracking-[0.1em]">
+                    {partialMode ? "Encaissement Partiel" : "Montant à Encaisser"}
+                  </span>
+                  <div className="flex items-center gap-1.5 text-[#166534] bg-[#166534]/10 px-2.5 py-0.5 rounded border border-[#166534]/10">
+                    <Banknote size={12} />
+                    <span className="text-[9px] font-black uppercase">Cash</span>
+                  </div>
+                </div>
+                <p className="text-[24px] font-black tracking-tight text-[#111827] tabular-nums leading-none mb-4">
+                  {formatPrice(collectionTotal)}
+                </p>
+                {!isClosed && (
+                  <div className="mb-4 rounded-md border border-[#E5E7EB] bg-[#F9FAFB] p-3">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-[#6B7280]">
+                      Montant reçu du client
+                    </label>
+                    <div className="mt-2 flex items-center gap-2">
+                      <input
+                        type="number"
+                        min={0}
+                        value={amountReceived}
+                        onChange={(event) => setAmountReceived(Number(event.target.value))}
+                        className="h-10 flex-1 rounded-sm border border-[#E5E7EB] bg-white px-3 text-[16px] font-black text-[#111827] outline-none focus:border-[#166534]"
+                      />
+                      <span className="text-[12px] font-black text-[#6B7280]">F</span>
+                    </div>
+                    <p className={`mt-2 text-[10px] font-bold ${hasCustomAmount ? "text-[#B45309]" : "text-[#9CA3AF]"}`}>
+                      Attendu : {formatPrice(expectedAmount)}
+                    </p>
+                  </div>
+                )}
+                <div className="flex items-center justify-between pt-4 border-t border-[#F3F4F6]">
+                  <span className="text-[12px] font-semibold text-[#9CA3AF]">
+                    Livraison : {formatPrice(order.deliveryFee)}
+                  </span>
+                  {partialMode && (
+                    <button
+                      onClick={() => setIncludeDeliveryFee(!includeDeliveryFee)}
+                      className={`text-[9px] font-black uppercase tracking-wider px-2.5 py-1.5 rounded transition-all ${
+                        includeDeliveryFee
+                          ? "bg-[#166534] text-white shadow-sm"
+                          : "bg-[#F3F4F6] text-[#9CA3AF]"
+                      }`}
+                    >
+                      {includeDeliveryFee ? "Livraison Incluse" : "Exclure Frais"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* Preparation Team Section */}
-            <div className="bg-white rounded-md p-4 border border-[#F3F4F6] shadow-sm space-y-3">
+            <div className="bg-white rounded-sm p-2.5 border border-[#E5E7EB] space-y-2">
               <div className="flex items-center gap-2 px-0.5">
                 <div className="w-7 h-7 rounded bg-[#EFF6FF] flex items-center justify-center text-[#1E40AF]">
                   <Users size={14} />
@@ -417,8 +397,8 @@ export function OrderDetailsSheet({
 
         {/* ── Fixed Action Bar ── */}
         <div
-          className="absolute bottom-0 left-0 right-0 p-5 bg-white border-t border-[#F3F4F6]"
-          style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 16px) + 12px)" }}
+          className="absolute bottom-0 left-0 right-0 p-3 bg-white border-t border-[#F3F4F6]"
+          style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 16px) + 8px)" }}
         >
           {isClosed ? (
             <div className="flex items-center justify-between gap-3">
@@ -428,7 +408,7 @@ export function OrderDetailsSheet({
               </div>
               <button
                 onClick={onClose}
-                className="h-12 px-5 rounded-md bg-[#111827] text-white text-[13px] font-black"
+                className="h-11 px-4 rounded-sm bg-[#111827] text-white text-[13px] font-black"
               >
                 Fermer
               </button>
@@ -438,7 +418,7 @@ export function OrderDetailsSheet({
               <button
                 disabled={isPending || !allChecked}
                 onClick={() => onStatusUpdate(order.id, "DELIVERED", normalizedAmountReceived)}
-                className="flex-[4] h-14 bg-[#166534] rounded-md text-white font-black text-[16px] flex items-center justify-center gap-2.5 active:scale-[0.98] transition-all shadow-sm disabled:opacity-40 disabled:grayscale"
+                className="flex-[4] h-12 bg-[#166534] rounded-sm text-white font-black text-[15px] flex items-center justify-center gap-2.5 active:scale-[0.98] transition-all disabled:opacity-40 disabled:grayscale"
               >
                 {isPending ? (
                   <div className="w-5 h-5 border-[3px] border-white/30 border-t-white rounded-full animate-spin" />
@@ -471,7 +451,7 @@ export function OrderDetailsSheet({
             <button
               disabled={isPending || deliveredCount === 0}
               onClick={() => onPartialConfirm(normalizedAmountReceived)}
-              className="w-full h-14 bg-[#B45309] rounded-md text-white font-black text-[16px] flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-sm disabled:opacity-40"
+              className="w-full h-12 bg-[#B45309] rounded-sm text-white font-black text-[15px] flex items-center justify-center gap-2 active:scale-[0.98] transition-all disabled:opacity-40"
             >
               {isPending ? (
                 <div className="w-5 h-5 border-[3px] border-white/30 border-t-white rounded-full animate-spin" />
@@ -519,8 +499,8 @@ function ItemRow({
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: index * 0.05 }}
-      className={`bg-white rounded-md p-3 border transition-all ${
-        isExcluded ? "opacity-50 grayscale border-[#F3F4F6]" : "border-[#F3F4F6] shadow-sm"
+      className={`bg-white rounded-sm p-2.5 border transition-all ${
+        isExcluded ? "opacity-50 grayscale border-[#E5E7EB]" : "border-[#E5E7EB]"
       } ${isPartial ? "border-[#FDE68A] bg-[#FFFBEB]" : ""} ${checked && !partialMode ? "bg-[#166534]/5 border-[#166534]/20" : ""}`}
     >
       <div className="flex gap-3">

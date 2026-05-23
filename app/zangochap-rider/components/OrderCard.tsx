@@ -35,13 +35,13 @@ export function OrderCard({ order, onClick, index = 0 }: OrderCardProps) {
     >
       <button
         onClick={onClick}
-        className="w-full bg-white rounded-md border border-[#E5E7EB] p-3.5 text-left active:scale-[0.98] transition-all duration-150 shadow-sm hover:shadow-md group"
+        className="w-full bg-white rounded-sm border border-[#E5E7EB] p-3 text-left active:scale-[0.98] transition-all duration-150 group"
       >
         <div className="flex flex-col gap-3">
           {/* Top Row: Ref & Price */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="bg-[#F3F4F6] px-2 py-1 rounded-md">
+              <div className="bg-[#F3F4F6] px-1.5 py-0.5 rounded-sm">
                 <span className="text-[11px] font-bold text-[#111827] tabular-nums">#{order.ref}</span>
               </div>
               <div className="flex items-center gap-1 text-[#6B7280]">
@@ -53,7 +53,7 @@ export function OrderCard({ order, onClick, index = 0 }: OrderCardProps) {
                 <span className="text-[10px] font-medium">{deliveryDate}</span>
               </div>
             </div>
-            <div className="flex items-center gap-1.5 bg-[#334155]/5 px-3 py-1 rounded-md border border-[#334155]/10">
+            <div className="flex items-center gap-1.5 bg-[#334155]/5 px-2 py-1 rounded-sm border border-[#334155]/10">
               <Banknote size={12} className="text-[#334155]" />
               <span className="text-[13px] font-extrabold text-[#334155] tabular-nums">
                 {formatPrice(total)}
@@ -74,7 +74,7 @@ export function OrderCard({ order, onClick, index = 0 }: OrderCardProps) {
               {order.customerLocation || "Lieu exact non renseigné"}
             </p>
             {cardNote && (
-              <div className="flex items-start gap-1.5 rounded-md bg-[#F8FAFC] px-2.5 py-2 text-[#475569] border border-[#E2E8F0]">
+              <div className="flex items-start gap-1.5 rounded-sm bg-[#F8FAFC] px-2 py-1.5 text-[#475569] border border-[#E2E8F0]">
                 <StickyNote size={12} className="shrink-0 mt-0.5" />
                 <span className="text-[11px] font-semibold leading-snug line-clamp-2">
                   {cardNote}
@@ -82,7 +82,7 @@ export function OrderCard({ order, onClick, index = 0 }: OrderCardProps) {
               </div>
             )}
             {hasIssue && (
-              <div className="flex items-start gap-1.5 rounded-md bg-[#FFFBEB] px-2.5 py-2 text-[#92400E] border border-[#FDE68A]">
+              <div className="flex items-start gap-1.5 rounded-sm bg-[#FFFBEB] px-2 py-1.5 text-[#92400E] border border-[#FDE68A]">
                 <AlertTriangle size={12} className="shrink-0 mt-0.5" />
                 <span className="text-[11px] font-bold leading-snug line-clamp-2">
                   {order.returnReason || "Motif non renseigné"}

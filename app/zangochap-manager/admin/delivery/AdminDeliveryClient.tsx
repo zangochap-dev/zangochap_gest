@@ -39,6 +39,7 @@ type DeliveryAdminOrder = {
   deliverymanId?: string | null;
   deliverymanName?: string | null;
   status: string;
+  type?: string | null;
   updatedAt?: string | null;
   createdAt?: string | null;
   items?: DeliveryAdminItem[];
@@ -386,6 +387,7 @@ export default function AdminDeliveryClient({ activeOrders, archivedOrders, deli
                     <strong>${o.customerName}</strong>
                     ${o.customerLocation ? `<br><span style="color: #555; font-size: 11px;">${o.customerLocation}</span>` : ''}
                     ${o.deliveryNote ? `<br><span style="color: #D4541C; font-size: 11px;">Note: ${o.deliveryNote}</span>` : ''}
+                    ${o.type ? `<br><span style="display: inline-block; background-color: #0F172A; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; text-transform: uppercase; margin-top: 4px;">${o.type}</span>` : ''}
                   </td>
                   <td>
                     ${o.customerPhone}
@@ -969,6 +971,7 @@ export default function AdminDeliveryClient({ activeOrders, archivedOrders, deli
                                   <strong>{o.customerName}</strong>
                                   {o.customerLocation && <div className="sheet-addr">{o.customerLocation}</div>}
                                   {o.deliveryNote && <div className="sheet-note">Note: {o.deliveryNote}</div>}
+                                  {o.type && <div style={{ display: 'inline-block', backgroundColor: '#0F172A', color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', marginTop: '4px' }}>{o.type}</div>}
                                 </td>
                                 <td className="col-phone">
                                   <div>{o.customerPhone}</div>

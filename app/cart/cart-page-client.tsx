@@ -106,6 +106,7 @@ export default function CartPageClient({ communes = [] }: { communes?: Commune[]
             color: item.color,
             qty: item.qty,
             price: item.price,
+            image: item.image,
           }))
         });
         

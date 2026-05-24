@@ -22,6 +22,9 @@ export async function getTodayLabels() {
       status: {
         notIn: ["CANCELLED", "REPRO_DISPO"],
       },
+      ref: {
+        not: null,
+      },
     },
     select: {
       id: true,

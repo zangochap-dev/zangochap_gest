@@ -8,7 +8,7 @@ import { uploadImage, deleteImageFromR2 } from "@/lib/upload";
 import { Prisma, Role } from "@prisma/client";
 import { getOrCreateDefaultWarehouse } from "@/modules/orders/helpers";
 import { syncProductStock } from "@/lib/stock-sync";
-import { getBestAutomaticDiscount, CartItem } from "@/lib/promo-engine";
+import { getBestAutomaticDiscount, validatePromoCode, CartItem } from "@/lib/promo-engine";
 import { setVariantWarehouseStock } from "@/modules/orders/actions/stock";
 
 
@@ -847,11 +847,29 @@ export async function getStockMovements(productId?: string) {
   });
 }
 
-export async function getAutomaticDiscountAction(cart: CartItem[]) {
+export async function getAutomaticDiscountAction(
+  cart: CartItem[],
+  customerPhone?: string,
+  customerId?: string
+) {
   try {
-    return await getBestAutomaticDiscount(cart);
+    return await getBestAutomaticDiscount(cart, customerPhone, customerId);
   } catch (e) {
     console.error("Error getting automatic discount:", e);
-    return { code: null, amount: 0, label: null };
+    return { code: null, amount: 0, label: null, type: null, giftProductId: null };
+  }
+}
+
+export async function validatePromoCodeAction(
+  code: string,
+  cart: CartItem[],
+  customerPhone?: string,
+  customerId?: string
+) {
+  try {
+    return await validatePromoCode(code, cart, customerPhone, customerId);
+  } catch (e) {
+    console.error("Error validating promo code:", e);
+    return { success: false, error: "Une erreur est survenue lors de la validation du code promo." };
   }
 }

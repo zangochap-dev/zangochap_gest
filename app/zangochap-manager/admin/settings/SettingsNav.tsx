@@ -32,12 +32,6 @@ const NAV_ITEMS = [
     desc: "Livraison",
   },
   {
-    label: "Promos",
-    href: "/zangochap-manager/admin/settings/promos",
-    icon: <Tag size={16} />,
-    desc: "Remises",
-  },
-  {
     label: "Équipe",
     href: "/zangochap-manager/admin/settings/team",
     icon: <Users size={16} />,

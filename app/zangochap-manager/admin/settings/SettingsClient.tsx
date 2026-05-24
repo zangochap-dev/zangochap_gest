@@ -30,14 +30,6 @@ const SECTIONS = [
     bgColor: "#ECFDF5",
   },
   {
-    title: "Codes promo",
-    description: "Pilotez les remises, usages et campagnes commerciales.",
-    href: "/zangochap-manager/admin/settings/promos",
-    icon: <Tag size={20} />,
-    iconColor: "#7C3AED",
-    bgColor: "#F5F3FF",
-  },
-  {
     title: "Équipe & accès",
     description: "Administrez les comptes, rôles et accès staff.",
     href: "/zangochap-manager/admin/settings/team",

@@ -6,7 +6,7 @@ import { formatPrice } from "@/lib/constants";
 import { Trash2, ShoppingBag, ArrowRight, CheckCircle2, ShieldCheck, ChevronLeft, Tag } from "lucide-react";
 import Link from "next/link";
 import { createOrder } from "@/modules/orders/actions";
-import { getAutomaticDiscountAction } from "@/modules/products/actions";
+import { getAutomaticDiscountAction, validatePromoCodeAction } from "@/modules/products/actions";
 import { useToast } from "@/components/Toast";
 import { useSearchParams } from "next/navigation";
 import { Commune } from "@/lib/types";
@@ -20,34 +20,109 @@ export default function CartPageClient({ communes = [] }: { communes?: Commune[]
   const [directItem, setDirectItem] = useState<CartItem | null>(null);
   const isBuyNow = searchParams.get("buyNow") === "1";
 
+  // Form State
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [phone2, setPhone2] = useState("");
+  const [commune, setCommune] = useState("");
+  const [address, setAddress] = useState("");
+
   // Promo State
-  const [discount, setDiscount] = useState<{ code: string | null, amount: number, label: string | null }>({
+  const [discount, setDiscount] = useState<{ code: string | null, amount: number, label: string | null, type?: string | null, giftProductId?: string | null }>({
     code: null,
     amount: 0,
-    label: null
+    label: null,
+    type: null,
+    giftProductId: null
   });
+  const [promoInput, setPromoInput] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState<string | null>(null);
+  const [showPromoInput, setShowPromoInput] = useState(false);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [isValidatingPromo, setIsValidatingPromo] = useState(false);
 
-  // Fetch automatic discount
+  // Fetch automatic or manual discount
   useEffect(() => {
     const checkoutItems = directItem ? [directItem] : cart;
     if (checkoutItems.length > 0) {
-      // Small optimization: only fetch if items changed
       const fetchDiscount = async () => {
-        // We need to pass productId and categoryId too (CartItem in CartContext has productId)
-        // Note: categoryId might be missing in CartItem, we might need to fetch it or store it in context.
-        // For now, let's assume CartItem has productId.
-        const res = await getAutomaticDiscountAction(checkoutItems.map(item => ({
-          productId: item.productId,
-          price: item.price,
-          qty: item.qty
-        })));
-        setDiscount(res);
+        if (appliedPromo) {
+          const res = await validatePromoCodeAction(
+            appliedPromo,
+            checkoutItems.map(item => ({
+              productId: item.productId,
+              price: item.price,
+              qty: item.qty
+            })),
+            phone || undefined
+          );
+          if (res.success && res.discount) {
+            setDiscount(res.discount);
+            setPromoError(null);
+          } else {
+            setDiscount({ code: null, amount: 0, label: null, type: null, giftProductId: null });
+            setAppliedPromo(null);
+            showToast(res.error || "Le code promo n'est plus applicable.", "error");
+          }
+        } else {
+          const res = await getAutomaticDiscountAction(
+            checkoutItems.map(item => ({
+              productId: item.productId,
+              price: item.price,
+              qty: item.qty
+            })),
+            phone || undefined
+          );
+          setDiscount(res);
+        }
       };
       fetchDiscount();
     } else {
-      setDiscount({ code: null, amount: 0, label: null });
+      setDiscount({ code: null, amount: 0, label: null, type: null, giftProductId: null });
+      setAppliedPromo(null);
     }
-  }, [cart, directItem]);
+  }, [cart, directItem, phone, appliedPromo]);
+
+  const handleApplyPromo = async () => {
+    if (!promoInput.trim()) return;
+    setIsValidatingPromo(true);
+    setPromoError(null);
+
+    try {
+      const checkoutItems = directItem ? [directItem] : cart;
+      const res = await validatePromoCodeAction(
+        promoInput.trim(),
+        checkoutItems.map(item => ({
+          productId: item.productId,
+          price: item.price,
+          qty: item.qty
+        })),
+        phone || undefined
+      );
+
+      if (res.success && res.discount) {
+        setAppliedPromo(res.discount.code);
+        setDiscount(res.discount);
+        showToast("Code promo appliqué avec succès !", "success");
+        setPromoInput("");
+        setPromoError(null);
+      } else {
+        setPromoError(res.error || "Code promo invalide.");
+        showToast(res.error || "Code promo invalide.", "error");
+      }
+    } catch (err) {
+      console.error(err);
+      setPromoError("Une erreur est survenue lors de la validation.");
+    } finally {
+      setIsValidatingPromo(false);
+    }
+  };
+
+  const handleRemovePromo = () => {
+    setAppliedPromo(null);
+    setDiscount({ code: null, amount: 0, label: null, type: null, giftProductId: null });
+    showToast("Code promo retiré.", "success");
+  };
 
   useEffect(() => {
     if (!isBuyNow) {
@@ -64,12 +139,7 @@ export default function CartPageClient({ communes = [] }: { communes?: Commune[]
     }
   }, [isBuyNow]);
 
-  // Form State
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [phone2, setPhone2] = useState("");
-  const [commune, setCommune] = useState("");
-  const [address, setAddress] = useState("");
+
 
   const selectedCommuneObj = communes.find(c => c.name === commune);
   const deliveryFee = selectedCommuneObj ? selectedCommuneObj.deliveryFee : 0;
@@ -251,6 +321,71 @@ export default function CartPageClient({ communes = [] }: { communes?: Commune[]
               />
             </div>
 
+            {/* Saisie de code promo */}
+            <div className="border-t border-[#e8e8e4] pt-4 mt-2">
+              {!appliedPromo ? (
+                <div>
+                  {!showPromoInput ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowPromoInput(true)}
+                      className="text-[11px] font-semibold tracking-[0.12em] text-[#1A1614] hover:text-[#D4541C] transition-colors flex items-center gap-1.5 uppercase bg-none border-none p-0 cursor-pointer"
+                    >
+                      <Tag size={13} /> J'ai un code promo
+                    </button>
+                  ) : (
+                    <div className="space-y-2 animate-[fadeIn_0.3s_ease]">
+                      <div className="flex justify-between items-center">
+                        <label className="block text-[10px] font-medium tracking-[0.12em] text-[#999] uppercase">CODE PROMO</label>
+                        <button
+                          type="button"
+                          onClick={() => { setShowPromoInput(false); setPromoError(null); }}
+                          className="text-[10px] text-[#aaa] hover:text-[#1A1614] bg-none border-none p-0 cursor-pointer"
+                        >
+                          Annuler
+                        </button>
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          value={promoInput}
+                          onChange={e => setPromoInput(e.target.value.toUpperCase())}
+                          placeholder="EX: SUMMER20"
+                          className="flex-1 p-2.5 border border-[#e8e8e4] bg-white text-xs text-[#1A1614] uppercase outline-none focus:border-[#1A1614] tracking-wider"
+                          disabled={isValidatingPromo}
+                        />
+                        <button
+                          type="button"
+                          onClick={handleApplyPromo}
+                          disabled={isValidatingPromo || !promoInput.trim()}
+                          className="px-4 bg-[#1A1614] text-white border-none text-[10px] font-bold tracking-[0.1em] cursor-pointer hover:bg-[#333] disabled:opacity-40 transition-colors uppercase"
+                        >
+                          {isValidatingPromo ? "..." : "APPLIQUER"}
+                        </button>
+                      </div>
+                      {promoError && (
+                        <p className="text-[11px] text-[#C23616] mt-1 font-medium">{promoError}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center justify-between bg-[#F1EFEA] px-3.5 py-2.5 border border-[#E4E0D5] animate-[fadeIn_0.3s_ease]">
+                  <div className="flex items-center gap-2">
+                    <Tag size={13} className="text-[#D4541C]" />
+                    <span className="text-xs font-semibold tracking-wider text-[#1A1614] uppercase">{appliedPromo}</span>
+                    <span className="text-[10px] text-[#888] font-medium">({discount.label || 'Appliqué'})</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRemovePromo}
+                    className="text-[10px] font-semibold text-[#C23616] hover:text-[#9c250b] bg-none border-none p-0 cursor-pointer tracking-wider uppercase"
+                  >
+                    Retirer
+                  </button>
+                </div>
+              )}
+            </div>
+
             <div className="border-t border-[#e8e8e4] pt-5 flex flex-col gap-3">
               <div className="flex justify-between text-[13px] text-[#888] font-normal"><span>Sous-total</span><span>{formatPrice(checkoutTotal)}</span></div>
               <div className="flex justify-between text-[13px] text-[#888] font-normal"><span>Livraison</span><span>{deliveryFee > 0 ? formatPrice(deliveryFee) : '—'}</span></div>
@@ -259,6 +394,13 @@ export default function CartPageClient({ communes = [] }: { communes?: Commune[]
                 <div className="flex justify-between text-[13px] text-[#D4541C] font-semibold animate-pulse">
                   <span className="flex items-center gap-1.5"><Tag size={14} /> {discount.label || 'Remise automatique'}</span>
                   <span>-{formatPrice(discount.amount)}</span>
+                </div>
+              )}
+
+              {discount.type === 'GIFT' && (
+                <div className="flex justify-between text-[13px] text-green-600 font-semibold animate-pulse">
+                  <span className="flex items-center gap-1.5">🎁 Cadeau inclus ({discount.label})</span>
+                  <span>Offert</span>
                 </div>
               )}
 

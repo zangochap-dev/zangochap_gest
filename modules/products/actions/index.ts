@@ -41,6 +41,20 @@ export async function getStockMovements(productId?: string) {
     return actions.getStockMovements(productId);
 }
 
-export async function getAutomaticDiscountAction(cart: Parameters<typeof actions.getAutomaticDiscountAction>[0]) {
-    return actions.getAutomaticDiscountAction(cart);
+export async function getAutomaticDiscountAction(
+    cart: Parameters<typeof actions.getAutomaticDiscountAction>[0],
+    customerPhone?: string,
+    customerId?: string
+) {
+    return actions.getAutomaticDiscountAction(cart, customerPhone, customerId);
 }
+
+export async function validatePromoCodeAction(
+    code: string,
+    cart: Parameters<typeof actions.validatePromoCodeAction>[1],
+    customerPhone?: string,
+    customerId?: string
+) {
+    return actions.validatePromoCodeAction(code, cart, customerPhone, customerId);
+}
+

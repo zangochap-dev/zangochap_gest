@@ -35,34 +35,6 @@ export default function NewOrderClient({ products, user, categories }: NewOrderC
   const { showToast } = useToast();
   const router = useRouter();
 
-  // Pagination State
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 20; // Nombre de produits par page
-
-  // Promo State
-  const [discount, setDiscount] = useState<{ code: string | null, amount: number, label: string | null }>({
-    code: null,
-    amount: 0,
-    label: null
-  });
-
-  // Calculate automatic discount
-  useEffect(() => {
-    if (items.length > 0) {
-      const fetchDiscount = async () => {
-        const res = await getAutomaticDiscountAction(items.map(item => ({
-          productId: item.productId,
-          price: item.price,
-          qty: item.qty
-        })));
-        setDiscount(res);
-      };
-      fetchDiscount();
-    } else {
-      setDiscount({ code: null, amount: 0, label: null });
-    }
-  }, [items]);
-
   // Customer State
   const [customerId, setCustomerId] = useState<string | null>(null);
   const [customerName, setCustomerName] = useState('');
@@ -72,6 +44,42 @@ export default function NewOrderClient({ products, user, categories }: NewOrderC
   const [commune, setCommune] = useState('');
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [deliveryNote, setDeliveryNote] = useState('');
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20; // Nombre de produits par page
+
+  // Promo State
+  const [discount, setDiscount] = useState<{ code: string | null, amount: number, label: string | null, type?: string | null, giftProductId?: string | null }>({
+    code: null,
+    amount: 0,
+    label: null,
+    type: null,
+    giftProductId: null
+  });
+
+  // Calculate automatic discount
+  useEffect(() => {
+    if (items.length > 0) {
+      const fetchDiscount = async () => {
+        const res = await getAutomaticDiscountAction(
+          items.map(item => ({
+            productId: item.productId,
+            price: item.price,
+            qty: item.qty
+          })),
+          customerPhone || undefined,
+          customerId || undefined
+        );
+        setDiscount(res);
+      };
+      fetchDiscount();
+    } else {
+      setDiscount({ code: null, amount: 0, label: null, type: null, giftProductId: null });
+    }
+  }, [items, customerPhone, customerId]);
+
+
   const [showCheckout, setShowCheckout] = useState(false);
   const [customerSuggestions, setCustomerSuggestions] = useState<any[]>([]);
   const [isSearchingCustomer, setIsSearchingCustomer] = useState(false);
@@ -874,6 +882,15 @@ Ne passez pas à côté de cette belle surprise !`;
                 <span>-{formatPrice(discount.amount)}</span>
               </div>
             )}
+
+            {discount.type === 'GIFT' && (
+              <div className="pos-summary-row" style={{ color: 'var(--green)', fontWeight: 700 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  🎁 Cadeau inclus ({discount.label})
+                </span>
+                <span>Offert</span>
+              </div>
+            )}
             <div className="pos-summary-total">
               <span>Total à payer</span>
               <span>{formatPrice(Math.max(0, total + deliveryFee - discount.amount))}</span>
@@ -1067,6 +1084,13 @@ Ne passez pas à côté de cette belle surprise !`;
                   <div className="mini-row" style={{ color: 'var(--orange)', fontWeight: 600 }}>
                     <span>Remise ({discount.label})</span>
                     <span>-{formatPrice(discount.amount)}</span>
+                  </div>
+                )}
+
+                {discount.type === 'GIFT' && (
+                  <div className="mini-row" style={{ color: 'var(--green)', fontWeight: 600 }}>
+                    <span>Cadeau ({discount.label})</span>
+                    <span>Offert</span>
                   </div>
                 )}
                 <div className="mini-row total"><span>Total</span> <span>{formatPrice(Math.max(0, total + deliveryFee - discount.amount))}</span></div>

@@ -117,6 +117,94 @@ export async function createOrder(data: {
     orderAmount: finalTotal + (data.deliveryFee || 0),
   });
 
+  // Validate promo code & inject GIFT products if necessary
+  if (data.promoCode) {
+    const promo = await prisma.promoCode.findUnique({
+      where: { code: data.promoCode },
+      include: {
+        products: { select: { id: true } },
+        categories: { select: { id: true } }
+      }
+    });
+
+    if (promo) {
+      const now = new Date();
+      if (!promo.isActive) {
+        throw new Error("Ce code promo n'est plus actif.");
+      }
+      if (promo.startDate && promo.startDate > now) {
+        throw new Error("Ce code promo n'est pas encore valide.");
+      }
+      if (promo.endDate && promo.endDate < now) {
+        throw new Error("Ce code promo a expiré.");
+      }
+
+      // Check global limit
+      if (promo.maxGlobalUses !== null) {
+        const usageCount = await prisma.promoUsage.count({
+          where: { promoCode: promo.code }
+        });
+        if (usageCount >= promo.maxGlobalUses) {
+          throw new Error("La limite d'utilisation globale de ce code promo a été atteinte.");
+        }
+      }
+
+      // Check Phone limit (ONCE_PER_PHONE)
+      if (promo.rule === 'ONCE_PER_PHONE') {
+        const cleanPhone = data.customerPhone.replace(/[\s\-\+\(\)]/g, '');
+        if (cleanPhone.length >= 8) {
+          const suffix = cleanPhone.substring(cleanPhone.length - 8);
+          const phoneUsage = await prisma.promoUsage.findFirst({
+            where: {
+              promoCode: promo.code,
+              customerPhone: { contains: suffix }
+            }
+          });
+          if (phoneUsage) {
+            throw new Error("Ce code promo a déjà été utilisé avec ce numéro de téléphone.");
+          }
+        }
+      }
+
+      // Check Customer limit (ONCE_PER_CUSTOMER)
+      if (promo.rule === 'ONCE_PER_CUSTOMER' && customer.id) {
+        const customerUsage = await prisma.order.findFirst({
+          where: {
+            customerId: customer.id,
+            promoCode: promo.code
+          }
+        });
+        if (customerUsage) {
+          throw new Error("Ce code promo a déjà été utilisé par ce client.");
+        }
+      }
+
+      // Handle GIFT insertion
+      if (promo.type === 'GIFT' && promo.giftProductId) {
+        const giftProduct = await prisma.product.findUnique({
+          where: { id: promo.giftProductId }
+        });
+        if (giftProduct) {
+          const hasGiftItem = processedItems.some(item => item.productId === giftProduct.id && item.isGift);
+          if (!hasGiftItem) {
+            processedItems.push({
+              productId: giftProduct.id,
+              name: `[CADEAU] ${giftProduct.name}`,
+              price: 0,
+              qty: 1,
+              size: "Standard",
+              color: "Standard",
+              isGift: true,
+              emoji: giftProduct.emoji || '🎁'
+            });
+          }
+        }
+      }
+    } else {
+      throw new Error("Code promo introuvable.");
+    }
+  }
+
   const isWebOrder = data.source === 'public' || !session;
   const requestedStatus = data.status?.toUpperCase();
   const staffStatus = requestedStatus === 'TO_PROCESS' ? 'CONFIRMED' : requestedStatus;

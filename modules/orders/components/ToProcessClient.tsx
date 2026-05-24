@@ -4,7 +4,7 @@ import React, { useMemo, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { TableCard, EmptyState } from "@/components/UI";
 import { formatPrice, formatDate } from "@/lib/constants";
-import { RefreshCw, Clock, Check, Trash2, Eye, X } from "lucide-react";
+import { RefreshCw, Clock, Check, Trash2, Eye, X, Search } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { deleteOrder, takeToProcessOrder, reassignOrderLead, updateRoundRobinActiveCommercials } from "@/modules/orders/actions";
 import { useToast } from "@/components/Toast";
@@ -30,6 +30,11 @@ export default function ToProcessClient({ orders: initialOrders, user, callCente
 
   const [showRotationModal, setShowRotationModal] = useState(false);
   const [activeIds, setActiveIds] = useState<string[]>(activeCommercialIds || []);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dateFilter, setDateFilter] = useState("all"); // 'all' | 'today' | 'yesterday' | 'custom'
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
 
   React.useEffect(() => {
     setActiveIds(activeCommercialIds || []);
@@ -94,7 +99,57 @@ export default function ToProcessClient({ orders: initialOrders, user, callCente
   });
 
   const orders = data?.orders ?? initialOrders;
-  const filteredOrders = orders;
+  
+  const filteredOrders = useMemo(() => {
+    return orders.filter((order: any) => {
+      // 1. Search Query filtering
+      if (searchQuery.trim()) {
+        const query = searchQuery.trim().toLowerCase();
+        const matchesRef = order.ref && String(order.ref).toLowerCase().includes(query);
+        const matchesCustomer = order.customerName && String(order.customerName).toLowerCase().includes(query);
+        const matchesPhone = (order.customerPhone && String(order.customerPhone).includes(query)) || 
+                             (order.customerPhone2 && String(order.customerPhone2).includes(query));
+        const matchesCommercial = order.commercialName && String(order.commercialName).toLowerCase().includes(query);
+        const matchesItems = order.items?.some((item: any) => item.name && String(item.name).toLowerCase().includes(query));
+        
+        if (!matchesRef && !matchesCustomer && !matchesPhone && !matchesCommercial && !matchesItems) {
+          return false;
+        }
+      }
+
+      // 2. Date filtering
+      if (dateFilter !== "all") {
+        const orderDate = new Date(order.createdAt);
+        
+        if (dateFilter === "today") {
+          const startOfToday = new Date();
+          startOfToday.setHours(0, 0, 0, 0);
+          const endOfToday = new Date();
+          endOfToday.setHours(23, 59, 59, 999);
+          if (orderDate < startOfToday || orderDate > endOfToday) return false;
+        } else if (dateFilter === "yesterday") {
+          const startOfYesterday = new Date();
+          startOfYesterday.setDate(startOfYesterday.getDate() - 1);
+          startOfYesterday.setHours(0, 0, 0, 0);
+          const endOfYesterday = new Date();
+          endOfYesterday.setDate(endOfYesterday.getDate() - 1);
+          endOfYesterday.setHours(23, 59, 59, 999);
+          if (orderDate < startOfYesterday || orderDate > endOfYesterday) return false;
+        } else if (dateFilter === "custom") {
+          if (customFrom) {
+            const startOfCustom = new Date(`${customFrom}T00:00:00`);
+            if (orderDate < startOfCustom) return false;
+          }
+          if (customTo) {
+            const endOfCustom = new Date(`${customTo}T23:59:59.999`);
+            if (orderDate > endOfCustom) return false;
+          }
+        }
+      }
+
+      return true;
+    });
+  }, [orders, searchQuery, dateFilter, customFrom, customTo]);
 
   const handleTakeOrder = (orderId: string, commercialId?: string) => {
     setWorkingOrderId(orderId);
@@ -159,6 +214,102 @@ export default function ToProcessClient({ orders: initialOrders, user, callCente
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
          {isFetching && <RefreshCw size={14} className="animate-spin" style={{ color: 'var(--orange)', opacity: 0.5 }} />}
          <span style={{ fontSize: 11, color: '#8E8E93', fontWeight: 600 }}>Mise à jour auto</span>
+        </div>
+      </div>
+
+      {/* SEARCH BAR & FILTERS */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
+        {/* Barre de recherche */}
+        <div style={{ position: "relative" }}>
+          <Search size={16} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "var(--brown-soft)" }} />
+          <input
+            type="text"
+            className="field-input"
+            placeholder="Rechercher par réf, client, téléphone, commercial, article..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ paddingLeft: 40, borderRadius: 12, height: 38, fontSize: 13, fontWeight: 500 }}
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              style={{
+                position: "absolute",
+                right: 12,
+                top: "50%",
+                transform: "translateY(-50%)",
+                background: "#DEE2E6",
+                border: "none",
+                width: 22,
+                height: 22,
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                color: "var(--brown-soft)",
+              }}
+              aria-label="Effacer la recherche"
+            >
+              <X size={12} />
+            </button>
+          )}
+        </div>
+
+        {/* Barre de filtres de date */}
+        <div className="filters-bar" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", margin: 0 }}>
+          {[
+            { key: "all", label: "Tous" },
+            { key: "today", label: "Aujourd'hui" },
+            { key: "yesterday", label: "Hier" },
+            { key: "custom", label: "Personnalisé" },
+          ].map((f) => (
+            <button
+              key={f.key}
+              className={`filter-chip ${dateFilter === f.key ? "active" : ""}`}
+              onClick={() => setDateFilter(f.key)}
+            >
+              {f.label}
+            </button>
+          ))}
+
+          {/* Date range inputs when 'custom' is selected */}
+          {dateFilter === "custom" && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: "auto", flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 11, color: "var(--brown-soft)", fontWeight: 600 }}>Du</span>
+                <input
+                  type="date"
+                  className="field-input"
+                  value={customFrom}
+                  onChange={(e) => setCustomFrom(e.target.value)}
+                  style={{ width: "auto", padding: "4px 8px", height: 30, borderRadius: 6, fontSize: 12 }}
+                />
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 11, color: "var(--brown-soft)", fontWeight: 600 }}>Au</span>
+                <input
+                  type="date"
+                  className="field-input"
+                  value={customTo}
+                  onChange={(e) => setCustomTo(e.target.value)}
+                  style={{ width: "auto", padding: "4px 8px", height: 30, borderRadius: 6, fontSize: 12 }}
+                />
+              </div>
+              {(customFrom || customTo) && (
+                <button
+                  className="btn-secondary"
+                  style={{ padding: "4px 8px", height: 30, borderRadius: 6, fontSize: 11 }}
+                  onClick={() => {
+                    setCustomFrom("");
+                    setCustomTo("");
+                  }}
+                >
+                  Effacer
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

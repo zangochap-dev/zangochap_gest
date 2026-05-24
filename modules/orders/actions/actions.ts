@@ -48,6 +48,8 @@ export async function addOrderHistoryEntry(orderId: string, action: string) { re
 export async function duplicateOrder(orderId: string, data: any) { return orderActions.duplicateOrder(orderId, data); }
 export async function reprogramOrder(orderId: string, deliveryDate: string) { return orderActions.reprogramOrder(orderId, deliveryDate); }
 export async function takeToProcessOrder(orderId: string, commercialId?: string) { return orderActions.takeToProcessOrder(orderId, commercialId); }
+export async function reassignOrderLead(orderId: string, newCommercialId: string) { return orderActions.reassignOrderLead(orderId, newCommercialId); }
+export async function updateRoundRobinActiveCommercials(activeCommercialIds: string[]) { return orderActions.updateRoundRobinActiveCommercials(activeCommercialIds); }
 
 // ── Status Changes ──
 export async function updateOrderStatus(orderId: string, newStatus: string, note?: string, amountReceived?: number | null) { return statusActions.updateOrderStatus(orderId, newStatus, note, amountReceived); }

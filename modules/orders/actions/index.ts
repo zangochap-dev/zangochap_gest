@@ -42,6 +42,14 @@ export async function takeToProcessOrder(orderId: string, commercialId?: string)
   return actions.takeToProcessOrder(orderId, commercialId);
 }
 
+export async function reassignOrderLead(orderId: string, newCommercialId: string) {
+  return actions.reassignOrderLead(orderId, newCommercialId);
+}
+
+export async function updateRoundRobinActiveCommercials(activeCommercialIds: string[]) {
+  return actions.updateRoundRobinActiveCommercials(activeCommercialIds);
+}
+
 export async function updateOrderStatus(orderId: string, newStatus: string, note?: string, amountReceived?: number | null) {
   return actions.updateOrderStatus(orderId, newStatus, note, amountReceived);
 }

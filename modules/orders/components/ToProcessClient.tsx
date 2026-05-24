@@ -6,7 +6,7 @@ import { TableCard, EmptyState } from "@/components/UI";
 import { formatPrice, formatDate } from "@/lib/constants";
 import { RefreshCw, Clock, Check, Trash2, Eye, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { deleteOrder, takeToProcessOrder } from "@/modules/orders/actions";
+import { deleteOrder, takeToProcessOrder, reassignOrderLead, updateRoundRobinActiveCommercials } from "@/modules/orders/actions";
 import { useToast } from "@/components/Toast";
 import Modal from "@/components/Modal";
 import { getImageUrl } from "@/lib/utils";
@@ -16,6 +16,8 @@ interface ToProcessClientProps {
   orders: any[];
   user: any;
   callCenterUsers: any[];
+  nextInRotation?: { id: string; name: string } | null;
+  activeCommercialIds?: string[];
 }
 
 type DatePreset = 'today' | 'yesterday' | 'custom' | 'all';
@@ -27,7 +29,7 @@ function toLocalDateInputValue(date = new Date()) {
   return `${y}-${m}-${d}`;
 }
 
-export default function ToProcessClient({ orders: initialOrders, user, callCenterUsers }: ToProcessClientProps) {
+export default function ToProcessClient({ orders: initialOrders, user, callCenterUsers, nextInRotation, activeCommercialIds }: ToProcessClientProps) {
   const todayStr = toLocalDateInputValue();
   const [datePreset, setDatePreset] = useState<DatePreset>('today');
   const [dateFrom, setDateFrom] = useState(todayStr);
@@ -38,6 +40,59 @@ export default function ToProcessClient({ orders: initialOrders, user, callCente
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const { showToast } = useToast();
+
+  const [showRotationModal, setShowRotationModal] = useState(false);
+  const [activeIds, setActiveIds] = useState<string[]>(activeCommercialIds || []);
+
+  React.useEffect(() => {
+    setActiveIds(activeCommercialIds || []);
+  }, [activeCommercialIds]);
+
+  const commercialsList = useMemo(() => {
+    return callCenterUsers.filter((u: any) => u.role === 'COMMERCIAL');
+  }, [callCenterUsers]);
+
+  const handleToggleCommercialActive = (commercialId: string) => {
+    let currentActive = [...activeIds];
+    if (currentActive.length === 0) {
+      currentActive = commercialsList.map((c: any) => c.id);
+    }
+
+    if (currentActive.includes(commercialId)) {
+      currentActive = currentActive.filter(id => id !== commercialId);
+    } else {
+      currentActive.push(commercialId);
+    }
+    setActiveIds(currentActive);
+  };
+
+  const handleSaveRotation = () => {
+    startTransition(async () => {
+      try {
+        await updateRoundRobinActiveCommercials(activeIds);
+        showToast("Rotation mise à jour avec succès", "success");
+        setShowRotationModal(false);
+        await refetch();
+      } catch (error: any) {
+        showToast(error.message || "Erreur lors de la mise à jour de la rotation", "error");
+      }
+    });
+  };
+
+  const handleReassignLead = (orderId: string, commercialId: string) => {
+    setWorkingOrderId(orderId);
+    startTransition(async () => {
+      try {
+        await reassignOrderLead(orderId, commercialId);
+        showToast("Lead réattribué avec succès", "success");
+        await refetch();
+      } catch (error: any) {
+        showToast(error.message || "Erreur lors de la réattribution", "error");
+      } finally {
+        setWorkingOrderId(null);
+      }
+    });
+  };
   // React Query — smooth background polling, no page flash
   const { data, isFetching, refetch } = useQuery({
     queryKey: ['to-process-orders'],
@@ -148,6 +203,22 @@ export default function ToProcessClient({ orders: initialOrders, user, callCente
             </>
           )}
         </div>
+        {String(user?.role || "").toLowerCase() === "admin" && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            {nextInRotation && (
+              <div style={{ fontSize: 11, background: 'var(--cream)', border: '1px solid var(--line)', padding: '6px 12px', borderRadius: 8, fontWeight: 600 }}>
+                Prochain commercial dans la rotation : <span style={{ color: 'var(--orange)' }}>{nextInRotation.name}</span>
+              </div>
+            )}
+            <button
+              className="btn-secondary"
+              style={{ fontSize: 11, padding: '6px 12px', height: 'auto', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+              onClick={() => setShowRotationModal(true)}
+            >
+              ⚙️ Gérer la rotation
+            </button>
+          </div>
+        )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
          {isFetching && <RefreshCw size={14} className="animate-spin" style={{ color: 'var(--orange)', opacity: 0.5 }} />}
          <span style={{ fontSize: 11, color: '#8E8E93', fontWeight: 600 }}>Mise à jour auto</span>
@@ -163,6 +234,7 @@ export default function ToProcessClient({ orders: initialOrders, user, callCente
               <tr>
                 <th>Réf.</th>
                 <th>Client</th>
+                <th>Lead Actuel</th>
                 <th>Articles</th>
                 <th>Total</th>
                 <th>Date</th>
@@ -182,6 +254,24 @@ export default function ToProcessClient({ orders: initialOrders, user, callCente
                   <td>
                     <div className="cell-strong">{order.customerName}</div>
                     <div className="cell-muted">{order.customerPhone}</div>
+                  </td>
+                  <td>
+                    <div className="cell-strong">{order.commercialName || "Non assigné"}</div>
+                    {String(user?.role || "").toLowerCase() === "admin" && (
+                      <select
+                        className="filter-select"
+                        value={order.commercialId || ""}
+                        onChange={(e) => handleReassignLead(order.id, e.target.value)}
+                        style={{ marginTop: 4, fontSize: 11, padding: '2px 6px', height: 'auto', borderRadius: 6 }}
+                        disabled={isPending && workingOrderId === order.id}
+                        aria-label="Réattribuer le lead"
+                      >
+                        <option value="" disabled>Réattribuer...</option>
+                        {commercialsList.map((c: any) => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                    )}
                   </td>
                   <td>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -312,6 +402,37 @@ export default function ToProcessClient({ orders: initialOrders, user, callCente
               </div>
             </div>
 
+            {/* Lead & Assignment History */}
+            <div style={{ borderBottom: '1px solid var(--line)', paddingBottom: 16 }}>
+              <h4 style={{ margin: '0 0 10px 0', fontSize: 11, textTransform: 'uppercase', color: 'var(--orange)', letterSpacing: '0.05em' }}>Attribution du Lead</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+                <div>
+                  <div style={{ fontSize: 10, color: '#8E8E93', textTransform: 'uppercase' }}>Lead Actuel</div>
+                  <div style={{ fontWeight: 600, fontSize: 13, marginTop: 2 }}>{selectedOrder.commercialName || "Non assigné"}</div>
+                </div>
+                <div style={{ gridColumn: 'span 2' }}>
+                  <div style={{ fontSize: 10, color: '#8E8E93', textTransform: 'uppercase' }}>Historique d'attribution</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4, maxHeight: 100, overflowY: 'auto', background: 'var(--cream)', padding: 8, borderRadius: 6, border: '1px solid var(--line)', fontSize: 11 }}>
+                    {Array.isArray(selectedOrder.history) && selectedOrder.history.length > 0 ? (
+                      selectedOrder.history
+                        .filter((h: any) => String(h.action || "").includes("Attribution") || String(h.action || "").includes("Réattribution") || String(h.action || "").includes("lead") || String(h.action || "").includes("attribuée"))
+                        .map((h: any, idx: number) => (
+                          <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                            <span style={{ color: '#555' }}>{h.action}</span>
+                            <span style={{ color: '#8E8E93', fontSize: 10 }}>{formatDate(h.at)}</span>
+                          </div>
+                        ))
+                    ) : (
+                      <div style={{ color: '#8E8E93' }}>Aucun historique d'attribution</div>
+                    )}
+                    {Array.isArray(selectedOrder.history) && selectedOrder.history.length > 0 && selectedOrder.history.filter((h: any) => String(h.action || "").includes("Attribution") || String(h.action || "").includes("Réattribution") || String(h.action || "").includes("lead") || String(h.action || "").includes("attribuée")).length === 0 && (
+                      <div style={{ color: '#8E8E93' }}>Créé le {formatDate(selectedOrder.createdAt)}</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Order Items */}
             <div style={{ borderBottom: '1px solid var(--line)', paddingBottom: 16 }}>
               <h4 style={{ margin: '0 0 10px 0', fontSize: 11, textTransform: 'uppercase', color: 'var(--orange)', letterSpacing: '0.05em' }}>Articles commandés</h4>
@@ -393,6 +514,62 @@ export default function ToProcessClient({ orders: initialOrders, user, callCente
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showRotationModal && (
+        <Modal
+          isOpen={showRotationModal}
+          onClose={() => setShowRotationModal(false)}
+          title="Gérer les commerciaux dans la rotation"
+          footer={
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button className="btn-secondary" onClick={() => setShowRotationModal(false)}>Annuler</button>
+              <button
+                className="btn-orange"
+                disabled={isPending}
+                onClick={handleSaveRotation}
+              >
+                Enregistrer
+              </button>
+            </div>
+          }
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <p style={{ fontSize: 12, color: '#666', margin: 0 }}>
+              Cochez les commerciaux qui doivent participer à l'attribution automatique en round-robin.
+              Si aucun n'est sélectionné, l'attribution se fera sur l'ensemble des commerciaux par défaut.
+            </p>
+            <div style={{ maxHeight: 300, overflowY: 'auto', border: '1px solid var(--line)', borderRadius: 8, background: '#FAFAF8', padding: 8 }}>
+              {commercialsList.map((c: any) => {
+                const isChecked = activeIds.length === 0 || activeIds.includes(c.id);
+                return (
+                  <label
+                    key={c.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: '8px 10px',
+                      cursor: 'pointer',
+                      borderRadius: 6,
+                      fontSize: 13,
+                      userSelect: 'none',
+                      borderBottom: '1px solid #EDEDEB',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => handleToggleCommercialActive(c.id)}
+                      style={{ cursor: 'pointer' }}
+                    />
+                    <span style={{ fontWeight: isChecked ? 600 : 400 }}>{c.name}</span>
+                  </label>
+                );
+              })}
             </div>
           </div>
         </Modal>

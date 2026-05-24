@@ -1,7 +1,16 @@
 "use server";
 
 import prisma from "@/lib/prisma";
-import { revalidatePath } from "next/cache";
+import { revalidatePath as nextRevalidatePath } from "next/cache";
+
+function revalidatePath(path: string) {
+  try {
+    nextRevalidatePath(path);
+  } catch (e) {
+    // Safely ignore Next.js context errors in script/CLI environments
+  }
+}
+
 import { getSession } from "@/modules/auth/actions";
 import { ensureAuth } from "@/lib/auth";
 import { uploadImage } from "@/lib/upload";
@@ -62,7 +71,7 @@ export async function createOrder(data: {
 
   // Process images & resolve product IDs. Rupture items remain orderable:
   // they are collected/restocked before packing decrements stock.
-  const processedItems = [];
+  const processedItems: any[] = [];
 
   for (const item of data.items) {
     if (item.isCustom && !item.image) {
@@ -124,58 +133,65 @@ export async function createOrder(data: {
         ? await generateUniqueRef(data.commune || undefined, data.type)
         : null;
     try {
-      order = await prisma.order.create({
-        data: {
-          ...(ref ? { ref } : {}),
-          customerId: customer.id,
-          customerName: data.customerName,
-          customerPhone: data.customerPhone,
-          customerPhone2: data.customerPhone2,
-          customerLocation: data.customerLocation,
-          commune: data.commune,
-          total: finalTotal,
-          deliveryFee: Number(data.deliveryFee || 0),
-          deliveryNote: data.deliveryNote,
-          paymentMethod: data.paymentMethod,
-          status,
-          commercialId: isWebOrder ? null : session?.id || null,
-          commercialName: isWebOrder ? "Site Web" : session?.name || null,
-          deliveryDate: data.deliveryDate ? new Date(data.deliveryDate) : null,
-          promoCode: data.promoCode,
-          discount: Number(data.discount || 0),
-          notes: data.notes,
-          type: data.type,
-          confirmedAt: status === 'CONFIRMED' ? new Date() : null,
-          confirmedByName: status === 'CONFIRMED' ? session?.name || null : null,
-          items: {
-            create: processedItems.map(item => ({
-              name: item.name,
-              size: item.size,
-              color: item.color,
-              qty: Number(item.qty),
-              price: Number(item.price),
-              emoji: item.emoji || 'P',
-              image: item.image || null,
-              productId: item.productId,
-              variantId: item.variantId,
-              isCustom: item.isCustom || false,
-              isGift: item.isGift || false,
-              notes: item.notes || item.desc || null,
-            })),
-          },
-          history: [
-            {
-              at: new Date().toISOString(),
-              action: isWebOrder ? "Commande passée sur le site web" : "Commande créée par commercial",
-              by: isWebOrder ? "public" : session?.email,
-              byName: isWebOrder ? "Client Web" : session?.name,
+      order = await prisma.$transaction(async (tx) => {
+        let assignedCommercial = null;
+        if (isWebOrder) {
+          assignedCommercial = await getNextCommercialForAssignment(tx);
+        }
+
+        return tx.order.create({
+          data: {
+            ...(ref ? { ref } : {}),
+            customerId: customer.id,
+            customerName: data.customerName,
+            customerPhone: data.customerPhone,
+            customerPhone2: data.customerPhone2,
+            customerLocation: data.customerLocation,
+            commune: data.commune,
+            total: finalTotal,
+            deliveryFee: Number(data.deliveryFee || 0),
+            deliveryNote: data.deliveryNote,
+            paymentMethod: data.paymentMethod,
+            status,
+            commercialId: isWebOrder ? (assignedCommercial?.id || null) : (session?.id || null),
+            commercialName: isWebOrder ? (assignedCommercial?.name || "Site Web") : (session?.name || null),
+            deliveryDate: data.deliveryDate ? new Date(data.deliveryDate) : null,
+            promoCode: data.promoCode,
+            discount: Number(data.discount || 0),
+            notes: data.notes,
+            type: data.type,
+            confirmedAt: status === 'CONFIRMED' ? new Date() : null,
+            confirmedByName: status === 'CONFIRMED' ? session?.name || null : null,
+            items: {
+              create: processedItems.map(item => ({
+                name: item.name,
+                size: item.size,
+                color: item.color,
+                qty: Number(item.qty),
+                price: Number(item.price),
+                emoji: item.emoji || 'P',
+                image: item.image || null,
+                productId: item.productId,
+                variantId: item.variantId,
+                isCustom: item.isCustom || false,
+                isGift: item.isGift || false,
+                notes: item.notes || item.desc || null,
+              })),
             },
-          ],
-        },
-        include: { items: true },
+            history: [
+              {
+                at: new Date().toISOString(),
+                action: isWebOrder
+                  ? `Commande passée sur le site web (Attribuée à ${assignedCommercial?.name || "aucun commercial"})`
+                  : "Commande créée par commercial",
+                by: isWebOrder ? "public" : session?.email,
+                byName: isWebOrder ? "Client Web" : session?.name,
+              },
+            ],
+          },
+          include: { items: true },
+        });
       });
-      
-      // Success! Break the loop
       break;
     } catch (e: any) {
       // P2002 is Prisma code for Unique constraint violation
@@ -545,5 +561,177 @@ export async function reprogramOrder(orderId: string, deliveryDate: string) {
   revalidatePath("/zangochap-manager/logistics/labels");
   revalidatePath("/zangochap-manager/admin/delivery");
   revalidatePath("/zangochap-rider");
+  return { success: true };
+}
+
+async function getNextCommercialForAssignment(tx: any) {
+  // 1. Get all commercials sorted by id
+  const commercials = await tx.user.findMany({
+    where: { role: 'COMMERCIAL' },
+    orderBy: { id: 'asc' },
+    select: { id: true, name: true }
+  });
+
+  if (commercials.length === 0) {
+    return null;
+  }
+
+  // 2. Get or create RoundRobinState in cmsContent with row-level locking
+  let stateRecord: any = null;
+  const lockedRows: any[] = await tx.$queryRaw`SELECT * FROM "CmsContent" WHERE key = 'round_robin_state' FOR UPDATE`;
+  if (lockedRows && lockedRows.length > 0) {
+    stateRecord = lockedRows[0];
+  }
+
+  if (!stateRecord) {
+    try {
+      stateRecord = await tx.cmsContent.create({
+        data: {
+          key: 'round_robin_state',
+          data: { lastAssignedId: null }
+        }
+      });
+      // Lock it for our transaction
+      const retryRows: any[] = await tx.$queryRaw`SELECT * FROM "CmsContent" WHERE key = 'round_robin_state' FOR UPDATE`;
+      if (retryRows && retryRows.length > 0) {
+        stateRecord = retryRows[0];
+      }
+    } catch (e) {
+      // If concurrent insert occurs, fetch the inserted record with lock
+      const retryRows: any[] = await tx.$queryRaw`SELECT * FROM "CmsContent" WHERE key = 'round_robin_state' FOR UPDATE`;
+      if (retryRows && retryRows.length > 0) {
+        stateRecord = retryRows[0];
+      }
+    }
+  }
+
+  let lastAssignedId: string | null = null;
+  let activeCommercialIds: string[] = [];
+  if (stateRecord) {
+    try {
+      const data = typeof stateRecord.data === 'string' ? JSON.parse(stateRecord.data) : stateRecord.data;
+      lastAssignedId = data?.lastAssignedId || null;
+      activeCommercialIds = data?.activeCommercialIds || [];
+    } catch (e) {
+      console.error("Failed to parse round_robin_state data:", e);
+    }
+  }
+
+  // 3. Filter commercials to only those in activeCommercialIds (if set)
+  let activeCommercials = commercials;
+  if (activeCommercialIds && activeCommercialIds.length > 0) {
+    activeCommercials = commercials.filter((c: any) => activeCommercialIds.includes(c.id));
+  }
+
+  // If after filtering we have no active commercials, fallback to all commercials
+  if (activeCommercials.length === 0) {
+    activeCommercials = commercials;
+  }
+
+  // 4. Determine next commercial
+  let nextIndex = 0;
+  if (lastAssignedId) {
+    const lastIndex = activeCommercials.findIndex((c: any) => c.id === lastAssignedId);
+    if (lastIndex !== -1) {
+      nextIndex = (lastIndex + 1) % activeCommercials.length;
+    }
+  }
+
+  const nextCommercial = activeCommercials[nextIndex];
+
+  // 5. Update state
+  await tx.cmsContent.update({
+    where: { key: 'round_robin_state' },
+    data: {
+      data: {
+        lastAssignedId: nextCommercial.id,
+        activeCommercialIds
+      }
+    }
+  });
+
+  return nextCommercial;
+}
+
+// ============ REASSIGN ORDER LEAD ============
+export async function reassignOrderLead(orderId: string, newCommercialId: string) {
+  const session = await ensureAuth(["admin"]);
+
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!order || order.deletedAt) throw new Error("Commande introuvable");
+  if (order.status !== 'TO_PROCESS') throw new Error("Cette commande n'est plus à traiter");
+
+  const newCommercial = await prisma.user.findUnique({
+    where: { id: newCommercialId },
+    select: { id: true, name: true, role: true }
+  });
+  if (!newCommercial || newCommercial.role !== 'COMMERCIAL') {
+    throw new Error("Commercial introuvable");
+  }
+
+  const oldName = order.commercialName || "Non assigné";
+  const history = Array.isArray(order.history) ? [...(order.history as any[])] : [];
+  history.push({
+    at: new Date().toISOString(),
+    action: `Réattribution manuelle du lead de ${oldName} à ${newCommercial.name}`,
+    by: session.email,
+    byName: session.name
+  });
+
+  const updated = await prisma.order.update({
+    where: { id: orderId },
+    data: {
+      commercialId: newCommercial.id,
+      commercialName: newCommercial.name,
+      history
+    }
+  });
+
+  revalidatePath("/zangochap-manager/orders/to-process");
+  return { order: JSON.parse(JSON.stringify(updated)) };
+}
+
+// ============ UPDATE ROUND ROBIN ACTIVE COMMERCIALS ============
+export async function updateRoundRobinActiveCommercials(activeCommercialIds: string[]) {
+  const session = await ensureAuth(["admin"]);
+
+  await prisma.$transaction(async (tx) => {
+    // 1. Get or create RoundRobinState in cmsContent with row-level locking
+    let stateRecord: any = null;
+    const lockedRows: any[] = await tx.$queryRaw`SELECT * FROM "CmsContent" WHERE key = 'round_robin_state' FOR UPDATE`;
+    if (lockedRows && lockedRows.length > 0) {
+      stateRecord = lockedRows[0];
+    }
+
+    let lastAssignedId = null;
+    if (stateRecord) {
+      try {
+        const data = typeof stateRecord.data === 'string' ? JSON.parse(stateRecord.data) : stateRecord.data;
+        lastAssignedId = data?.lastAssignedId || null;
+      } catch (e) {
+        console.error("Failed to parse round_robin_state data:", e);
+      }
+    }
+
+    const updatedData = {
+      lastAssignedId,
+      activeCommercialIds
+    };
+
+    await tx.cmsContent.upsert({
+      where: { key: 'round_robin_state' },
+      create: {
+        key: 'round_robin_state',
+        data: updatedData,
+        updatedBy: session.email
+      },
+      update: {
+        data: updatedData,
+        updatedBy: session.email
+      }
+    });
+  });
+
+  revalidatePath("/zangochap-manager/orders/to-process");
   return { success: true };
 }

@@ -27,8 +27,6 @@ export const ORDERS_PAGE_SIZE = 50;
 const WEB_TO_PROCESS_WHERE = {
   deletedAt: null,
   status: OrderStatus.TO_PROCESS,
-  commercialId: null,
-  commercialName: "Site Web",
 };
 
 function todayIso() {
@@ -115,9 +113,16 @@ export async function getOrdersStaffData() {
   };
 }
 
-export async function getToProcessOrders() {
+export async function getToProcessOrders(user?: SessionUser | null) {
+  const where: any = {
+    ...WEB_TO_PROCESS_WHERE,
+  };
+  if (user && user.role?.toLowerCase() === "commercial") {
+    where.commercialId = user.id;
+  }
+
   return prisma.order.findMany({
-    where: WEB_TO_PROCESS_WHERE,
+    where,
     orderBy: { createdAt: "asc" },
     include: {
       items: {
@@ -233,4 +238,69 @@ export async function getNewOrderPageData(userId?: string) {
   });
 
   return { products: sortedProducts, categories };
+}
+
+export async function getRoundRobinState() {
+  const stateRecord = await prisma.cmsContent.findUnique({
+    where: { key: 'round_robin_state' }
+  });
+
+  if (!stateRecord) {
+    return { lastAssignedId: null, activeCommercialIds: [] };
+  }
+
+  try {
+    const data = typeof stateRecord.data === 'string' ? JSON.parse(stateRecord.data) : stateRecord.data;
+    return {
+      lastAssignedId: data?.lastAssignedId || null,
+      activeCommercialIds: data?.activeCommercialIds || []
+    };
+  } catch (e) {
+    return { lastAssignedId: null, activeCommercialIds: [] };
+  }
+}
+
+export async function getNextRoundRobinCommercial() {
+  const commercials = await prisma.user.findMany({
+    where: { role: 'COMMERCIAL' },
+    orderBy: { id: 'asc' },
+    select: { id: true, name: true }
+  });
+
+  if (commercials.length === 0) return null;
+
+  const stateRecord = await prisma.cmsContent.findUnique({
+    where: { key: 'round_robin_state' }
+  });
+
+  let lastAssignedId: string | null = null;
+  let activeCommercialIds: string[] = [];
+  if (stateRecord) {
+    try {
+      const data = typeof stateRecord.data === 'string' ? JSON.parse(stateRecord.data) : stateRecord.data;
+      lastAssignedId = data?.lastAssignedId || null;
+      activeCommercialIds = data?.activeCommercialIds || [];
+    } catch (e) {
+      console.error("Failed to parse round_robin_state data:", e);
+    }
+  }
+
+  let activeCommercials = commercials;
+  if (activeCommercialIds && activeCommercialIds.length > 0) {
+    activeCommercials = commercials.filter(c => activeCommercialIds.includes(c.id));
+  }
+  if (activeCommercials.length === 0) {
+    activeCommercials = commercials;
+  }
+
+  if (!lastAssignedId) {
+    return activeCommercials[0];
+  }
+
+  const lastIndex = activeCommercials.findIndex(c => c.id === lastAssignedId);
+  if (lastIndex === -1) {
+    return activeCommercials[0];
+  }
+
+  return activeCommercials[(lastIndex + 1) % activeCommercials.length];
 }

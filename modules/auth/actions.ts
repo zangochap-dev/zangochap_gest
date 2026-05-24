@@ -68,9 +68,9 @@ export async function logoutAction() {
 }
 
 export async function getSession() {
-  const sessionToken = (await cookies()).get("zc_session")?.value;
-  if (!sessionToken) return null;
   try {
+    const sessionToken = (await cookies()).get("zc_session")?.value;
+    if (!sessionToken) return null;
     const { payload } = await jwtVerify(sessionToken, JWT_SECRET);
     return payload as any;
   } catch {

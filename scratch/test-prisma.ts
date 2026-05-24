@@ -10,15 +10,9 @@ const prisma = new PrismaClient({ adapter });
 
 async function main() {
   try {
-    console.log("Querying...");
-    const orders = await prisma.order.findMany({
-      where: {
-        status: 'DELIVERED',
-        // @ts-ignore
-        settlementId: null,
-      },
-    });
-    console.log('Success! Found', orders.length, 'orders');
+    console.log("Querying CmsContent...");
+    const res = await prisma.$queryRaw`SELECT * FROM "CmsContent" LIMIT 1`;
+    console.log('Success! Res:', res);
   } catch (e) {
     console.error('Error:', e);
   } finally {

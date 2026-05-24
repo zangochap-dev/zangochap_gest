@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import SettlementsClient from "./SettlementsClient";
 import { getSettlementStats } from "@/modules/orders/actions";
 
+export const dynamic = "force-dynamic";
+
 type SettlementsPageProps = {
   searchParams: Promise<{
     from?: string;

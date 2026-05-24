@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import SettingsClient from "./SettingsClient";
 import Topbar from "@/components/Topbar";
 
+export const dynamic = "force-dynamic";
+
 export default async function SettingsHubPage() {
   const user = await getSession();
   if (user?.role !== 'admin') redirect("/zangochap-manager");

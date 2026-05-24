@@ -7,6 +7,8 @@ export const metadata = {
   title: 'Historique des Stocks - Zangochap Manager',
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function StockHistoryPage() {
   const [movements, warehouses] = await Promise.all([
     getStockHistory(),

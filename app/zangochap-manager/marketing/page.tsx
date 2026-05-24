@@ -6,6 +6,8 @@ import { Plus, Copy, Eye, Power, Trash2 } from "lucide-react";
 
 import styles from "./marketing.module.css";
 
+export const dynamic = "force-dynamic";
+
 export default async function MarketingPage() {
   const promos = await prisma.promoCode.findMany({
     orderBy: { createdAt: "desc" },

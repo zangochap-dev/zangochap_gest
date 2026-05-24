@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/modules/auth/actions";
 
+export const dynamic = "force-dynamic";
+
 export default async function LogisticsPage() {
   const user = await getSession();
   

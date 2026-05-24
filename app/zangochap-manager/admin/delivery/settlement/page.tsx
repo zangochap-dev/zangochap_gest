@@ -13,6 +13,8 @@ export const metadata = {
   title: "Reglement Livreurs - Zangochap Manager",
 };
 
+export const dynamic = "force-dynamic";
+
 type SettlementPageProps = {
   searchParams: Promise<{
     from?: string;

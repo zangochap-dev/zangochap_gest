@@ -119,7 +119,21 @@ export async function getToProcessOrders() {
   return prisma.order.findMany({
     where: WEB_TO_PROCESS_WHERE,
     orderBy: { createdAt: "asc" },
-    include: { items: true },
+    include: {
+      items: {
+        include: {
+          variant: true,
+          product: {
+            include: {
+              images: {
+                orderBy: { position: 'asc' },
+                take: 1
+              }
+            }
+          }
+        }
+      }
+    },
   });
 }
 

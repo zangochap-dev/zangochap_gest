@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 export default async function CmsPage() {
   const user = await getSession();
-  if (user?.role !== "admin") redirect("/zangochap-manager");
+  if (user?.role !== "admin" && user?.role !== "developer") redirect("/zangochap-manager");
 
   const [content, categories, mediaFiles] = await Promise.all([
     getHomeCmsContent(),

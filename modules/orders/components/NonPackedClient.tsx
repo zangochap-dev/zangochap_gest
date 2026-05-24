@@ -32,7 +32,7 @@ export default function NonPackedClient({
   const { showToast } = useToast();
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
-  const isAdmin = user?.role?.toLowerCase() === "admin";
+  const isAdmin = user?.role?.toLowerCase() === "admin" || user?.role?.toLowerCase() === "developer";
 
   // React Query — smooth background polling, no page flash
   const { data, isFetching } = useQuery({

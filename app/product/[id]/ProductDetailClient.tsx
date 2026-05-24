@@ -140,7 +140,7 @@ export default function ProductDetailClient({ product }: { product: any }) {
                   return (
                     <button
                       key={s}
-                      className={`min-w-[52px] h-[44px] bg-white border text-[12px] font-medium text-[#1A1614] transition-all tracking-wider relative ${selectedSize === s ? 'bg-[#1A1614] text-white border-[#1A1614]' : 'border-[#e0e0e0] hover:enabled:border-[#1A1614]'} ${!available ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+                      className={`min-w-[52px] h-[44px] border text-[12px] font-medium transition-all tracking-wider relative ${selectedSize === s ? 'bg-[#1A1614] text-white border-[#1A1614]' : 'bg-white text-[#1A1614] border-[#e0e0e0] hover:enabled:border-[#1A1614]'} ${!available ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
                       onClick={() => { setSelectedSize(s); setSelectedColor(""); }}
                       disabled={!available}
                     >
@@ -163,7 +163,7 @@ export default function ProductDetailClient({ product }: { product: any }) {
                   availableColorsForSize.map((c: any) => (
                     <button
                       key={c}
-                      className={`px-5 py-2.5 bg-white border text-[12px] font-medium text-[#1A1614] transition-all ${selectedColor === c ? 'bg-[#1A1614] text-white border-[#1A1614]' : 'border-[#e0e0e0] hover:border-[#1A1614]'}`}
+                      className={`px-5 py-2.5 border text-[12px] font-medium transition-all ${selectedColor === c ? 'bg-[#1A1614] text-white border-[#1A1614]' : 'bg-white text-[#1A1614] border-[#e0e0e0] hover:border-[#1A1614]'}`}
                       onClick={() => setSelectedColor(c)}
                     >
                       {c}
@@ -176,15 +176,11 @@ export default function ProductDetailClient({ product }: { product: any }) {
             </div>
 
             {/* STOCK INDICATOR */}
-            {currentVariant && (
+            {currentVariant && currentVariant.stock > 0 && (
               <div className="mb-3 text-[12px] font-medium">
-                {currentVariant.stock > 0 ? (
-                  <span className={currentVariant.stock <= 3 ? 'text-[#C23616]' : 'text-[#2D8A4E]'}>
-                    {currentVariant.stock <= 3 ? `⚠ Plus que ${currentVariant.stock} en stock` : `✓ En stock`}
-                  </span>
-                ) : (
-                  <span className="text-[#C23616]">Rupture en stock - commande possible</span>
-                )}
+                <span className={currentVariant.stock <= 3 ? 'text-[#C23616]' : 'text-[#2D8A4E]'}>
+                  {currentVariant.stock <= 3 ? `⚠ Plus que ${currentVariant.stock} en stock` : `✓ En stock`}
+                </span>
               </div>
             )}
 
@@ -192,7 +188,13 @@ export default function ProductDetailClient({ product }: { product: any }) {
             <div className="fixed bottom-10 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-[#f0f0f0] p-4 z-40 flex flex-row gap-3 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] sm:static sm:p-0 sm:border-0 sm:shadow-none sm:bg-transparent sm:backdrop-blur-none sm:z-auto sm:mb-8 sm:flex-row sm:gap-3">
               <button
                 className={`flex-1 h-[54px] sm:h-[52px] text-white text-[10px] xs:text-[11px] sm:text-[12px] font-semibold tracking-[0.1em] sm:tracking-[0.15em] flex items-center justify-center gap-1.5 sm:gap-2.5 transition-all duration-350 ease-out active:scale-95 ${added ? 'bg-[#2D8A4E]' : 'bg-[#1A1614] hover:bg-[#333] hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0'}`}
-                onClick={() => setModalType("cart")}
+                onClick={() => {
+                  if (currentVariant) {
+                    addSelectedVariant(currentVariant, 1);
+                  } else {
+                    setModalType("cart");
+                  }
+                }}
                 disabled={!product.variants.length}
               >
                 {added ? (
@@ -203,7 +205,13 @@ export default function ProductDetailClient({ product }: { product: any }) {
               </button>
               <button
                 className="flex-1 h-[54px] sm:h-[52px] bg-[#D4541C] text-white text-[10px] xs:text-[11px] sm:text-[12px] font-semibold tracking-[0.1em] sm:tracking-[0.15em] flex items-center justify-center gap-1.5 sm:gap-2.5 transition-all duration-350 hover:bg-[#B33D0E] hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50"
-                onClick={() => setModalType("buy")}
+                onClick={() => {
+                  if (currentVariant) {
+                    handleBuyNow(currentVariant, 1);
+                  } else {
+                    setModalType("buy");
+                  }
+                }}
                 disabled={!product.variants.length}
               >
                 <ArrowRight size={18} /> ACHETER

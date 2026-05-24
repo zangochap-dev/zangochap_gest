@@ -106,6 +106,18 @@ const NAV_FOR_ROLE: Record<string, (counts: SidebarCounts) => NavSection[]> = {
   livreur: (counts) => [
     { items: [{ label: 'Mes Livraisons', href: '/zangochap-rider', icon: <Truck size={18} />, badge: counts.myDeliveries }, { label: 'Répertoire', href: '/zangochap-manager/directory', icon: <Users size={18} /> }] },
   ],
+  developer: (counts) => {
+    const adminNav = NAV_FOR_ROLE.admin(counts);
+    return [
+      ...adminNav,
+      {
+        title: 'Développement',
+        items: [
+          { label: 'Logs Système', href: '/zangochap-manager/developer/logs', icon: <FileText size={18} /> }
+        ]
+      }
+    ];
+  },
 };
 
 export default function Sidebar({ user, counts: initialCounts }: SidebarProps) {

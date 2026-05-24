@@ -13,7 +13,7 @@ export function checkOrderAccess(order: any, session: any) {
   if (!session) return false;
   const role = session.role?.toUpperCase();
 
-  if (role === 'ADMIN') return true;
+  if (role === 'ADMIN' || role === 'DEVELOPER') return true;
   
   if (role === 'COMMERCIAL') {
     return order.commercialId === session.id;

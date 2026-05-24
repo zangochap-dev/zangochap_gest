@@ -9,11 +9,19 @@ export const dynamic = "force-dynamic";
 export default async function SettingsTeamPage() {
   const user = await getSession();
   
-  if (user?.role !== 'admin') {
+  if (user?.role !== 'admin' && user?.role !== 'developer') {
     return <div className="content"><div className="empty"><h4>Accès refusé</h4></div></div>;
   }
 
-  const accounts = await prisma.user.findMany({ orderBy: { name: 'asc' } });
+  const where: any = {};
+  if (user.role === 'admin') {
+    where.role = { not: 'DEVELOPER' };
+  }
+
+  const accounts = await prisma.user.findMany({
+    where,
+    orderBy: { name: 'asc' }
+  });
 
   return (
     <>

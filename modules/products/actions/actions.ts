@@ -121,7 +121,7 @@ export async function createProduct(data: {
   creatorId?: string;
 }) {
   const session = await ensureAuth(["admin", "stock", "commercial"]);
-  const canAssignCreator = session.role?.toLowerCase() === "admin";
+  const canAssignCreator = ["admin", "developer"].includes(session.role?.toLowerCase());
   const creatorId = canAssignCreator && data.creatorId ? data.creatorId : session.id;
 
   if (creatorId !== session.id) {
@@ -575,7 +575,7 @@ export async function updateProduct(id: string, data: Partial<{
   if (data.oldPrice !== undefined) updateData.oldPrice = data.oldPrice ? new Prisma.Decimal(data.oldPrice) : null;
   if (data.isPublished !== undefined) updateData.status = data.isPublished ? 'PUBLISHED' : 'DRAFT';
 
-  if (data.creatorId !== undefined && session.role?.toLowerCase() === "admin") {
+  if (data.creatorId !== undefined && ["admin", "developer"].includes(session.role?.toLowerCase())) {
     const creator = await prisma.user.findFirst({
       where: { id: data.creatorId, role: { in: [Role.ADMIN, Role.COMMERCIAL] } },
       select: { id: true },

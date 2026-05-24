@@ -188,7 +188,7 @@ export default function ProductForm({
   const [origin, setOrigin] = useState(initialData?.origin || '');
   const [supplier, setSupplier] = useState(initialData?.supplier?.name || '');
   const [selectedWarehouse, setSelectedWarehouse] = useState(initialWarehouseId);
-  const isAdmin = String(user?.role || '').toLowerCase() === 'admin';
+  const isAdmin = ['admin', 'developer'].includes(String(user?.role || '').toLowerCase());
   const [selectedCreatorId, setSelectedCreatorId] = useState(initialData?.creatorId || user?.id || '');
 
   const [sizes, setSizes] = useState<string[]>(Array.from(new Set(initialVariants.map(v => v.size).filter(Boolean))));

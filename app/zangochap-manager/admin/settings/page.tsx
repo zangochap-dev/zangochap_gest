@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default async function SettingsHubPage() {
   const user = await getSession();
-  if (user?.role !== 'admin') redirect("/zangochap-manager");
+  if (user?.role !== 'admin' && user?.role !== 'developer') redirect("/zangochap-manager");
 
   return (
     <>

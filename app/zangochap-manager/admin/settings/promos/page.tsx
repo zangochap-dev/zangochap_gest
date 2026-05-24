@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default async function SettingsPromosPage() {
   const user = await getSession();
-  if (user?.role !== 'admin') {
+  if (user?.role !== 'admin' && user?.role !== 'developer') {
     return <div className="content"><div className="empty"><h4>Accès refusé</h4></div></div>;
   }
 

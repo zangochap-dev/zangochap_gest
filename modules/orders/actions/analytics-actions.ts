@@ -22,7 +22,7 @@ export async function getSidebarCounts(user?: SidebarCountsUser | string) {
 // ============ DASHBOARD STATS ============
 export async function getDashboardStats() {
   const session = await ensureAuth();
-  if (!['admin', 'commercial', 'stock', 'packing', 'collection'].includes(session.role.toLowerCase())) {
+  if (!['admin', 'commercial', 'stock', 'packing', 'collection', 'developer'].includes(session.role.toLowerCase())) {
     throw new Error("Accès au tableau de bord restreint.");
   }
   const now = new Date();

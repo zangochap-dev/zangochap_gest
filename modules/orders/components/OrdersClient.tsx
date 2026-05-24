@@ -6090,7 +6090,8 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
 
                           {/* Commercials can only edit/dup/delete their own orders */}
                           {(user?.role === "admin" ||
-                            user?.role === "commercial") && (
+                            user?.role === "commercial" ||
+                            user?.role === "developer") && (
                               <>
                                 <button
                                   className="action-btn"
@@ -6126,7 +6127,8 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
                             </summary>
                             <div className="action-menu-panel">
                               {(user?.role === "admin" ||
-                                user?.role === "commercial") && (
+                                user?.role === "commercial" ||
+                                user?.role === "developer") && (
                                   <button
                                     type="button"
                                     className="action-menu-item"
@@ -6166,7 +6168,8 @@ Ne passez pas à côté de cette belle surprise ! 😍🔥`;
                                 <Printer size={14} /> Imprimer reçu
                               </button>
                               {(user?.role === "admin" ||
-                                user?.role === "commercial") && (
+                                user?.role === "commercial" ||
+                                user?.role === "developer") && (
                                   <button
                                     type="button"
                                     className="action-menu-item danger"
@@ -6803,7 +6806,7 @@ function OrderDetailModal({
 
   const history = Array.isArray(order.history) ? order.history : [];
 
-  const isAdmin = user?.role === "admin";
+  const isAdmin = user?.role === "admin" || user?.role === "developer";
 
   const isOwner = order.commercialId === user?.id;
 
@@ -8250,7 +8253,6 @@ function OrderFormModal({
           >
             Annuler
           </button>
-
           {mode === "edit" &&
             onReproDispo &&
             !["DELIVERED", "CANCELLED", "REPRO_DISPO"].includes(

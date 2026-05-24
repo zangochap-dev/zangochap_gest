@@ -11,11 +11,19 @@ export default async function DirectoryPage() {
   const session = await getSession();
   if (!session) redirect("/login");
 
-  // Fetch all staff members (not CUSTOMER)
+  // Fetch all staff members (not CUSTOMER, and hide DEVELOPER unless user is developer)
+  const where: any = {
+    role: { not: "CUSTOMER" }
+  };
+  if (session.role !== "developer") {
+    where.AND = [
+      { role: { not: "CUSTOMER" } },
+      { role: { not: "DEVELOPER" } }
+    ];
+  }
+
   const users = await prisma.user.findMany({
-    where: {
-      role: { not: "CUSTOMER" }
-    },
+    where,
     select: {
       id: true,
       name: true,

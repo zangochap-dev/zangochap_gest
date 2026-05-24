@@ -25,7 +25,7 @@ export default async function RiderLayout({
   const user = await getSession();
   const role = user?.role?.toUpperCase();
 
-  if (!user || (role !== "LIVREUR" && role !== "ADMIN")) {
+  if (!user || (role !== "LIVREUR" && role !== "ADMIN" && role !== "DEVELOPER")) {
     redirect("/zangochap-manager");
   }
 

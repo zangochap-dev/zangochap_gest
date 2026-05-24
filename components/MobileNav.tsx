@@ -16,7 +16,7 @@ interface MobileNavProps {
 export default function MobileNav({ user }: MobileNavProps) {
   const pathname = usePathname();
  
-  const isAdmin = user.role === 'admin';
+  const isAdmin = user.role === 'admin' || user.role === 'developer';
   const isLivreur = user.role === 'livreur';
   const isPacking = user.role === 'packing';
   const isCollection = user.role === 'collection';

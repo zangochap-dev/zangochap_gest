@@ -193,7 +193,7 @@ export default function ToProcessClient({ orders: initialOrders, user, callCente
   return (
     <div className="content animate-fade-in">
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12, alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        {String(user?.role || "").toLowerCase() === "admin" ? (
+        {["admin", "developer"].includes(String(user?.role || "").toLowerCase()) ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             {nextInRotation && (
               <div style={{ fontSize: 11, background: 'var(--cream)', border: '1px solid var(--line)', padding: '6px 12px', borderRadius: 8, fontWeight: 600 }}>
@@ -345,7 +345,7 @@ export default function ToProcessClient({ orders: initialOrders, user, callCente
                   </td>
                   <td>
                     <div className="cell-strong">{order.commercialName || "Non assigné"}</div>
-                    {String(user?.role || "").toLowerCase() === "admin" && (
+                    {["admin", "developer"].includes(String(user?.role || "").toLowerCase()) && (
                       <select
                         className="filter-select"
                         value={order.commercialId || ""}
@@ -422,7 +422,7 @@ export default function ToProcessClient({ orders: initialOrders, user, callCente
                       >
                         <Check size={14} /> Prendre
                       </button>
-                      {String(user?.role || "").toLowerCase() === "admin" && (
+                      {["admin", "developer"].includes(String(user?.role || "").toLowerCase()) && (
                         <button
                           className="btn-secondary"
                           disabled={isPending && workingOrderId === order.id}

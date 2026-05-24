@@ -80,7 +80,7 @@ export async function getSession() {
 
 async function ensureAdmin() {
   const session = await getSession();
-  if (!session || session.role !== "admin") {
+  if (!session || (session.role !== "admin" && session.role !== "developer")) {
     throw new Error("Action non autorisée. Droits administrateur requis.");
   }
   return session;
@@ -88,8 +88,14 @@ async function ensureAdmin() {
 
 // ============ ACCOUNT MANAGEMENT ============
 export async function getAccounts() {
-  await ensureAdmin();
+  const session = await ensureAdmin();
+  const where: any = {};
+  if (session.role === "admin") {
+    where.role = { not: "DEVELOPER" };
+  }
+
   return prisma.user.findMany({
+    where,
     select: {
       id: true,
       email: true,
@@ -114,7 +120,12 @@ export async function createAccount(data: {
   password: string;
   role: string;
 }) {
-  await ensureAdmin();
+  const session = await ensureAdmin();
+
+  if (session.role === "admin" && data.role.toUpperCase() === "DEVELOPER") {
+    throw new Error("Action non autorisée. Les administrateurs ne peuvent pas créer de compte développeur.");
+  }
+
   const existing = await prisma.user.findUnique({ where: { email: data.email.toLowerCase() } });
   if (existing) return { success: false, error: "Email déjà utilisé" };
 
@@ -148,7 +159,21 @@ export async function updateAccount(email: string, data: {
   role?: string;
   password?: string;
 }) {
-  await ensureAdmin();
+  const session = await ensureAdmin();
+
+  if (session.role === "admin") {
+    const targetUser = await prisma.user.findUnique({
+      where: { email },
+      select: { role: true }
+    });
+    if (targetUser?.role === "DEVELOPER") {
+      throw new Error("Action non autorisée. Les administrateurs ne peuvent pas modifier de compte développeur.");
+    }
+    if (data.role?.toUpperCase() === "DEVELOPER") {
+      throw new Error("Action non autorisée. Les administrateurs ne peuvent pas attribuer le rôle développeur.");
+    }
+  }
+
   const updateData: any = {};
   if (data.name) {
     updateData.name = data.name;
@@ -174,7 +199,18 @@ export async function updateAccount(email: string, data: {
 }
 
 export async function deleteAccount(email: string) {
-  await ensureAdmin();
+  const session = await ensureAdmin();
+
+  if (session.role === "admin") {
+    const targetUser = await prisma.user.findUnique({
+      where: { email },
+      select: { role: true }
+    });
+    if (targetUser?.role === "DEVELOPER") {
+      throw new Error("Action non autorisée. Les administrateurs ne peuvent pas supprimer de compte développeur.");
+    }
+  }
+
   await prisma.user.delete({ where: { email } });
   revalidatePath("/zangochap-manager/admin/team");
   return { success: true };

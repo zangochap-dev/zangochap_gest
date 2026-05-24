@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 const ROLE_ICONS: Record<string, React.ReactNode> = {
+  developer: <Shield size={18} />,
   admin: <Shield size={18} />,
   commercial: <ShoppingBag size={18} />,
   packing: <Package size={18} />,
@@ -25,6 +26,7 @@ const ROLE_ICONS: Record<string, React.ReactNode> = {
 };
 
 const ROLE_COLORS: Record<string, string> = {
+  developer: 'linear-gradient(135deg, #1E1B4B 0%, #312E81 100%)',
   admin: 'linear-gradient(135deg, #4F46E5 0%, #3730A3 100%)',
   commercial: 'linear-gradient(135deg, #D4541C 0%, #A34015 100%)',
   packing: 'linear-gradient(135deg, #059669 0%, #065F46 100%)',
@@ -40,6 +42,15 @@ export default function TeamClient({ accounts, currentUser }: { accounts: any[];
   const { showToast } = useToast();
   const router = useRouter();
 
+  const availableRoles = useMemo(() => {
+    return Object.entries(ROLE_LABELS).filter(([role]) => {
+      if (currentUser?.role === "admin" && role === "developer") {
+        return false;
+      }
+      return true;
+    });
+  }, [currentUser]);
+
   const byRole = useMemo(() => {
     const map: Record<string, any[]> = {};
     accounts.forEach(a => {
@@ -51,14 +62,21 @@ export default function TeamClient({ accounts, currentUser }: { accounts: any[];
   }, [accounts]);
 
   const filteredRoles = useMemo(() => {
-    return Object.entries(ROLE_LABELS).filter(([role]) => {
-      const users = byRole[role] || [];
-      return users.some(u =>
-        u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        u.email.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    });
-  }, [byRole, searchTerm]);
+    return Object.entries(ROLE_LABELS)
+      .filter(([role]) => {
+        if (currentUser?.role === "admin" && role === "developer") {
+          return false;
+        }
+        return true;
+      })
+      .filter(([role]) => {
+        const users = byRole[role] || [];
+        return users.some(u =>
+          u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          u.email.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+      });
+  }, [byRole, searchTerm, currentUser]);
 
   const handleDelete = (email: string) => {
     if (!confirm(`Supprimer définitivement le compte de ${email} ?`)) return;
@@ -264,7 +282,7 @@ export default function TeamClient({ accounts, currentUser }: { accounts: any[];
               <label className="field-label">Rôle au sein de l'équipe *</label>
               <select className="field-input" value={role} onChange={e => setRole(e.target.value)} required>
                 <option value="">Sélectionner un rôle...</option>
-                {Object.entries(ROLE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                {availableRoles.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
             </div>
             <div className="form-row">

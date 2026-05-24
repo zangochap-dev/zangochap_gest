@@ -40,6 +40,7 @@ export const DELIVERY_FEES: Record<string, number> = {
 };
 
 export const ROLE_LABELS: Record<string, string> = {
+  developer: 'Développeur',
   commercial: 'Commercial',
   packing: 'Service emballage',
   collection: 'Service collecte',

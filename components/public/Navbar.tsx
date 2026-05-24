@@ -4,28 +4,44 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { ShoppingBag, Search, Menu, X, Phone } from "lucide-react";
 import { useCart } from "@/lib/CartContext";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 
 export default function Navbar() {
   const router = useRouter();
   const { cart } = useCart();
   const itemCount = cart.reduce((sum, item) => sum + item.qty, 0);
+  const pathname = usePathname();
+  const isHome = pathname === "/";
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [announcement, setAnnouncement] = useState<string>("");
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
     window.addEventListener("scroll", onScroll, { passive: true });
+
+    // Fetch dynamic announcement from DB
+    fetch("/api/public/cms")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.content?.announcement) {
+          setAnnouncement(data.content.announcement);
+        }
+      })
+      .catch((err) => console.error("Error fetching CMS announcement:", err));
+
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   return (
     <>
       {/* ANNOUNCEMENT BAR */}
-      <div className="bg-[#1A1614] text-white text-center py-2.5 px-4 text-[11px] font-medium tracking-[0.12em] uppercase md:text-[11px] text-[9px]">
-        <span>LIVRAISON OFFERTE À ABIDJAN · CODE <strong className="text-[#E8C07A]">ZANGO10</strong> : -10% SUR VOTRE 1ÈRE COMMANDE</span>
-      </div>
+      {announcement && (
+        <div className="bg-[#1A1614] text-white text-center py-2.5 px-4 text-[11px] font-medium tracking-[0.12em] uppercase md:text-[11px] text-[9px]">
+          <span>{announcement}</span>
+        </div>
+      )}
 
       <nav className={`sticky top-0 z-[1000] bg-white/96 backdrop-blur-[24px] border-b border-black/5 transition-all duration-400 ${scrolled ? "shadow-[0_1px_20px_rgba(0,0,0,0.06)]" : ""}`}>
         <div className="max-w-[1440px] mx-auto h-[64px] md:h-[80px] grid grid-cols-[1fr_auto_1fr] items-center px-4 md:px-8 w-full">

@@ -51,9 +51,11 @@ export default function HomeClient({ products, categories, latestPromo, cms }: {
 
   return (
     <div className="bg-white w-full overflow-x-clip font-body">
-      {content.announcement && (
-        <div className="bg-[#1A1614] text-white py-2 text-center text-[10px] md:text-[11px] font-bold tracking-wider px-4">
-          {content.announcement}
+      {latestPromo && (
+        <div className="bg-[#D4541C] text-white py-2 text-center text-[11px] md:text-[12px] font-medium tracking-wider">
+          <Tag size={12} className="inline mr-2" />
+          OFFRE : <strong>-{latestPromo.value}{latestPromo.type === "PERCENT" ? "%" : " F"}</strong> AVEC LE CODE
+          <span className="bg-black/20 px-2 py-0.5 rounded font-extrabold ml-1">{latestPromo.code}</span>
         </div>
       )}
 
@@ -111,7 +113,7 @@ export default function HomeClient({ products, categories, latestPromo, cms }: {
             <h2 className="font-display text-[26px] md:text-[32px] font-bold text-[#1A1614] uppercase">{content.categoriesTitle}</h2>
             <p className="mt-3 text-[14px] text-[#777] max-w-[620px] mx-auto">{content.categoriesDescription}</p>
           </div>
-          <motion.div 
+          <motion.div
             variants={containerVars}
             initial="hidden"
             whileInView="visible"
@@ -125,14 +127,14 @@ export default function HomeClient({ products, categories, latestPromo, cms }: {
                   className="group relative flex min-h-[120px] flex-col justify-between overflow-hidden rounded-sm border border-[#ECE8E2] bg-white p-5 text-[#1A1614] transition-all hover:border-[#D4541C]"
                 >
                   <div className="absolute top-0 right-0 w-16 h-16 bg-[#FAF9F6] rounded-bl-full z-0 transition-transform duration-500 group-hover:scale-150 group-hover:bg-[#FFF5F0]"></div>
-                  
+
                   <div className="flex items-start justify-between z-10 relative">
                     <span className="font-display text-[16px] md:text-[18px] font-bold uppercase leading-tight pr-2">{category.name}</span>
                     <span className="flex items-center justify-center bg-white text-[#777] text-[10px] font-bold px-2 py-1 rounded-sm border border-[#ECE8E2] group-hover:bg-[#D4541C] group-hover:text-white group-hover:border-[#D4541C] transition-colors whitespace-nowrap shadow-sm">
                       {category._count?.products || 0}
                     </span>
                   </div>
-                  
+
                   <div className="mt-5 flex items-center justify-between z-10 relative">
                     <span className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-[#777] group-hover:text-[#D4541C] flex items-center gap-2 transition-colors">
                       Découvrir <ArrowRight size={12} className="transition-transform group-hover:translate-x-1" />
@@ -145,13 +147,9 @@ export default function HomeClient({ products, categories, latestPromo, cms }: {
         </section>
       )}
 
-      {latestPromo && (
-        <div className="bg-[#D4541C] text-white py-2 text-center text-[11px] md:text-[12px] font-medium tracking-wider">
-          <Tag size={12} className="inline mr-2" />
-          OFFRE : <strong>-{latestPromo.value}{latestPromo.type === "PERCENT" ? "%" : " F"}</strong> AVEC LE CODE
-          <span className="bg-black/20 px-2 py-0.5 rounded font-extrabold ml-1">{latestPromo.code}</span>
-        </div>
-      )}
+
+
+
 
       {content.collectionsEnabled && (
         <section className="max-w-[1300px] mx-auto px-5 py-10 md:py-[60px]">
@@ -161,18 +159,18 @@ export default function HomeClient({ products, categories, latestPromo, cms }: {
           </div>
           <div className="flex md:grid md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 overflow-x-auto snap-x snap-mandatory pb-4 -mx-5 px-5 md:mx-0 md:px-0 md:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {(content.collectionsList || []).map((collection) => (
-              <Link 
-                key={collection.id} 
-                href={collection.href || "/shop"} 
+              <Link
+                key={collection.id}
+                href={collection.href || "/shop"}
                 className="group relative overflow-hidden rounded-sm block flex-none w-[75vw] sm:w-[45vw] md:w-auto h-[280px] sm:h-[300px] md:h-[300px] lg:h-[400px] bg-[#F3F1ED] snap-center"
               >
                 {collection.image && (
-                  <Image 
-                    src={collection.image} 
-                    alt={collection.title} 
-                    fill 
-                    sizes="(max-width: 768px) 75vw, (max-width: 1024px) 50vw, 33vw" 
-                    className="object-cover transition-transform duration-1000 group-hover:scale-105" 
+                  <Image
+                    src={collection.image}
+                    alt={collection.title}
+                    fill
+                    sizes="(max-width: 768px) 75vw, (max-width: 1024px) 50vw, 33vw"
+                    className="object-cover transition-transform duration-1000 group-hover:scale-105"
                   />
                 )}
                 <div className="absolute inset-x-0 bottom-0 p-6 md:p-8 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex flex-col gap-1 md:gap-2">

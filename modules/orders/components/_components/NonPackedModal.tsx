@@ -23,7 +23,7 @@ export default function NonPackedModal({
 }: NonPackedModalProps) {
   if (!order) return null;
 
-  const isAdmin = user?.role?.toLowerCase() === "admin";
+  const isAdmin = user?.role?.toLowerCase() === "admin" || user?.role?.toLowerCase() === "developer";
 
   const handleWhatsApp = () => {
     const phone = (order.customerPhone || '').replace(/[^0-9]/g, '');

@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { OrderStatus } from "@prisma/client";
+import { getSession } from "@/modules/auth/actions";
 
 type OrdersQueryParams = {
   page?: string | number | null;
@@ -103,7 +104,14 @@ export async function getOrdersListData(params: OrdersQueryParams, user: Session
 }
 
 export async function getOrdersStaffData() {
+  const session = await getSession();
+  const where: any = {};
+  if (!session || session.role !== "developer") {
+    where.role = { not: "DEVELOPER" };
+  }
+
   const staffUsers = await prisma.user.findMany({
+    where,
     select: { id: true, name: true, phone: true, email: true, role: true },
   });
 

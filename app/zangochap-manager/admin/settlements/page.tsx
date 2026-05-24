@@ -17,7 +17,7 @@ type SettlementsPageProps = {
 
 export default async function SettlementsPage({ searchParams }: SettlementsPageProps) {
   const session = await getSession();
-  if (!session || session.role !== "admin") redirect("/zangochap-manager");
+  if (!session || (session.role !== "admin" && session.role !== "developer")) redirect("/zangochap-manager");
 
   const resolvedParams = await searchParams;
   const now = new Date();

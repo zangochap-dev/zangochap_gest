@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminDeliveryPage() {
   const user = await getSession();
-  if (!user || user.role !== 'admin') redirect("/zangochap-manager");
+  if (!user || (user.role !== 'admin' && user.role !== 'developer')) redirect("/zangochap-manager");
 
   const [activeOrders, archivedOrders, deliverymen] = await Promise.all([
     prisma.order.findMany({

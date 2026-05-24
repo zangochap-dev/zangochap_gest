@@ -27,13 +27,15 @@ export async function getSidebarCountsForUser(user?: SidebarCountsUser | null): 
   today.setHours(0, 0, 0, 0);
 
   const activeOrderWhere = { deletedAt: null };
-  const publicToProcessWhere = {
+  const role = user?.role?.toLowerCase();
+
+  const toProcessWhere: any = {
     ...activeOrderWhere,
     status: OrderStatus.TO_PROCESS,
-    commercialId: null,
-    commercialName: "Site Web",
   };
-  const role = user?.role?.toLowerCase();
+  if (user?.id && role === "commercial") {
+    toProcessWhere.commercialId = user.id;
+  }
 
   const [ordersCount, packingCount, collectionCount, toProcessCount, deliveriesCount] = await Promise.all([
     prisma.order.count({
@@ -60,7 +62,7 @@ export async function getSidebarCountsForUser(user?: SidebarCountsUser | null): 
       },
     }),
     prisma.order.count({
-      where: publicToProcessWhere,
+      where: toProcessWhere,
     }),
     user?.id && role === "livreur"
       ? prisma.order.count({

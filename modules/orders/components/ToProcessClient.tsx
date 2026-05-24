@@ -20,20 +20,7 @@ interface ToProcessClientProps {
   activeCommercialIds?: string[];
 }
 
-type DatePreset = 'today' | 'yesterday' | 'custom' | 'all';
-
-function toLocalDateInputValue(date = new Date()) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
-
 export default function ToProcessClient({ orders: initialOrders, user, callCenterUsers, nextInRotation, activeCommercialIds }: ToProcessClientProps) {
-  const todayStr = toLocalDateInputValue();
-  const [datePreset, setDatePreset] = useState<DatePreset>('today');
-  const [dateFrom, setDateFrom] = useState(todayStr);
-  const [dateTo, setDateTo] = useState(todayStr);
   const [assignees, setAssignees] = useState<Record<string, string>>({});
   const [workingOrderId, setWorkingOrderId] = useState<string | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
@@ -107,41 +94,7 @@ export default function ToProcessClient({ orders: initialOrders, user, callCente
   });
 
   const orders = data?.orders ?? initialOrders;
-  const filteredOrders = useMemo(() => {
-    if (!dateFrom && !dateTo) return orders;
-    return orders.filter((order: any) => {
-      const createdAt = new Date(order.createdAt).getTime();
-      if (dateFrom && createdAt < new Date(`${dateFrom}T00:00:00`).getTime()) return false;
-      if (dateTo && createdAt > new Date(`${dateTo}T23:59:59.999`).getTime()) return false;
-      return true;
-    });
-  }, [orders, dateFrom, dateTo]);
-
-  const applyDatePreset = (preset: DatePreset) => {
-    setDatePreset(preset);
-    if (preset === 'custom') return;
-    if (preset === 'all') {
-      setDateFrom('');
-      setDateTo('');
-      return;
-    }
-
-    const date = new Date();
-    if (preset === 'yesterday') date.setDate(date.getDate() - 1);
-    const value = toLocalDateInputValue(date);
-    setDateFrom(value);
-    setDateTo(value);
-  };
-
-  const handleDateFromChange = (value: string) => {
-    setDatePreset('custom');
-    setDateFrom(value);
-  };
-
-  const handleDateToChange = (value: string) => {
-    setDatePreset('custom');
-    setDateTo(value);
-  };
+  const filteredOrders = orders;
 
   const handleTakeOrder = (orderId: string, commercialId?: string) => {
     setWorkingOrderId(orderId);
@@ -185,25 +138,7 @@ export default function ToProcessClient({ orders: initialOrders, user, callCente
   return (
     <div className="content animate-fade-in">
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12, alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', gap: 4, background: 'var(--cream)', padding: 3, borderRadius: 10, border: '1px solid var(--line)', flexWrap: 'wrap' }}>
-          {[
-            { label: "Aujourd'hui", val: 'today' },
-            { label: 'Hier', val: 'yesterday' },
-            { label: 'Perso', val: 'custom' },
-            { label: 'Tout', val: 'all' },
-          ].map(d => (
-            <button key={d.val} className={`shortcut-btn ${datePreset === d.val ? 'active' : ''}`} onClick={() => applyDatePreset(d.val as DatePreset)}>
-              {d.label}
-            </button>
-          ))}
-          {datePreset === 'custom' && (
-            <>
-              <input type="date" className="filter-date" value={dateFrom} onChange={e => handleDateFromChange(e.target.value)} />
-              <input type="date" className="filter-date" value={dateTo} onChange={e => handleDateToChange(e.target.value)} />
-            </>
-          )}
-        </div>
-        {String(user?.role || "").toLowerCase() === "admin" && (
+        {String(user?.role || "").toLowerCase() === "admin" ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             {nextInRotation && (
               <div style={{ fontSize: 11, background: 'var(--cream)', border: '1px solid var(--line)', padding: '6px 12px', borderRadius: 8, fontWeight: 600 }}>
@@ -218,6 +153,8 @@ export default function ToProcessClient({ orders: initialOrders, user, callCente
               ⚙️ Gérer la rotation
             </button>
           </div>
+        ) : (
+          <div />
         )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
          {isFetching && <RefreshCw size={14} className="animate-spin" style={{ color: 'var(--orange)', opacity: 0.5 }} />}

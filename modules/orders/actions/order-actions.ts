@@ -410,9 +410,6 @@ export async function takeToProcessOrder(orderId: string, commercialId?: string)
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order || order.deletedAt) throw new Error("Commande introuvable");
   if (order.status !== 'TO_PROCESS') throw new Error("Cette commande est déjà prise en charge");
-  if (order.commercialId || order.commercialName !== "Site Web") {
-    throw new Error("Seules les commandes du site public peuvent etre prises en charge ici");
-  }
 
   const history = Array.isArray(order.history) ? [...(order.history as any[])] : [];
   history.push({

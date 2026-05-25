@@ -80,7 +80,7 @@ import StyledJsxRegistry from "@/lib/registry";
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+const geist = Geist({ subsets: ['latin'], variable: '--font-sans' });
 
 
 export default async function RootLayout({
@@ -107,15 +107,15 @@ export default async function RootLayout({
           <>
             {/* Google Tag Manager (noscript) */}
             <noscript>
-              <iframe 
+              <iframe
                 src={`https://www.googletagmanager.com/ns.html?id=${googleAnalyticsId}`}
-                height="0" 
-                width="0" 
+                height="0"
+                width="0"
                 style={{ display: "none", visibility: "hidden" }}
               />
             </noscript>
             {/* End Google Tag Manager (noscript) */}
-            
+
             {/* Google Tag Manager */}
             <Script id="google-tag-manager" strategy="afterInteractive">
               {`
@@ -161,6 +161,18 @@ export default async function RootLayout({
             {children}
           </Providers>
         </StyledJsxRegistry>
+
+        <Script src="https://www.googletagmanager.com/gtag/js?id=G-JKR95E282P" strategy="afterInteractive" />
+        <Script id="google-analytics-custom" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+
+            gtag('config', 'G-JKR95E282P');
+          `}
+        </Script>
+
       </body>
     </html>
   );

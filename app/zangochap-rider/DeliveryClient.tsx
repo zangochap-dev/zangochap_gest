@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useTransition, useMemo, useCallback, useEffect, useRef } from "react";
-import { AlertTriangle, CalendarDays, CheckCircle2, Package, Route, Search, WifiOff } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Banknote, CalendarDays, CheckCircle2, ChevronRight, MapPin, Package, Search, SlidersHorizontal, WifiOff, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/components/Toast";
@@ -22,7 +22,10 @@ import { calculateOrderCollectionTotal, calculatePartialSummary } from "./utils"
 import { updateOrderStatus, markPartialDelivery } from "@/modules/orders/actions";
 import { logoutAction } from "@/modules/auth/actions";
 
-type MissionFilter = "pending" | "current" | "history";
+type AppTab = "missions" | "history" | "wallet" | "profile";
+type MissionFilter = "pending" | "current";
+type HistoryStatusFilter = "all" | "DELIVERED" | "CANCELLED" | "PARTIALLY_DELIVERED" | "RETURNED" | "REPRO_DISPO";
+type HistoryDateFilter = "today" | "week" | "month" | "all";
 type StatusReasonRequest = {
   orderId: string;
   status: string;
@@ -48,6 +51,39 @@ const REPROGRAM_REASONS = [
   "Fin de tournée",
 ];
 
+const HISTORY_STATUS_OPTIONS: { value: HistoryStatusFilter; label: string }[] = [
+  { value: "all", label: "Tous" },
+  { value: "DELIVERED", label: "Livrées" },
+  { value: "PARTIALLY_DELIVERED", label: "Partielles" },
+  { value: "RETURNED", label: "Retours" },
+  { value: "CANCELLED", label: "Annulées" },
+  { value: "REPRO_DISPO", label: "Reprogrammées" },
+];
+
+const HISTORY_DATE_OPTIONS: { value: HistoryDateFilter; label: string }[] = [
+  { value: "today", label: "Aujourd'hui" },
+  { value: "week", label: "7 jours" },
+  { value: "month", label: "30 jours" },
+  { value: "all", label: "Tout" },
+];
+
+function isSameDay(value?: string | Date | null, date = new Date()) {
+  if (!value) return false;
+  return new Date(value).toDateString() === date.toDateString();
+}
+
+function isWithinDays(value: string | Date | null | undefined, days: number) {
+  if (!value) return false;
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - (days - 1));
+  return new Date(value) >= start;
+}
+
+function formatCompactPrice(value: number) {
+  return `${new Intl.NumberFormat("fr-FR").format(value)} F`;
+}
+
 // ── Main Component ───────────────────────────────────────────
 export default function DeliveryClient({
   orders,
@@ -57,7 +93,7 @@ export default function DeliveryClient({
   user: { id: string; name: string; email: string; role?: string };
 }) {
   // ── State ──
-  const [activeTab, setActiveTab] = useState<"missions" | "wallet" | "profile">("missions");
+  const [activeTab, setActiveTab] = useState<AppTab>("missions");
   const [localOrders, setLocalOrders] = useState<RiderOrder[]>(orders);
   const [isOffline, setIsOffline] = useState(false);
   const prevOrderCount = useRef(orders.length);
@@ -101,8 +137,9 @@ export default function DeliveryClient({
   }, [router]);
 
   const [missionFilter, setMissionFilter] = useState<MissionFilter>("pending");
-  const [historyFilter] = useState<"all" | "DELIVERED" | "CANCELLED" | "PARTIALLY_DELIVERED" | "REPRO_DISPO">("all");
-  const [historyTodayOnly] = useState(false);
+  const [historyFilter, setHistoryFilter] = useState<HistoryStatusFilter>("all");
+  const [historyDateFilter, setHistoryDateFilter] = useState<HistoryDateFilter>("week");
+  const [selectedHistoryDate, setSelectedHistoryDate] = useState<string | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<RiderOrder | null>(null);
   const [partialMode, setPartialMode] = useState(false);
   const [includeDeliveryFee, setIncludeDeliveryFee] = useState(true);
@@ -114,26 +151,93 @@ export default function DeliveryClient({
 
   // ── Derived Data ──
   const completedStatuses = useMemo(() => ["DELIVERED", "PARTIALLY_DELIVERED", "RETURNED", "CANCELLED", "REPRO_DISPO"], []);
-  const pending = useMemo(() => localOrders.filter((o) => !completedStatuses.includes(o.status)), [localOrders, completedStatuses]);
-  const inProgress = useMemo(() => localOrders.filter((o) => o.status === "ON_DELIVERY"), [localOrders]);
+  const todayOrders = useMemo(() => localOrders.filter((o) => isSameDay(o.deliveryDate || o.createdAt)), [localOrders]);
+  const pending = useMemo(() => todayOrders.filter((o) => !completedStatuses.includes(o.status)), [todayOrders, completedStatuses]);
+  const inProgress = useMemo(() => todayOrders.filter((o) => o.status === "ON_DELIVERY"), [todayOrders]);
   const history = useMemo(() => localOrders.filter((o) => completedStatuses.includes(o.status)), [localOrders, completedStatuses]);
+  const historyStatusCounts = useMemo(() => {
+    return history.reduce((counts: Record<string, number>, order) => {
+      counts[order.status] = (counts[order.status] || 0) + 1;
+      return counts;
+    }, {});
+  }, [history]);
+
+  const filterBySearch = useCallback((base: RiderOrder[]) => {
+    if (!searchQuery.trim()) return base;
+    const q = searchQuery.toLowerCase();
+    return base.filter((o) => (
+      o.customerName?.toLowerCase().includes(q)
+      || o.ref?.toLowerCase().includes(q)
+      || o.commune?.toLowerCase().includes(q)
+      || o.customerPhone?.toLowerCase().includes(q)
+    ));
+  }, [searchQuery]);
 
   const displayedOrders = useMemo(() => {
-    let base: RiderOrder[];
-    if (missionFilter === "pending") base = pending;
-    else if (missionFilter === "current") base = inProgress;
-    else {
-      base = history;
-      if (historyFilter !== "all") base = base.filter((o) => o.status === historyFilter);
-      if (historyTodayOnly) {
-        const today = new Date().toDateString();
-        base = base.filter((o) => new Date(o.updatedAt || o.createdAt).toDateString() === today);
-      }
+    const base = missionFilter === "pending" ? pending : inProgress;
+    return filterBySearch(base);
+  }, [missionFilter, pending, inProgress, filterBySearch]);
+
+  const filteredHistory = useMemo(() => {
+    let base = history;
+    if (historyFilter !== "all") base = base.filter((o) => o.status === historyFilter);
+    if (historyDateFilter === "today") {
+      base = base.filter((o) => isSameDay(o.deliveryDate || o.updatedAt || o.createdAt));
+    } else if (historyDateFilter === "week") {
+      base = base.filter((o) => isWithinDays(o.deliveryDate || o.updatedAt || o.createdAt, 7));
+    } else if (historyDateFilter === "month") {
+      base = base.filter((o) => isWithinDays(o.deliveryDate || o.updatedAt || o.createdAt, 30));
     }
-    if (!searchQuery) return base;
-    const q = searchQuery.toLowerCase();
-    return base.filter((o) => o.customerName?.toLowerCase().includes(q) || o.ref?.toLowerCase().includes(q) || o.commune?.toLowerCase().includes(q));
-  }, [missionFilter, historyFilter, historyTodayOnly, pending, inProgress, history, searchQuery]);
+    return filterBySearch(base);
+  }, [history, historyFilter, historyDateFilter, filterBySearch]);
+
+  const groupedHistory = useMemo(() => {
+    const formatter = new Intl.DateTimeFormat("fr-FR", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    });
+
+    const groups = filteredHistory.reduce<Record<string, { label: string; orders: RiderOrder[]; timestamp: number }>>((acc, order) => {
+      const dateValue = order.deliveryDate || order.updatedAt || order.createdAt;
+      const date = new Date(dateValue);
+      const key = date.toISOString().slice(0, 10);
+      if (!acc[key]) {
+        acc[key] = {
+          label: formatter.format(date),
+          orders: [],
+          timestamp: date.getTime(),
+        };
+      }
+      acc[key].orders.push(order);
+      return acc;
+    }, {});
+
+    return Object.entries(groups)
+      .sort(([, a], [, b]) => b.timestamp - a.timestamp)
+      .map(([key, group]) => {
+        const completed = group.orders.filter((order) => ["DELIVERED", "PARTIALLY_DELIVERED"].includes(order.status)).length;
+        const issues = group.orders.filter((order) => ["RETURNED", "CANCELLED", "REPRO_DISPO"].includes(order.status)).length;
+        const cash = group.orders
+          .filter((order) => ["DELIVERED", "PARTIALLY_DELIVERED"].includes(order.status))
+          .reduce((total, order) => total + calculateOrderCollectionTotal(order), 0);
+        const communes = Array.from(new Set(group.orders.map((order) => order.commune).filter(Boolean) as string[]));
+
+        return {
+          key,
+          ...group,
+          completed,
+          issues,
+          cash,
+          communes,
+        };
+      });
+  }, [filteredHistory]);
+
+  const selectedHistoryGroup = useMemo(
+    () => groupedHistory.find((group) => group.key === selectedHistoryDate) || null,
+    [groupedHistory, selectedHistoryDate],
+  );
 
   const ordersToSettle = useMemo(() => localOrders.filter(o => ["DELIVERED", "PARTIALLY_DELIVERED"].includes(o.status) && !o.settlementId), [localOrders]);
   const stats = useMemo<RiderStats>(() => ({
@@ -143,17 +247,19 @@ export default function DeliveryClient({
     deliveredToday: history.filter((o) => new Date(o.updatedAt || o.createdAt).toDateString() === new Date().toDateString() && o.status === "DELIVERED").length,
   }), [pending, inProgress, history, ordersToSettle]);
   const routeStats = useMemo(() => ({
-    total: localOrders.length,
-    completed: localOrders.filter((o) => ["DELIVERED", "PARTIALLY_DELIVERED"].includes(o.status)).length,
-    issues: localOrders.filter((o) => ["RETURNED", "CANCELLED", "REPRO_DISPO"].includes(o.status)).length,
-  }), [localOrders]);
+    total: todayOrders.length,
+    completed: todayOrders.filter((o) => ["DELIVERED", "PARTIALLY_DELIVERED"].includes(o.status)).length,
+    issues: todayOrders.filter((o) => ["RETURNED", "CANCELLED", "REPRO_DISPO"].includes(o.status)).length,
+  }), [todayOrders]);
   const routeProgress = routeStats.total > 0 ? Math.round((routeStats.completed / routeStats.total) * 100) : 0;
-  const nextMission = useMemo(() => pending[0] || inProgress[0] || null, [pending, inProgress]);
-
   const partialSummary = useMemo(() => {
     if (!selectedOrder) return { subtotal: 0, total: 0, fee: 0 };
     return calculatePartialSummary(selectedOrder, deliveredQuantities, includeDeliveryFee);
   }, [selectedOrder, deliveredQuantities, includeDeliveryFee]);
+
+  useEffect(() => {
+    setSelectedHistoryDate(null);
+  }, [historyFilter, historyDateFilter, searchQuery]);
 
   // Handlers
   const handleOpenOrder = useCallback((order: RiderOrder) => {
@@ -307,14 +413,13 @@ export default function DeliveryClient({
                 {[
                   { id: "pending", label: "À traiter", count: stats.count },
                   { id: "current", label: "En route", count: stats.inProgressCount },
-                  { id: "history", label: "Clôturées" }
                 ].map((t) => (
                   <button
                     key={t.id}
                     onClick={() => setMissionFilter(t.id as MissionFilter)}
                     className={`flex-1 py-1.5 rounded text-[11px] font-bold transition-all flex items-center justify-center gap-1.5 ${
                       missionFilter === t.id
-                        ? "bg-white text-[#111827] shadow-sm"
+                        ? "bg-white text-[#111827] border border-[#E5E7EB]"
                         : "text-[#6B7280] active:scale-95"
                     }`}
                   >
@@ -335,7 +440,7 @@ export default function DeliveryClient({
               </div>
               <div className="relative group mt-1">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] group-focus-within:text-[#111827] transition-colors" />
-                <input type="text" placeholder="Rechercher client, réf, lieu..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full h-11 bg-white border border-[#E5E7EB] focus:border-[#111827] focus:ring-1 focus:ring-[#111827] rounded-md pl-9 pr-4 text-[13px] outline-none transition-all shadow-sm placeholder:text-[#9CA3AF] text-[#111827]" />
+                <input type="text" placeholder="Rechercher client, réf, lieu..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full h-11 bg-white border border-[#E5E7EB] focus:border-[#475569] focus:ring-1 focus:ring-[#CBD5E1] rounded-md pl-9 pr-4 text-[13px] outline-none transition-all placeholder:text-[#9CA3AF] text-[#111827]" />
                 {searchQuery && (
                   <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-full bg-[#F3F4F6] text-[#6B7280] active:scale-90 transition-transform">
                     <span className="text-[14px] leading-none mb-0.5">×</span>
@@ -351,7 +456,7 @@ export default function DeliveryClient({
             {activeTab === "missions" && (
               <motion.div key="missions" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
                 {displayedOrders.length === 0 ? (
-                  <div className="rounded-md border border-[#E5E7EB] bg-white px-5 py-10 text-center shadow-sm">
+                  <div className="rounded-md border border-[#E5E7EB] bg-white px-5 py-10 text-center">
                     <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-md bg-[#F3F4F6] text-[#475569]">
                       <Package size={22} />
                     </div>
@@ -365,12 +470,196 @@ export default function DeliveryClient({
                 )}
               </motion.div>
             )}
+            {activeTab === "history" && (
+              <motion.div key="history" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-3">
+                <div className="rounded-md bg-white border border-[#E5E7EB] p-3 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#111827]">
+                        <SlidersHorizontal size={14} className="text-[#64748B]" />
+                        Historique de livraisons
+                      </div>
+                      <p className="mt-0.5 text-[10px] font-bold text-[#64748B]">
+                        {filteredHistory.length} livraison(s) groupée(s) par date
+                      </p>
+                    </div>
+                    {(historyFilter !== "all" || historyDateFilter !== "week" || searchQuery) && (
+                      <button
+                        onClick={() => {
+                          setHistoryFilter("all");
+                          setHistoryDateFilter("week");
+                          setSearchQuery("");
+                        }}
+                        className="flex items-center gap-1 rounded-sm border border-[#E5E7EB] bg-[#F8FAFC] px-2 py-1 text-[10px] font-black text-[#475569]"
+                      >
+                        <X size={12} />
+                        Reset
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="relative group">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] group-focus-within:text-[#111827] transition-colors" />
+                    <input
+                      type="text"
+                      placeholder="Rechercher client, réf, lieu..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full h-10 bg-[#F8FAFC] border border-[#E5E7EB] focus:border-[#475569] focus:ring-1 focus:ring-[#CBD5E1] rounded-md pl-9 pr-9 text-[13px] outline-none transition-all placeholder:text-[#9CA3AF] text-[#111827]"
+                    />
+                    {searchQuery && (
+                      <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-full bg-white text-[#6B7280] active:scale-90 transition-transform">
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-hide">
+                    {HISTORY_DATE_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => setHistoryDateFilter(option.value)}
+                        className={`shrink-0 rounded-sm border px-2.5 py-1.5 text-[10px] font-black transition-colors ${
+                          historyDateFilter === option.value
+                            ? "border-[#475569] bg-[#475569] text-white"
+                            : "border-[#E5E7EB] bg-[#F8FAFC] text-[#475569]"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-hide">
+                    {HISTORY_STATUS_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => setHistoryFilter(option.value)}
+                        className={`shrink-0 rounded-sm border px-2.5 py-1.5 text-[10px] font-black transition-colors flex items-center gap-1.5 ${
+                          historyFilter === option.value
+                            ? "border-[#334155] bg-[#334155] text-white"
+                            : "border-[#E5E7EB] bg-[#F8FAFC] text-[#475569]"
+                        }`}
+                      >
+                        {option.label}
+                        <span className={`rounded-sm px-1.5 py-0.5 text-[9px] leading-none ${
+                          historyFilter === option.value ? "bg-white/20 text-white" : "bg-[#E5E7EB] text-[#64748B]"
+                        }`}>
+                          {option.value === "all" ? history.length : historyStatusCounts[option.value] || 0}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {selectedHistoryGroup ? (
+                  <div className="space-y-3">
+                    <button
+                      onClick={() => setSelectedHistoryDate(null)}
+                      className="flex items-center gap-2 text-[12px] font-black text-[#334155]"
+                    >
+                      <span className="flex h-8 w-8 items-center justify-center rounded-sm border border-[#E5E7EB] bg-white">
+                        <ArrowLeft size={15} />
+                      </span>
+                      Retour aux dates
+                    </button>
+
+                    <div className="rounded-md border border-[#E5E7EB] bg-white p-3">
+                      <div className="mb-3 flex items-start justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2 text-[#111827]">
+                            <CalendarDays size={16} className="text-[#64748B]" />
+                            <h2 className="text-[16px] font-black capitalize">{selectedHistoryGroup.label}</h2>
+                          </div>
+                          <p className="mt-1 text-[11px] font-bold text-[#64748B]">
+                            Point de livraison de la date
+                          </p>
+                        </div>
+                        <span className="rounded-sm bg-[#F8FAFC] px-2 py-1 text-[10px] font-black text-[#475569] border border-[#E5E7EB]">
+                          {selectedHistoryGroup.orders.length} livraison(s)
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <HistoryPointCard icon={<Banknote size={13} />} label="Encaissement" value={formatCompactPrice(selectedHistoryGroup.cash)} />
+                        <HistoryPointCard icon={<CheckCircle2 size={13} />} label="Réussies" value={selectedHistoryGroup.completed} />
+                        <HistoryPointCard icon={<AlertTriangle size={13} />} label="À suivre" value={selectedHistoryGroup.issues} />
+                        <HistoryPointCard icon={<MapPin size={13} />} label="Communes" value={selectedHistoryGroup.communes.length || 0} />
+                      </div>
+
+                      {selectedHistoryGroup.communes.length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-1.5">
+                          {selectedHistoryGroup.communes.slice(0, 8).map((commune) => (
+                            <span key={commune} className="rounded-sm border border-[#E5E7EB] bg-[#F8FAFC] px-2 py-1 text-[10px] font-bold text-[#475569]">
+                              {commune}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-3">
+                      {selectedHistoryGroup.orders.map((order, index) => (
+                        <OrderCard key={order.id} order={order} index={index} onClick={() => handleOpenOrder(order)} />
+                      ))}
+                    </div>
+                  </div>
+                ) : groupedHistory.length === 0 ? (
+                  <div className="rounded-md border border-[#E5E7EB] bg-white px-5 py-10 text-center">
+                    <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-md bg-[#F3F4F6] text-[#475569]">
+                      <Package size={22} />
+                    </div>
+                    <p className="text-sm font-black text-[#111827]">Aucune livraison dans l&apos;historique</p>
+                    <p className="mx-auto mt-1 max-w-[260px] text-[12px] font-semibold leading-relaxed text-[#6B7280]">
+                      Modifiez les filtres pour retrouver une livraison clôturée.
+                    </p>
+                  </div>
+                ) : (
+                  groupedHistory.map((group) => (
+                    <button
+                      key={group.key}
+                      onClick={() => setSelectedHistoryDate(group.key)}
+                      className="w-full rounded-md border border-[#E5E7EB] bg-white p-3 text-left active:scale-[0.99] transition-transform"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 text-[#111827]">
+                            <CalendarDays size={15} className="text-[#64748B] shrink-0" />
+                            <h2 className="truncate text-[14px] font-black capitalize">{group.label}</h2>
+                          </div>
+                          <div className="mt-2 grid grid-cols-3 gap-1.5">
+                            <div className="rounded-sm bg-[#F8FAFC] px-2 py-1">
+                              <p className="text-[9px] font-black uppercase text-[#94A3B8]">Livraisons</p>
+                              <p className="text-[13px] font-black text-[#111827]">{group.orders.length}</p>
+                            </div>
+                            <div className="rounded-sm bg-[#F8FAFC] px-2 py-1">
+                              <p className="text-[9px] font-black uppercase text-[#64748B]">Réussies</p>
+                              <p className="text-[13px] font-black text-[#334155]">{group.completed}</p>
+                            </div>
+                            <div className="rounded-sm bg-[#F8FAFC] px-2 py-1">
+                              <p className="text-[9px] font-black uppercase text-[#64748B]">Point</p>
+                              <p className="text-[13px] font-black text-[#334155]">{formatCompactPrice(group.cash)}</p>
+                            </div>
+                          </div>
+                          {group.communes.length > 0 && (
+                            <p className="mt-2 line-clamp-1 text-[11px] font-bold text-[#64748B]">
+                              {group.communes.slice(0, 4).join(" · ")}
+                            </p>
+                          )}
+                        </div>
+                        <ChevronRight size={17} className="mt-1 shrink-0 text-[#94A3B8]" />
+                      </div>
+                    </button>
+                  ))
+                )}
+              </motion.div>
+            )}
             {activeTab === "wallet" && <WalletView key="wallet" stats={stats} ordersToSettle={ordersToSettle} />}
             {activeTab === "profile" && <ProfileView key="profile" user={user} logout={() => logoutAction()} />}
           </AnimatePresence>
         </main>
 
-        <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} pendingCount={stats.count} />
+        <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} pendingCount={stats.count} historyCount={history.length} />
 
         {selectedOrder && (
           <OrderDetailsSheet
@@ -400,6 +689,18 @@ export default function DeliveryClient({
           isPending={isPending}
         />
       </div>
+    </div>
+  );
+}
+
+function HistoryPointCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | number }) {
+  return (
+    <div className="rounded-sm bg-[#F8FAFC] px-2.5 py-2 border border-[#E5E7EB]">
+      <div className="mb-1 flex items-center gap-1 text-[#64748B]">
+        {icon}
+        <span className="text-[9px] font-black uppercase tracking-wider">{label}</span>
+      </div>
+      <p className="text-[15px] font-black text-[#111827] tabular-nums">{value}</p>
     </div>
   );
 }
@@ -489,3 +790,4 @@ function StatusReasonModal({
     </div>
   );
 }
+

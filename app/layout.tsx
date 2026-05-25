@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import "./globals.css";
 import Providers from "@/components/Providers";
 import {
@@ -162,16 +163,7 @@ export default async function RootLayout({
           </Providers>
         </StyledJsxRegistry>
 
-        <Script src="https://www.googletagmanager.com/gtag/js?id=G-JKR95E282P" strategy="afterInteractive" />
-        <Script id="google-analytics-custom" strategy="afterInteractive">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-
-            gtag('config', 'G-JKR95E282P');
-          `}
-        </Script>
+        <GoogleAnalytics gaId="G-JKR95E282P" />
 
       </body>
     </html>

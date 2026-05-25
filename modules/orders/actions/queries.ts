@@ -23,6 +23,8 @@ type OrderHistoryEntry = {
   action?: string;
 };
 
+export type NonPackedOrdersPeriod = "today" | "yesterday" | "all";
+
 export const ORDERS_PAGE_SIZE = 50;
 
 const WEB_TO_PROCESS_WHERE = {
@@ -163,18 +165,29 @@ function getReminderMotifs(history: OrderHistoryEntry[]) {
   ));
 }
 
-export async function getNonPackedOrdersData(user: SessionUser | null | undefined) {
+export async function getNonPackedOrdersData(
+  user: SessionUser | null | undefined,
+  period: NonPackedOrdersPeriod = "yesterday",
+) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
 
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
   const where: Record<string, unknown> = {
     deletedAt: null,
     status: { in: ["CONFIRMED", "PENDING", "PARTIAL", "UNAVAILABLE", "ALTERNATIVE"] },
-    createdAt: { gte: yesterday, lt: today },
   };
+
+  if (period === "today") {
+    where.createdAt = { gte: today, lt: tomorrow };
+  } else if (period === "yesterday") {
+    where.createdAt = { gte: yesterday, lt: today };
+  }
 
   if (user?.role?.toLowerCase() === "commercial") {
     where.commercialId = user.id;

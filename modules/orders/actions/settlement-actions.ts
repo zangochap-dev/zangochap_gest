@@ -7,6 +7,41 @@ import { ensureAuth } from "@/lib/auth";
 import { isRole } from "../helpers";
 import type { Prisma } from "@prisma/client";
 
+type SettlementAmountOrder = {
+  total: number | null;
+  deliveryFee: number | null;
+  discount: number | null;
+  amountReceived: number | null;
+};
+
+function getOrderSettlementAmounts(order: SettlementAmountOrder) {
+  const deliveryFee = Math.max(0, Number(order.deliveryFee || 0));
+  const expectedProducts = Math.max(0, Number(order.total || 0) - Number(order.discount || 0));
+  const expectedAmount = expectedProducts + deliveryFee;
+  const collectedAmount = Math.max(0, Number(order.amountReceived ?? expectedAmount));
+  const collectedDeliveryFee = Math.min(deliveryFee, collectedAmount);
+  const collectedProducts = Math.max(0, collectedAmount - collectedDeliveryFee);
+
+  return {
+    amount: collectedAmount,
+    productsAmount: collectedProducts,
+    deliveryFeesAmount: collectedDeliveryFee,
+  };
+}
+
+function getOrdersSettlementTotals(orders: SettlementAmountOrder[]) {
+  return orders.reduce(
+    (totals, order) => {
+      const amounts = getOrderSettlementAmounts(order);
+      totals.amount += amounts.amount;
+      totals.productsAmount += amounts.productsAmount;
+      totals.deliveryFeesAmount += amounts.deliveryFeesAmount;
+      return totals;
+    },
+    { amount: 0, productsAmount: 0, deliveryFeesAmount: 0 },
+  );
+}
+
 // ============ PENDING SETTLEMENTS ============
 export async function getPendingSettlements() {
   await ensureAuth(["admin"]);
@@ -46,7 +81,15 @@ export async function getSettlementHistory() {
     orderBy: { createdAt: 'desc' },
     take: 50,
   });
-  return settlements;
+  return settlements.map((settlement) => {
+    const totals = getOrdersSettlementTotals(settlement.orders);
+    return {
+      ...settlement,
+      amount: totals.amount,
+      productsAmount: totals.productsAmount,
+      deliveryFeesAmount: totals.deliveryFeesAmount,
+    };
+  });
 }
 
 // ============ CREATE SETTLEMENT ============
@@ -68,11 +111,11 @@ export async function createSettlement(deliverymanId: string, orderIds: string[]
     throw new Error("Certaines commandes sont déjà réglées ou ne sont pas éligibles.");
   }
 
-  const productsAmount = orders.reduce((sum, o) => sum + Math.max(0, Number(o.total || 0) - Number(o.discount || 0)), 0);
-  const deliveryFeesAmount = orders.reduce((sum, o) => sum + Number(o.deliveryFee || 0), 0);
-  const computedAmount = orders.reduce((sum, o) => (
-    sum + (o.amountReceived ?? Math.max(0, Number(o.total || 0) + Number(o.deliveryFee || 0) - Number(o.discount || 0)))
-  ), 0);
+  const {
+    amount: computedAmount,
+    productsAmount,
+    deliveryFeesAmount,
+  } = getOrdersSettlementTotals(orders);
 
   const settlement = await prisma.settlement.create({
     data: {
@@ -234,13 +277,14 @@ export async function getRiderSettlementStats(from?: string, to?: string, riderI
     rider.orders.push(o);
 
     if (['DELIVERED', 'PARTIALLY_DELIVERED'].includes(o.status)) {
-      const productTotal = Number(o.total || 0) - Number(o.discount || 0);
-      const deliveryFee = Number(o.deliveryFee || 0);
-      const grandTotal = productTotal + deliveryFee;
-      const collectedTotal = o.amountReceived ?? grandTotal;
+      const {
+        amount: collectedTotal,
+        productsAmount,
+        deliveryFeesAmount,
+      } = getOrderSettlementAmounts(o);
 
-      rider.totalProducts += productTotal;
-      rider.totalDeliveryFees += deliveryFee;
+      rider.totalProducts += productsAmount;
+      rider.totalDeliveryFees += deliveryFeesAmount;
       rider.totalGrandTotal += collectedTotal;
 
       if (o.paymentMethod?.toLowerCase().includes('cash')) {

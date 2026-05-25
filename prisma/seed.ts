@@ -33,6 +33,33 @@ async function main() {
     console.log(`🔑 Mot de passe : ${adminPassword}`);
   }
 
+  // Seed standard communes
+  console.log('🌱 Seeding communes...');
+  const { DELIVERY_FEES } = require('../lib/constants');
+  const normalize = (str: string) =>
+    str
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]/g, "");
+
+  const dbCommunes = await prisma.commune.findMany();
+  const dbNormalizedNames = new Set(dbCommunes.map(c => normalize(c.name)));
+
+  for (const [name, fee] of Object.entries(DELIVERY_FEES)) {
+    const norm = normalize(name);
+    if (!dbNormalizedNames.has(norm)) {
+      console.log(`Adding missing commune: ${name} with fee ${fee} F`);
+      await prisma.commune.create({
+        data: {
+          name,
+          deliveryFee: fee as number,
+          isActive: true,
+        },
+      });
+    }
+  }
+
   console.log('✅ Seed terminé.');
 }
 
@@ -44,3 +71,4 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
+

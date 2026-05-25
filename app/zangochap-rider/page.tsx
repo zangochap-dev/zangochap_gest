@@ -17,19 +17,31 @@ export default async function DeliveryPage() {
   startOfDay.setHours(0, 0, 0, 0);
   const endOfDay = new Date(startOfDay);
   endOfDay.setHours(23, 59, 59, 999);
+  const historyStart = new Date(startOfDay);
+  historyStart.setDate(historyStart.getDate() - 60);
+
+  const completedStatuses = ["DELIVERED", "PARTIALLY_DELIVERED", "RETURNED", "CANCELLED", "REPRO_DISPO"] as const;
 
   const ordersRaw = await prisma.order.findMany({
     where: {
       deliverymanId: user.id,
       deletedAt: null,
-      deliveryDate: {
-        gte: startOfDay,
-        lte: endOfDay,
-      },
+      OR: [
+        {
+          deliveryDate: {
+            gte: startOfDay,
+            lte: endOfDay,
+          },
+        },
+        {
+          status: { in: [...completedStatuses] },
+          updatedAt: { gte: historyStart },
+        },
+      ],
     },
     orderBy: [
-      { status: "asc" },
       { updatedAt: "desc" },
+      { status: "asc" },
     ],
     include: { 
       items: true,
@@ -40,7 +52,7 @@ export default async function DeliveryPage() {
         }
       },
     },
-    take: 50,
+    take: 150,
   });
 
   // Get all order IDs to fetch collection records

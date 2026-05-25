@@ -163,8 +163,9 @@ export default async function RootLayout({
           </Providers>
         </StyledJsxRegistry>
 
-        <GoogleAnalytics gaId="G-JKR95E282P" />
-
+        {hasGoogleAnalytics && (
+          <GoogleAnalytics gaId={googleAnalyticsId} />
+        )}
       </body>
     </html>
   );

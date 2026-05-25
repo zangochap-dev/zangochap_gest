@@ -1,14 +1,15 @@
 "use client";
 
 import React from "react";
-import { LayoutDashboard, Wallet, User, LucideIcon } from "lucide-react";
+import { History, LayoutDashboard, Wallet, User, LucideIcon } from "lucide-react";
 
-type Tab = "missions" | "wallet" | "profile";
+type Tab = "missions" | "history" | "wallet" | "profile";
 
 interface BottomNavProps {
   activeTab: Tab;
   setActiveTab: (tab: Tab) => void;
   pendingCount?: number;
+  historyCount?: number;
 }
 
 interface NavItem {
@@ -19,24 +20,25 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { key: "missions", label: "Missions", icon: LayoutDashboard },
+  { key: "history",  label: "Historique", icon: History },
   { key: "wallet",   label: "Revenus",  icon: Wallet },
   { key: "profile",  label: "Compte",   icon: User },
 ];
 
-export function BottomNav({ activeTab, setActiveTab, pendingCount }: BottomNavProps) {
+export function BottomNav({ activeTab, setActiveTab, pendingCount, historyCount }: BottomNavProps) {
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-md"
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
-      <div className="flex items-center justify-around bg-white border-t border-[#E5E7EB] px-2 pt-2 pb-2 shadow-[0_-1px_10px_rgba(0,0,0,0.04)]">
+      <div className="flex items-center justify-around bg-white border-t border-[#E5E7EB] px-2 pt-2 pb-2">
         {NAV_ITEMS.map((item) => (
           <NavBtn
             key={item.key}
             icon={item.icon}
             label={item.label}
             active={activeTab === item.key}
-            badge={item.key === "missions" ? pendingCount : undefined}
+            badge={item.key === "missions" ? pendingCount : item.key === "history" ? historyCount : undefined}
             onClick={() => setActiveTab(item.key)}
           />
         ))}

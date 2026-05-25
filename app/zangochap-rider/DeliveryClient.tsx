@@ -15,7 +15,7 @@ import { WalletView } from "./components/WalletView";
 import { ProfileView } from "./components/ProfileView";
 
 // Types & Utils
-import { RiderOrder, RiderStats } from "./types";
+import { RiderOrder, RiderRevenueDay, RiderStats } from "./types";
 import { calculateOrderCollectionTotal, calculatePartialSummary } from "./utils";
 
 // Actions
@@ -82,6 +82,10 @@ function isWithinDays(value: string | Date | null | undefined, days: number) {
 
 function formatCompactPrice(value: number) {
   return `${new Intl.NumberFormat("fr-FR").format(value)} F`;
+}
+
+function getRevenueDate(order: RiderOrder) {
+  return order.updatedAt || order.deliveryDate || order.createdAt;
 }
 
 // ── Main Component ───────────────────────────────────────────
@@ -239,13 +243,58 @@ export default function DeliveryClient({
     [groupedHistory, selectedHistoryDate],
   );
 
-  const ordersToSettle = useMemo(() => localOrders.filter(o => ["DELIVERED", "PARTIALLY_DELIVERED"].includes(o.status) && !o.settlementId), [localOrders]);
+  const paidStatuses = useMemo(() => ["DELIVERED", "PARTIALLY_DELIVERED"], []);
+  const deliveredTodayOrders = useMemo(
+    () => history.filter((o) => paidStatuses.includes(o.status) && isSameDay(getRevenueDate(o))),
+    [history, paidStatuses],
+  );
+  const ordersToSettle = useMemo(() => localOrders.filter(o => paidStatuses.includes(o.status) && !o.settlementId), [localOrders, paidStatuses]);
+  const revenueHistory = useMemo<RiderRevenueDay[]>(() => {
+    const formatter = new Intl.DateTimeFormat("fr-FR", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    });
+
+    const groups = history
+      .filter((order) => paidStatuses.includes(order.status))
+      .reduce<Record<string, { date: Date; orders: RiderOrder[] }>>((acc, order) => {
+        const date = new Date(getRevenueDate(order));
+        const key = date.toISOString().slice(0, 10);
+        if (!acc[key]) acc[key] = { date, orders: [] };
+        acc[key].orders.push(order);
+        return acc;
+      }, {});
+
+    return Object.entries(groups)
+      .sort(([, a], [, b]) => b.date.getTime() - a.date.getTime())
+      .map(([key, group]) => {
+        const total = group.orders.reduce((sum, order) => sum + calculateOrderCollectionTotal(order), 0);
+        const pending = group.orders
+          .filter((order) => !order.settlementId)
+          .reduce((sum, order) => sum + calculateOrderCollectionTotal(order), 0);
+
+        return {
+          key,
+          label: formatter.format(group.date),
+          orders: group.orders,
+          delivered: group.orders.filter((order) => order.status === "DELIVERED").length,
+          partial: group.orders.filter((order) => order.status === "PARTIALLY_DELIVERED").length,
+          settled: total - pending,
+          pending,
+          total,
+        };
+      });
+  }, [history, paidStatuses]);
   const stats = useMemo<RiderStats>(() => ({
     cash: ordersToSettle.reduce((acc, o) => acc + calculateOrderCollectionTotal(o), 0),
+    amountToSettle: ordersToSettle.reduce((acc, o) => acc + calculateOrderCollectionTotal(o), 0),
+    todayCash: deliveredTodayOrders.reduce((acc, o) => acc + calculateOrderCollectionTotal(o), 0),
     count: pending.length,
     inProgressCount: inProgress.length,
-    deliveredToday: history.filter((o) => new Date(o.updatedAt || o.createdAt).toDateString() === new Date().toDateString() && o.status === "DELIVERED").length,
-  }), [pending, inProgress, history, ordersToSettle]);
+    deliveredToday: deliveredTodayOrders.length,
+    partiallyDeliveredToday: deliveredTodayOrders.filter((o) => o.status === "PARTIALLY_DELIVERED").length,
+  }), [pending, inProgress, ordersToSettle, deliveredTodayOrders]);
   const routeStats = useMemo(() => ({
     total: todayOrders.length,
     completed: todayOrders.filter((o) => ["DELIVERED", "PARTIALLY_DELIVERED"].includes(o.status)).length,
@@ -654,7 +703,7 @@ export default function DeliveryClient({
                 )}
               </motion.div>
             )}
-            {activeTab === "wallet" && <WalletView key="wallet" stats={stats} ordersToSettle={ordersToSettle} />}
+            {activeTab === "wallet" && <WalletView key="wallet" stats={stats} ordersToSettle={ordersToSettle} revenueHistory={revenueHistory} />}
             {activeTab === "profile" && <ProfileView key="profile" user={user} logout={() => logoutAction()} />}
           </AnimatePresence>
         </main>

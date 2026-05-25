@@ -54,7 +54,21 @@ export interface RiderOrder {
 
 export interface RiderStats {
   cash: number;
+  todayCash: number;
+  amountToSettle: number;
   count: number;
   inProgressCount: number;
   deliveredToday: number;
+  partiallyDeliveredToday: number;
+}
+
+export interface RiderRevenueDay {
+  key: string;
+  label: string;
+  orders: RiderOrder[];
+  delivered: number;
+  partial: number;
+  settled: number;
+  pending: number;
+  total: number;
 }

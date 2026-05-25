@@ -22,6 +22,21 @@ function localDateInputValue(date = new Date()) {
   return `${year}-${month}-${day}`;
 }
 
+function getOrderSettlementAmounts(order: SettlementOrder) {
+  const deliveryFee = Math.max(0, Number(order.deliveryFee || 0));
+  const expectedProducts = Math.max(0, Number(order.total || 0) - Number(order.discount || 0));
+  const expectedAmount = expectedProducts + deliveryFee;
+  const collectedAmount = Math.max(0, Number(order.amountReceived ?? expectedAmount));
+  const collectedDeliveryFee = Math.min(deliveryFee, collectedAmount);
+  const collectedProducts = Math.max(0, collectedAmount - collectedDeliveryFee);
+
+  return {
+    amount: collectedAmount,
+    productsAmount: collectedProducts,
+    deliveryFeesAmount: collectedDeliveryFee,
+  };
+}
+
 type SettlementOrder = {
   id: string;
   ref?: string | null;
@@ -223,7 +238,7 @@ export default function SettlementClient({
       return;
     }
 
-    const total = deliverableOrders.reduce((s, o) => s + (o.amountReceived ?? ((o.total || 0) + (o.deliveryFee || 0) - (o.discount || 0))), 0);
+    const total = deliverableOrders.reduce((s, o) => s + getOrderSettlementAmounts(o).amount, 0);
     const name = orders[0]?.deliverymanName || "Livreur";
 
     if (!confirm(`Valider l'encaissement de ${formatPrice(total)} de ${name} ?`)) return;
@@ -522,19 +537,22 @@ export default function SettlementClient({
               <div className="modal-section">
                 <h4 className="section-title"><Truck size={16} /> Livraisons ({selectedRiderData.orders.filter((o) => ['DELIVERED', 'PARTIALLY_DELIVERED'].includes(String(o.status))).length})</h4>
                 <div className="modal-order-list">
-                  {selectedRiderData.orders.filter((o) => ['DELIVERED', 'PARTIALLY_DELIVERED'].includes(String(o.status))).map((o) => (
-                    <div key={o.id} className="modal-order-row">
-                      <div className="order-info">
-                        <span className="ref">#{o.ref?.split("-").pop()}</span>
-                        <span className="cust">{o.customerName}</span>
-                        <div className="meta">{o.paymentMethod} • Livraison: {formatPrice(o.deliveryFee)}</div>
+                  {selectedRiderData.orders.filter((o) => ['DELIVERED', 'PARTIALLY_DELIVERED'].includes(String(o.status))).map((o) => {
+                    const amounts = getOrderSettlementAmounts(o);
+                    return (
+                      <div key={o.id} className="modal-order-row">
+                        <div className="order-info">
+                          <span className="ref">#{o.ref?.split("-").pop()}</span>
+                          <span className="cust">{o.customerName}</span>
+                          <div className="meta">{o.paymentMethod || "Mode inconnu"} • Livraison: {formatPrice(amounts.deliveryFeesAmount)}</div>
+                        </div>
+                        <div className="order-price">
+                          <div className="total">{formatPrice(amounts.amount)}</div>
+                          <div className="prod">Prod: {formatPrice(amounts.productsAmount)}</div>
+                        </div>
                       </div>
-                      <div className="order-price">
-                        <div className="total">{formatPrice(o.amountReceived ?? ((o.total || 0) + (o.deliveryFee || 0) - (o.discount || 0)))}</div>
-                        <div className="prod">Prod: {formatPrice((o.total || 0) - (o.discount || 0))}</div>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 

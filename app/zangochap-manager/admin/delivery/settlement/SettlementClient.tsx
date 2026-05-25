@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useState, useTransition, useMemo, useCallback } from 'react';
-import { TableCard, StatCard, EmptyState } from '@/components/UI';
+import { StatCard, EmptyState } from '@/components/UI';
 import Modal from '@/components/Modal';
 import {
-  Truck, CheckCircle, Search, ArrowUpRight, User, Banknote,
-  Calendar, ChevronDown, ChevronUp, Package, Clock, History,
-  Wallet, X, Eye, PhoneCall, CheckCircle2, RotateCcw, Filter, ArrowRight,
-  ShoppingBag, Tag, Info
+  Truck, Search, ArrowUpRight, User, Banknote,
+  Calendar, ChevronDown, History,
+  Wallet, X, Eye, PhoneCall, CheckCircle2, RotateCcw, Filter,
+  ShoppingBag, Info
 } from 'lucide-react';
 import { formatPrice, formatDate } from '@/lib/constants';
 import { createSettlement, toggleCommercialContacted } from "@/modules/orders/actions";
@@ -22,17 +22,68 @@ function localDateInputValue(date = new Date()) {
   return `${year}-${month}-${day}`;
 }
 
+type SettlementOrder = {
+  id: string;
+  ref?: string | null;
+  customerName?: string | null;
+  total?: number | null;
+  deliveryFee?: number | null;
+  discount?: number | null;
+  amountReceived?: number | null;
+  paymentMethod?: string | null;
+  status?: string;
+  returnReason?: string | null;
+  isCommercialContacted?: boolean;
+  deliverymanName?: string | null;
+};
+
+type RiderSettlementGroup = {
+  id: string;
+  name: string;
+  orders: SettlementOrder[];
+  totalDeliveryFees: number;
+  totalProducts: number;
+  totalGrandTotal: number;
+  totalCashToCollect: number;
+  returnedCount: number;
+};
+
+type SettlementHistory = {
+  id: string;
+  deliverymanId?: string | null;
+  amount: number;
+  productsAmount?: number | null;
+  deliveryFeesAmount?: number | null;
+  ordersCount: number;
+  status: string;
+  notes?: string | null;
+  by?: string | null;
+  createdAt: string | Date;
+  deliveryman?: { name: string | null } | null;
+  orders?: SettlementOrder[];
+};
+
+type HistoryDayGroup = {
+  key: string;
+  label: string;
+  total: number;
+  products: number;
+  fees: number;
+  count: number;
+  rows: SettlementHistory[];
+  timestamp: number;
+};
+
 interface Props {
-  pendingOrders: any[];
-  history: any[];
-  riderStats: { riders: any[], orders: any[] };
+  pendingOrders: SettlementOrder[];
+  history: SettlementHistory[];
+  riderStats: { riders: RiderSettlementGroup[], orders: SettlementOrder[] };
   initialFrom?: string;
   initialTo?: string;
   initialRiderId?: string;
 }
 
 export default function SettlementClient({
-  pendingOrders,
   history,
   riderStats,
   initialFrom,
@@ -41,11 +92,13 @@ export default function SettlementClient({
 }: Props) {
   const [isPending, startTransition] = useTransition();
   const [search, setSearch] = useState("");
+  const [historySearch, setHistorySearch] = useState("");
   const [activeTab, setActiveTab] = useState<"pending" | "history">("pending");
-  const [selectedRiderData, setSelectedRiderData] = useState<any | null>(null);
+  const [selectedRiderData, setSelectedRiderData] = useState<RiderSettlementGroup | null>(null);
 
   const [from, setFrom] = useState(initialFrom || "");
   const [to, setTo] = useState(initialTo || "");
+  const [riderId, setRiderId] = useState(initialRiderId || "");
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -63,33 +116,114 @@ export default function SettlementClient({
   const filterToday = () => {
     setFrom(today);
     setTo(today);
-    handleFilter(today, today, initialRiderId);
+    handleFilter(today, today, riderId);
+  };
+
+  const applyFixedDate = (date: string) => {
+    setFrom(date);
+    setTo(date);
+    handleFilter(date, date, riderId);
+  };
+
+  const clearFilters = () => {
+    setFrom("");
+    setTo("");
+    setRiderId("");
+    setSearch("");
+    setHistorySearch("");
+    handleFilter("", "", "");
   };
 
   const groups = useMemo(() => {
-    return riderStats.riders;
-  }, [riderStats]);
+    const query = search.trim().toLowerCase();
+    if (!query) return riderStats.riders;
+    return riderStats.riders.filter((rider) => {
+      const orderText = rider.orders
+        .map((order) => [order.ref, order.customerName, order.status, order.returnReason].filter(Boolean).join(" "))
+        .join(" ");
+      return `${rider.name} ${orderText}`.toLowerCase().includes(query);
+    });
+  }, [riderStats, search]);
+
+  const riderOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    riderStats.riders.forEach((rider) => map.set(rider.id, rider.name));
+    history.forEach((settlement) => {
+      if (settlement.deliverymanId) {
+        map.set(settlement.deliverymanId, settlement.deliveryman?.name || "Livreur");
+      }
+    });
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [riderStats.riders, history]);
+
+  const filteredHistory = useMemo(() => {
+    const query = historySearch.trim().toLowerCase();
+    return history.filter((settlement) => {
+      const matchesRider = !riderId || settlement.deliverymanId === riderId;
+      const searchable = [
+        settlement.deliveryman?.name,
+        settlement.by,
+        settlement.notes,
+        ...(settlement.orders || []).map((order) => `${order.ref} ${order.customerName}`),
+      ].filter(Boolean).join(" ").toLowerCase();
+      return matchesRider && (!query || searchable.includes(query));
+    });
+  }, [history, historySearch, riderId]);
+
+  const historyGroups = useMemo(() => {
+    const formatter = new Intl.DateTimeFormat("fr-FR", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    });
+
+    const byDate = filteredHistory.reduce<Record<string, Omit<HistoryDayGroup, "key">>>((acc, settlement) => {
+      const date = new Date(settlement.createdAt);
+      const key = date.toISOString().slice(0, 10);
+      if (!acc[key]) {
+        acc[key] = {
+          label: formatter.format(date),
+          total: 0,
+          products: 0,
+          fees: 0,
+          count: 0,
+          rows: [],
+          timestamp: date.getTime(),
+        };
+      }
+      acc[key].rows.push(settlement);
+      acc[key].total += Number(settlement.amount || 0);
+      acc[key].products += Number(settlement.productsAmount || 0);
+      acc[key].fees += Number(settlement.deliveryFeesAmount || 0);
+      acc[key].count += Number(settlement.ordersCount || 0);
+      return acc;
+    }, {});
+
+    return Object.entries(byDate)
+      .sort(([, a], [, b]) => b.timestamp - a.timestamp)
+      .map(([key, value]) => ({ key, ...value }));
+  }, [filteredHistory]);
 
   const totalGrandTotal = useMemo(() =>
-    riderStats.riders.reduce((s, r) => s + r.totalGrandTotal, 0),
-    [riderStats]);
+    groups.reduce((s, r) => s + r.totalGrandTotal, 0),
+    [groups]);
 
   const totalProducts = useMemo(() =>
-    riderStats.riders.reduce((s, r) => s + r.totalProducts, 0),
-    [riderStats]);
+    groups.reduce((s, r) => s + r.totalProducts, 0),
+    [groups]);
 
   const totalDeliveryFees = useMemo(() =>
-    riderStats.riders.reduce((s, r) => s + r.totalDeliveryFees, 0),
-    [riderStats]);
+    groups.reduce((s, r) => s + r.totalDeliveryFees, 0),
+    [groups]);
 
-  const handleSettle = useCallback((dId: string, orders: any[]) => {
-    const deliverableOrders = orders.filter(o => ['DELIVERED', 'PARTIALLY_DELIVERED'].includes(o.status));
+  const handleSettle = useCallback((dId: string, orders: SettlementOrder[]) => {
+    const deliverableOrders = orders.filter(o => ['DELIVERED', 'PARTIALLY_DELIVERED'].includes(String(o.status)));
     if (deliverableOrders.length === 0) {
       showToast("Aucune commande livrée à régler pour ce livreur.", "default");
       return;
     }
 
-    const total = deliverableOrders.reduce((s: number, o: any) => s + (o.amountReceived ?? (o.total + o.deliveryFee - (o.discount || 0))), 0);
+    const total = deliverableOrders.reduce((s, o) => s + (o.amountReceived ?? ((o.total || 0) + (o.deliveryFee || 0) - (o.discount || 0))), 0);
     const name = orders[0]?.deliverymanName || "Livreur";
 
     if (!confirm(`Valider l'encaissement de ${formatPrice(total)} de ${name} ?`)) return;
@@ -100,7 +234,7 @@ export default function SettlementClient({
         showToast(`Règlement de ${name} validé ✓`, 'success');
         setSelectedRiderData(null);
         router.refresh();
-      } catch (e: any) { showToast(e.message || "Erreur", 'error'); }
+      } catch (e: unknown) { showToast(e instanceof Error ? e.message : "Erreur", 'error'); }
     });
   }, [router, showToast]);
 
@@ -111,19 +245,19 @@ export default function SettlementClient({
         showToast("Statut mis à jour", "success");
         // Update local state if modal is open
         if (selectedRiderData) {
-          const updatedOrders = selectedRiderData.orders.map((o: any) =>
+          const updatedOrders = selectedRiderData.orders.map((o) =>
             o.id === orderId ? { ...o, isCommercialContacted: !current } : o
           );
           setSelectedRiderData({ ...selectedRiderData, orders: updatedOrders });
         }
         router.refresh();
-      } catch (e: any) {
-        showToast(e.message, "error");
+      } catch (e: unknown) {
+        showToast(e instanceof Error ? e.message : "Erreur", "error");
       }
     });
   };
 
-  const openRiderDetails = (rider: any) => {
+  const openRiderDetails = (rider: RiderSettlementGroup) => {
     setSelectedRiderData(rider);
   };
 
@@ -138,8 +272,18 @@ export default function SettlementClient({
       </div>
 
       {/* FILTERS & TABS */}
-      <div className="filters-container">
-        <div className="filters-bar">
+      <div className="settlement-filter-panel">
+        <div className="settlement-filter-head">
+          <div>
+            <div className="settlement-filter-title"><Filter size={15} /> Filtres livreurs</div>
+            <p>{groups.length} livreur(s), {riderStats.orders.length} livraison(s) sur la période</p>
+          </div>
+          <button type="button" className="settlement-reset-btn" onClick={clearFilters}>
+            <X size={14} /> Réinitialiser
+          </button>
+        </div>
+
+        <div className="settlement-tabs">
           <button
             className={`filter-chip ${activeTab === 'pending' ? 'active' : ''}`}
             onClick={() => setActiveTab('pending')}
@@ -154,6 +298,39 @@ export default function SettlementClient({
           </button>
         </div>
 
+        <div className="settlement-filter-grid">
+          <label className="settlement-search">
+            <Search size={15} />
+            <input
+              value={activeTab === "history" ? historySearch : search}
+              onChange={(event) => activeTab === "history" ? setHistorySearch(event.target.value) : setSearch(event.target.value)}
+              placeholder={activeTab === "history" ? "Rechercher règlement, livreur, commande..." : "Rechercher livreur, client, référence..."}
+            />
+            {(activeTab === "history" ? historySearch : search) && (
+              <button type="button" onClick={() => activeTab === "history" ? setHistorySearch("") : setSearch("")}>
+                <X size={13} />
+              </button>
+            )}
+          </label>
+
+          <label className="settlement-select">
+            <Truck size={15} />
+            <select
+              value={riderId}
+              onChange={(event) => {
+                setRiderId(event.target.value);
+                handleFilter(from, to, event.target.value);
+              }}
+            >
+              <option value="">Tous les livreurs</option>
+              {riderOptions.map((rider) => (
+                <option key={rider.id} value={rider.id}>{rider.name}</option>
+              ))}
+            </select>
+            <ChevronDown size={14} />
+          </label>
+        </div>
+
         <div className="date-filters">
           <button
             type="button"
@@ -162,16 +339,19 @@ export default function SettlementClient({
           >
             Aujourd&apos;hui
           </button>
-          <div className="date-input-group">
+          <div className="date-input-group fixed-date-input">
             <Calendar size={14} />
-            <input type="date" value={from} onChange={e => setFrom(e.target.value)} />
+            <span>Date fixe</span>
+            <input
+              type="date"
+              value={from || to || ""}
+              onChange={e => {
+                setFrom(e.target.value);
+                setTo(e.target.value);
+              }}
+            />
           </div>
-          <ArrowRight size={14} className="range-sep" />
-          <div className="date-input-group">
-            <Calendar size={14} />
-            <input type="date" value={to} onChange={e => setTo(e.target.value)} />
-          </div>
-          <button className="apply-btn-sm" onClick={() => handleFilter(from, to, initialRiderId)}>
+          <button className="apply-btn-sm" onClick={() => applyFixedDate(from || to || today)}>
             <Filter size={14} />
           </button>
         </div>
@@ -182,11 +362,11 @@ export default function SettlementClient({
         <div className="settle-grid">
           {groups.length === 0 ? (
             <div style={{ gridColumn: '1 / -1' }}>
-              <EmptyState icon="✅" title="Aucune donnée" description="Sélectionnez une période ou attendez de nouvelles livraisons." />
+              <EmptyState icon="OK" title="Aucune donnée" description="Sélectionnez une période ou attendez de nouvelles livraisons." />
             </div>
-          ) : groups.map((d: any) => {
+          ) : groups.map((d) => {
             const initials = d.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2);
-            const uncontactedReturns = d.orders.filter((o: any) => ['RETURNED', 'CANCELLED'].includes(o.status) && !o.isCommercialContacted);
+            const uncontactedReturns = d.orders.filter((o) => ['RETURNED', 'CANCELLED'].includes(String(o.status)) && !o.isCommercialContacted);
 
             return (
               <div key={d.id} className={`settle-card-simple ${uncontactedReturns.length > 0 ? 'has-warning' : ''}`}>
@@ -240,40 +420,80 @@ export default function SettlementClient({
 
       {/* === HISTORY TAB === */}
       {activeTab === "history" && (
-        <TableCard title="Historique détaillé des règlements" meta={`${history.length} règlement(s)`}>
-          {history.length === 0 ? (
-            <EmptyState icon="📋" title="Aucun historique" description="Les règlements validés apparaîtront ici." />
+        <div className="settlement-history">
+          {historyGroups.length === 0 ? (
+            <div className="settlement-empty">
+              <EmptyState icon="DOC" title="Aucun historique" description="Aucun règlement ne correspond aux filtres." />
+            </div>
           ) : (
-            <table>
-              <thead>
-                <tr>
-                  <th>Livreur</th>
-                  <th>Commandes</th>
-                  <th>Montant Total</th>
-                  <th>Produits</th>
-                  <th>Livraison</th>
-                  <th>Validé par</th>
-                  <th>Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {history.map((s: any) => (
-                  <tr key={s.id}>
-                    <td><div className="cell-strong">{s.deliveryman?.name || "—"}</div></td>
-                    <td><span className="source-badge">{s.ordersCount} cmd</span></td>
-                    <td><div className="cell-price">{formatPrice(s.amount)}</div></td>
-                    <td><div className="cell-price" style={{ color: 'var(--orange)', fontSize: '13px' }}>{formatPrice(s.productsAmount || 0)}</div></td>
-                    <td><div className="cell-price" style={{ color: 'var(--blue)', fontSize: '13px' }}>{formatPrice(s.deliveryFeesAmount || 0)}</div></td>
-                    <td><div className="cell-muted">{s.by}</div></td>
-                    <td><div className="cell-muted">{formatDate(s.createdAt)}</div></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </TableCard>
-      )}
+            historyGroups.map((group) => (
+              <section key={group.key} className="history-day-group">
+                <div className="history-day-head">
+                  <div>
+                    <div className="history-day-title">
+                      <Calendar size={15} />
+                      {group.label}
+                    </div>
+                    <p>{group.rows.length} règlement(s), {group.count} commande(s)</p>
+                  </div>
+                  <div className="history-day-total">
+                    <span>Total</span>
+                    <strong>{formatPrice(group.total)}</strong>
+                  </div>
+                </div>
 
+                <div className="history-day-metrics">
+                  <div><span>Produits</span><strong>{formatPrice(group.products)}</strong></div>
+                  <div><span>Livraison</span><strong>{formatPrice(group.fees)}</strong></div>
+                  <div><span>Livreurs</span><strong>{new Set(group.rows.map((row) => row.deliverymanId)).size}</strong></div>
+                </div>
+
+                <div className="history-list">
+                  {group.rows.map((s) => (
+                    <article key={s.id} className="history-settlement-card">
+                      <div className="history-settlement-main">
+                        <div className="history-rider-avatar">
+                          {(s.deliveryman?.name || "L").split(" ").map((part: string) => part[0]).join("").slice(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="cell-strong">{s.deliveryman?.name || "Livreur inconnu"}</div>
+                          <div className="cell-muted">
+                            {s.ordersCount} commande(s) • validé par {s.by || "—"} • {formatDate(s.createdAt)}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="history-money-grid">
+                        <div>
+                          <span>Global</span>
+                          <strong>{formatPrice(s.amount)}</strong>
+                        </div>
+                        <div>
+                          <span>Produits</span>
+                          <strong>{formatPrice(s.productsAmount || 0)}</strong>
+                        </div>
+                        <div>
+                          <span>Livraison</span>
+                          <strong>{formatPrice(s.deliveryFeesAmount || 0)}</strong>
+                        </div>
+                      </div>
+
+                      {(s.orders || []).length > 0 && (
+                        <div className="history-order-strip">
+                          {(s.orders || []).slice(0, 4).map((order) => (
+                            <span key={order.id}>#{order.ref?.split("-").pop() || order.ref} · {order.customerName}</span>
+                          ))}
+                          {(s.orders || []).length > 4 && <span>+{(s.orders || []).length - 4} autre(s)</span>}
+                        </div>
+                      )}
+                    </article>
+                  ))}
+                </div>
+              </section>
+            ))
+          )}
+        </div>
+      )}
       {/* === DETAILS MODAL === */}
       <Modal
         isOpen={!!selectedRiderData}
@@ -300,9 +520,9 @@ export default function SettlementClient({
 
             <div className="modal-sections">
               <div className="modal-section">
-                <h4 className="section-title"><Truck size={16} /> Livraisons ({selectedRiderData.orders.filter((o: any) => ['DELIVERED', 'PARTIALLY_DELIVERED'].includes(o.status)).length})</h4>
+                <h4 className="section-title"><Truck size={16} /> Livraisons ({selectedRiderData.orders.filter((o) => ['DELIVERED', 'PARTIALLY_DELIVERED'].includes(String(o.status))).length})</h4>
                 <div className="modal-order-list">
-                  {selectedRiderData.orders.filter((o: any) => ['DELIVERED', 'PARTIALLY_DELIVERED'].includes(o.status)).map((o: any) => (
+                  {selectedRiderData.orders.filter((o) => ['DELIVERED', 'PARTIALLY_DELIVERED'].includes(String(o.status))).map((o) => (
                     <div key={o.id} className="modal-order-row">
                       <div className="order-info">
                         <span className="ref">#{o.ref?.split("-").pop()}</span>
@@ -310,8 +530,8 @@ export default function SettlementClient({
                         <div className="meta">{o.paymentMethod} • Livraison: {formatPrice(o.deliveryFee)}</div>
                       </div>
                       <div className="order-price">
-                        <div className="total">{formatPrice(o.amountReceived ?? (o.total + o.deliveryFee - (o.discount || 0)))}</div>
-                        <div className="prod">Prod: {formatPrice(o.total - (o.discount || 0))}</div>
+                        <div className="total">{formatPrice(o.amountReceived ?? ((o.total || 0) + (o.deliveryFee || 0) - (o.discount || 0)))}</div>
+                        <div className="prod">Prod: {formatPrice((o.total || 0) - (o.discount || 0))}</div>
                       </div>
                     </div>
                   ))}
@@ -319,15 +539,15 @@ export default function SettlementClient({
               </div>
 
               <div className="modal-section">
-                <h4 className="section-title"><RotateCcw size={16} /> Retours ({selectedRiderData.orders.filter((o: any) => ['RETURNED', 'CANCELLED'].includes(o.status)).length})</h4>
+                <h4 className="section-title"><RotateCcw size={16} /> Retours ({selectedRiderData.orders.filter((o) => ['RETURNED', 'CANCELLED'].includes(String(o.status))).length})</h4>
                 <div className="modal-returned-list">
-                  {selectedRiderData.orders.filter((o: any) => ['RETURNED', 'CANCELLED'].includes(o.status)).map((o: any) => (
+                  {selectedRiderData.orders.filter((o) => ['RETURNED', 'CANCELLED'].includes(String(o.status))).map((o) => (
                     <div key={o.id} className="modal-returned-card">
                       <div className="card-header">
                         <span className="ref">#{o.ref?.split("-").pop()}</span>
                         <button
                           className={`contact-toggle ${o.isCommercialContacted ? 'active' : ''}`}
-                          onClick={() => handleToggleContacted(o.id, o.isCommercialContacted)}
+                          onClick={() => handleToggleContacted(o.id, Boolean(o.isCommercialContacted))}
                           disabled={isPending}
                         >
                           {o.isCommercialContacted ? <CheckCircle2 size={12} /> : <PhoneCall size={12} />}
@@ -340,7 +560,7 @@ export default function SettlementClient({
                       </div>
                     </div>
                   ))}
-                  {selectedRiderData.orders.filter((o: any) => ['RETURNED', 'CANCELLED'].includes(o.status)).length === 0 && (
+                  {selectedRiderData.orders.filter((o) => ['RETURNED', 'CANCELLED'].includes(String(o.status))).length === 0 && (
                     <div className="empty-mini">Aucun retour pour cette période.</div>
                   )}
                 </div>
@@ -354,3 +574,5 @@ export default function SettlementClient({
     </div>
   );
 }
+
+

@@ -177,7 +177,6 @@ export default function PromoClient({
 
   function handleDelete(code: string) {
     if (!confirm(`Supprimer la règle "${code}" ?`)) return;
-    const { showToast } = useToast();
     fetch(`/api/promos?code=${code}`, { method: 'DELETE' })
       .then(() => {
         showToast('Remise supprimée', 'success');

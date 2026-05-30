@@ -2,16 +2,14 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { ShoppingBag, Search, Menu, X, Phone } from "lucide-react";
+import { ShoppingBag, Search, Menu, X, Phone, Smartphone } from "lucide-react";
 import { useCart } from "@/lib/CartContext";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 export default function Navbar() {
   const router = useRouter();
   const { cart } = useCart();
   const itemCount = cart.reduce((sum, item) => sum + item.qty, 0);
-  const pathname = usePathname();
-  const isHome = pathname === "/";
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -66,6 +64,10 @@ export default function Navbar() {
                 Sélection
                 <span className="absolute -bottom-1 left-0 w-0 h-px bg-[#1A1614] transition-all duration-300 group-hover:w-full"></span>
               </Link>
+              <Link href="/downloads" className="text-[#555] text-[12px] font-medium uppercase tracking-widest transition-colors hover:text-[#1A1614] relative group">
+                App
+                <span className="absolute -bottom-1 left-0 w-0 h-px bg-[#1A1614] transition-all duration-300 group-hover:w-full"></span>
+              </Link>
             </div>
           </div>
 
@@ -97,7 +99,8 @@ export default function Navbar() {
               className="max-w-[600px] mx-auto flex items-center gap-3.5 border-b-2 border-[#1A1614] pb-3"
               onSubmit={(e) => {
                 e.preventDefault();
-                const q = (e.target as any).search.value;
+                const formData = new FormData(e.currentTarget);
+                const q = String(formData.get("search") || "");
                 if (q) {
                   router.push(`/search?q=${encodeURIComponent(q)}`);
                   setSearchOpen(false);
@@ -118,6 +121,7 @@ export default function Navbar() {
               <Link href="/shop" className="no-underline text-[#1A1614] text-base font-normal py-4 border-b border-gray-100 tracking-wider transition-all hover:pl-2" onClick={() => setMobileOpen(false)}>Boutique</Link>
               <Link href="/#news" className="no-underline text-[#1A1614] text-base font-normal py-4 border-b border-gray-100 tracking-wider transition-all hover:pl-2" onClick={() => setMobileOpen(false)}>Nouveautés</Link>
               <Link href="/#featured" className="no-underline text-[#1A1614] text-base font-normal py-4 border-b border-gray-100 tracking-wider transition-all hover:pl-2" onClick={() => setMobileOpen(false)}>Sélection</Link>
+              <Link href="/downloads" className="no-underline text-[#1A1614] text-base font-normal py-4 border-b border-gray-100 tracking-wider transition-all hover:pl-2 flex items-center gap-2" onClick={() => setMobileOpen(false)}><Smartphone size={17} /> Application</Link>
               <Link href="/cart" className="no-underline text-[#1A1614] text-base font-normal py-4 border-b border-gray-100 tracking-wider transition-all hover:pl-2" onClick={() => setMobileOpen(false)}>Mon Panier ({itemCount})</Link>
               <div className="mt-auto pt-8">
                 <a href="tel:+2250757330000" className="flex items-center gap-2.5 no-underline text-gray-400 text-[13px]"><Phone size={16} /> Service Client</a>
@@ -129,4 +133,3 @@ export default function Navbar() {
     </>
   );
 }
-

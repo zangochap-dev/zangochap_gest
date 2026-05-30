@@ -150,6 +150,25 @@ export default function DownloadClient({ products }: { products: DownloadProduct
               />
             </div>
 
+            <motion.div
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.22, ease: "easeOut" }}
+              className="mx-auto mt-6 max-w-[560px] rounded-md border border-[#FF7A32]/55 bg-[#FF7A32] p-1.5 shadow-[0_22px_60px_rgba(212,84,28,0.28)] md:mx-0"
+            >
+              <div className="rounded border border-white/25 bg-[#1A1614] px-4 py-4 text-center md:px-5 md:text-left">
+                <span className="mb-2 inline-flex rounded bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#D4541C]">
+                  Offre exclusive app
+                </span>
+                <p className="font-display text-[22px] font-black uppercase leading-tight text-white md:text-[28px]">
+                  1 produit achete = 1 cadeau offert
+                </p>
+                <p className="mt-2 text-[12px] font-extrabold uppercase tracking-[0.16em] text-[#FFB088]">
+                  Offre valable uniquement sur l&apos;application
+                </p>
+              </div>
+            </motion.div>
+
             <div className="mt-7 flex flex-wrap items-center justify-center gap-3 text-[11px] font-bold uppercase tracking-[0.16em] text-white/56 md:justify-start">
               <span className="inline-flex items-center gap-2">
                 <ShieldCheck size={15} className="text-[#FF7A32]" />

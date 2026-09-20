@@ -13,3 +13,15 @@
 .exchange-pending-reminder.compact svg { flex-shrink: 0; }
 @media (max-width: 600px) { .exchange-pending-reminder { left: 8px; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); width: min(280px, calc(100% - 80px)); padding: 10px; gap: 7px; grid-template-columns: 20px minmax(0, 1fr) 20px; } .exchange-pending-reminder > svg { width: 20px; } .exchange-pending-reminder strong { font-size: 12px; } }
 @media print { .exchange-pending-reminder { display: none; } }
+
+/* Visible without flashing or moving the commercial's controls. */
+.exchange-pending-reminder { background: #fff1f2; color: #991b1b; border-color: #fca5a5; animation: exchange-reminder-pulse 3s ease-in-out infinite; }
+.exchange-pending-reminder p { color: #9f3434; }
+.exchange-pending-reminder a { color: #991b1b; background: #fffafa; border-color: #f87171; }
+.exchange-pending-reminder .exchange-reminder-minimize:hover { background: #fee2e2; }
+.exchange-pending-reminder a:focus-visible, .exchange-pending-reminder button:focus-visible { outline-color: #b91c1c; }
+@keyframes exchange-reminder-pulse {
+  0%, 100% { box-shadow: 0 4px 16px #991b1b14, 0 0 0 0 #ef444400; }
+  50% { box-shadow: 0 4px 18px #991b1b20, 0 0 0 4px #ef44441a; }
+}
+@media (prefers-reduced-motion: reduce) { .exchange-pending-reminder { animation: none; } }

@@ -1,5 +1,11 @@
 # Journal de reprise
 
+## 2026-09-20 — Rappel rouge animé
+
+- TypeScript et diff-check passent ; lint global : 744 erreurs / 83 avertissements préexistants. Pas de déploiement ni de vérification visuelle navigateur.
+
+- À la demande utilisateur, carte et pastille en rouge avec pulsation douce de l’ombre (3 s), sans déplacement ni clignotement du texte. Animation désactivée si `prefers-reduced-motion: reduce`. Changement CSS uniquement, logique inchangée.
+
 ## 2026-09-20 — Lisibilité de la carte flottante
 
 - TypeScript, lint ciblé et diff-check passent. Lint global : dette inchangée de 744 erreurs / 83 avertissements. Pas de déploiement effectué.

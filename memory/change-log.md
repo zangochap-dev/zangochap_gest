@@ -2,6 +2,10 @@
 
 Les entrées les plus récentes sont placées en premier.
 
+## 2026-09-20 — Apparence du rappel
+
+- Rappel commercial rouge et pulsation douce CSS, également en mode réduit ; préférence de réduction des animations respectée.
+
 ## 2026-09-20 — Carte de rappel lisible
 
 - Correction du flex qui comprimait le texte à côté du bouton : grille à positions explicites, action sur une ligne distincte, titre et aide raccourcis. Carte flottante et réduction conservées. Aucun changement de données.

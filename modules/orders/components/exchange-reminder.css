@@ -1,0 +1,15 @@
+.exchange-pending-reminder { position: absolute; left: 16px; bottom: 16px; z-index: 45; width: min(320px, calc(100% - 88px)); box-sizing: border-box; display: grid; grid-template-columns: 24px minmax(0, 1fr) 24px; align-items: start; gap: 8px 10px; padding: 14px; background: #fff6e8; color: #78350f; border: 1px solid #edc88d; border-radius: 14px; box-shadow: 0 4px 18px #00000018; }
+.exchange-pending-reminder > svg { grid-column: 1; grid-row: 1; margin-top: 2px; }
+.exchange-pending-reminder > div { grid-column: 2; grid-row: 1; min-width: 0; }
+.exchange-pending-reminder .exchange-reminder-minimize { grid-column: 3; grid-row: 1; display: grid; place-items: center; width: 28px; height: 28px; margin: -4px; padding: 0; background: transparent; border: 0; border-radius: 6px; color: inherit; cursor: pointer; }
+.exchange-reminder-minimize:hover { background: #f5e7d1; }
+.exchange-pending-reminder strong { display: block; font-size: 13px; line-height: 1.45; overflow-wrap: break-word; }
+.exchange-pending-reminder p { margin: 5px 0 0; font-size: 12px; line-height: 1.5; color: #94613b; }
+.exchange-pending-reminder a { grid-column: 2 / 4; grid-row: 2; justify-self: start; display: inline-flex; align-items: center; gap: 6px; max-width: 100%; box-sizing: border-box; padding: 7px 10px; border: 1px solid #d6a66b; border-radius: 8px; font-size: 12px; line-height: 1.4; font-weight: 700; color: inherit; background: #fffdf9; text-decoration: none; }
+.exchange-pending-reminder a svg { flex-shrink: 0; }
+.exchange-pending-reminder a:focus-visible, .exchange-pending-reminder button:focus-visible { outline: 2px solid #78350f; outline-offset: 3px; }
+.exchange-pending-reminder.compact { display: block; width: auto; max-width: calc(100% - 88px); padding: 0; }
+.exchange-pending-reminder.compact button { display: flex; align-items: center; gap: 7px; padding: 10px 12px; background: transparent; color: inherit; border: 0; font: inherit; font-size: 12px; cursor: pointer; }
+.exchange-pending-reminder.compact svg { flex-shrink: 0; }
+@media (max-width: 600px) { .exchange-pending-reminder { left: 8px; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); width: min(280px, calc(100% - 80px)); padding: 10px; gap: 7px; grid-template-columns: 20px minmax(0, 1fr) 20px; } .exchange-pending-reminder > svg { width: 20px; } .exchange-pending-reminder strong { font-size: 12px; } }
+@media print { .exchange-pending-reminder { display: none; } }

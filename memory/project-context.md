@@ -1,5 +1,7 @@
 # Contexte durable — ZangoChap Gest
 
+2026-09-20 : rappel flottant des échanges PENDING sur toutes les pages manager commerciales. Réductible, non bloquant, compteur strictement filtré par session via `/api/order-exchange-reminder`. Voir cartographie pour composants, polling et tests.
+
 Complément du 2026-09-18 : demandes d’échange lues avec schéma structurel et signalement des données illisibles. Correction admin date/adresse atomique avec approbation, trace avant/après ; garde de version de l’original conservé. Façades de chargement/décision et diagnostics techniques sans payload ; notifications externes séparées. Tests simulés/TS/lint ciblé passent, production non vérifiée. Détails : `docs/EXCHANGES_AUDIT.md` et `docs/PROGRESS.md`.
 
 Dernière vérification générale historique : 2026-08-26 ; complément ciblé échanges et reprogrammation directe : 2026-09-17. Cartographie récente dans `docs/PROJECT_MAP.md`, reprise dans `docs/PROGRESS.md`.

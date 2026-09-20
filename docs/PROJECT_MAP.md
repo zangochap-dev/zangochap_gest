@@ -1,5 +1,11 @@
 # Cartographie du projet ZangoChap Gest
 
+Rappel commercial du 2026-09-20 : `modules/orders/components/ExchangePendingReminder.tsx` est monté dans le layout manager hors zone défilante, uniquement pour le commercial. Carte flottante réductible, sans fermeture définitive ; compteur via `GET /api/order-exchange-reminder` (session obligatoire, filtre propriétaire/PENDING côté serveur, count uniquement, cache interdit). Actualisation 20 s, navigation, focus, retour en ligne/visibilité et événement `order-exchange-requested` émis par `OrdersClient` après soumission. Styles dans `exchange-reminder.css`, test isolé `scripts/test-exchange-reminder.mjs`.
+
+Audit ciblé du 2026-09-18 : `docs/EXCHANGES_AUDIT.md` détaille la page des demandes d’échange, ses restrictions, risques et vérifications.
+
+Échanges, complément du 2026-09-18 : `getExchangeRequests` retourne `{ requests, invalidCount }` après validation structurelle ; `getExchangeRequestsForUi` est la façade de chargement de la page. `reviewOrderExchangeForUi` accepte une correction optionnelle date/adresse, contrôlée par `ExchangeCorrectionSchema` et historisée dans la demande au commit. `modules/orders/helpers/exchange-diagnostics.ts` produit les références techniques sans données client. Pas de changement de schéma SQL.
+
 Dernière vérification ciblée : 2026-09-17, échanges avec approbation et reprogrammation directe ; cartographie générale vérifiée le 2026-09-16. **Présent dans le code** ne signifie ni déployé, ni validé en production. Voir `docs/PROGRESS.md` pour les vérifications. Le code et `prisma/schema.prisma` priment sur ce document.
 
 ## Fonctionnement et stack
@@ -178,6 +184,8 @@ La fiche `app/product/[id]/page.tsx` charge un produit PUBLISHED par ID/slug et 
 Interface : `modules/orders/components/ExchangeRequestsClient.tsx` utilise `modules/orders/components/exchanges.css` (styles dédiés, responsive), filtres avec compteurs, recherche locale et cartes avec détails repliables et zone décision. Les styles historiques `reprogramming.css` restent réservés à l’ancien écran.
 
 Envoi depuis `OrdersClient.tsx` : façade `duplicateOrderForUi` dans `modules/orders/actions/index.ts`, enveloppe succès/échec pour afficher les validations attendues en production. `requestOrderExchange` nomme le champ/article invalide sans retourner de données sensibles ; échec conserve le formulaire ouvert. `duplicateOrder` reste disponible pour les autres appels.
+
+Décision admin depuis `ExchangeRequestsClient.tsx` : `reviewOrderExchangeForUi` retourne également les erreurs attendues en données (notamment date devenue passée ou original modifié). `reviewOrderExchange` conserve les contrôles et la transaction ; une approbation échouée laisse la demande en attente sans créer de commande.
 
 - Périmètre corrigé après confirmation du propriétaire : validation pour les échanges commerciaux ; reprogrammation et REPRO_DISPO directs pour les utilisateurs autorisés, avec protections de livraison clôturée/règlement conservées.
 - Route : app/zangochap-manager/orders/exchanges/page.tsx ; écran modules/orders/components/ExchangeRequestsClient.tsx ; navigation « Mes échanges / Échanges » dans components/Sidebar.tsx et compteur exchangePending dans modules/orders/actions/sidebar-counts.ts.

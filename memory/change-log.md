@@ -2,6 +2,51 @@
 
 Les entrées les plus récentes sont placées en premier.
 
+## 2026-09-20 — Carte de rappel lisible
+
+- Correction du flex qui comprimait le texte à côté du bouton : grille à positions explicites, action sur une ligne distincte, titre et aide raccourcis. Carte flottante et réduction conservées. Aucun changement de données.
+
+## 2026-09-20 — Rappel commercial flottant
+
+- `ExchangePendingReminder` dans le layout manager commercial : carte réductible en pastille, visible hors défilement tant que des échanges attendent. API `order-exchange-reminder` compte les seules demandes PENDING du compte connecté ; polling visible 20 s et événement après soumission. Sans mutation de données ni déploiement. Test isolé d’autorisation/filtrage passe.
+
+## 2026-09-18 — Classification des erreurs d’approbation
+
+- Échanges : contrôles catalogue transactionnels et messages distincts (original, attribution, compte, variante, paiement, date/adresse). Diagnostic technique traduit par code Prisma sans détails sensibles. Tests simulés étendus passent et TypeScript valide. Incident production non attribué à une cause sans logs ; aucun accès données.
+
+
+## 2026-09-18 — Correction contrôlée des demandes d’échange
+
+- Lecture JSON sécurisée, signalement des demandes illisibles, chargement récupérable et diagnostic UUID/étape/code sans contenu sensible. Admin : correction de date/adresse à l’approbation, trace avant/après, droits et garde de version conservés. Échecs externes/cache après commit isolés. Tests étendus/TS/lint ciblé passent ; lint global 744 erreurs/83 avertissements historiques. Aucun accès production/base ni migration ; problèmes de déploiement non déclarés résolus.
+
+## 2026-09-18 — Audit des demandes d’échange
+
+- Rapport `docs/EXCHANGES_AUDIT.md` : parcours complet et restrictions vérifiés, risques JSON/montants/concurrence/diagnostic documentés. Deux suites simulées passent. Aucun code applicatif ni donnée modifiés ; production et parcours navigateur non vérifiés. Reprise dans `docs/PROGRESS.md`.
+
+## 2026-09-18 — Action serveur obsolète dans les logs joints
+
+- Échecs répétés de résolution d'une action, pas de détail métier dans l'extrait. Écran échanges raccordé au rechargement protégé existant ; stockage navigateur bloqué géré sans boucle ni rejeu de mutation. Production : contrôler cohérence des builds/onglets/cache, aucun accès ou déploiement effectué.
+
+## 2026-09-18 — Validation admin des échanges : erreurs lisibles
+
+- Façade `reviewOrderExchangeForUi` + écran : erreurs attendues retournées au lieu d'exceptions masquées en production ; cas Zod/date expirée expliqué. Suite isolée couvre échec sans création, demande conservée et refus motivé. Aucun déploiement ou accès base réelle.
+
+## 2026-09-17 — Adresse requise pour le nouvel échange
+
+- `OrdersClient.tsx`, `types/exchange.ts` : adresse obligatoire mieux signalée, contrôle client avec focus du champ vide et explication serveur. Les originales peuvent avoir une adresse nulle ; l’adresse du nouvel échange doit être complétée sans modifier l’original. Suite simulée passe, aucun accès base réelle.
+
+## 2026-09-17 — Retour lisible des erreurs de demande d’échange
+
+- Façade `duplicateOrderForUi`, affichage client et validation qualifiée par champ : erreurs métier retournées en données pour éviter leur masquage Next.js en production. Erreurs inattendues restent génériques. Suite simulée et TypeScript passent ; lint global inchangé. Cause exacte du digest « Invalid input » utilisateur toujours à confirmer après déploiement.
+
+## 2026-09-17 — Explication du bouton échange désactivé
+
+- `OrdersClient.tsx` : motif commercial obligatoire signalé dans le champ et les actions, aide accessible ; bouton désactivé pour motif vide/panier vide/action en cours, indépendamment de l’âge. Restrictions serveur conservées.
+
+## 2026-09-17 — Audit échange d’une ancienne commande
+
+- Pas de limite d’âge dans le parcours ; test isolé `test-order-exchanges.mjs` ajouté pour original 2020 livré/réglé (commercial + admin), passe ; lint ciblé lancé, résultat attendu. Incident réel encore à identifier via erreur/étape ; protections intactes, aucune opération base réelle.
+
 ## 2026-09-17 — Interface des demandes d’échange
 
 - Ajustements utilisateur : cartes compactes en grille de deux colonnes, une colonne sous 1000 px ; détails repliables et boutons adaptés aux cartes.

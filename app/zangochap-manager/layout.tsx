@@ -3,6 +3,7 @@ import GlobalChatAccess from "@/components/GlobalChatAccess";
 import GlobalNotesAccess from "@/components/GlobalNotesAccess";
 import WhatsNewModal from "@/components/WhatsNewModal";
 import GlobalDepositAlert from "@/components/GlobalDepositAlert";
+import ExchangePendingReminder from "@/modules/orders/components/ExchangePendingReminder";
 import "./manager-layout.css";
 import "./chat/chat.css";
 import { getSession } from "@/modules/auth/actions";
@@ -44,6 +45,7 @@ export default async function ManagerLayout({
     <div className="app-container">
       <Sidebar user={cleanUser} />
       <main className="main-content">
+        {user.role === "commercial" && <ExchangePendingReminder key={user.id} />}
         <div className="main-scroll-area">
           {children}
         </div>

@@ -815,6 +815,7 @@ export default function OrdersClient({
           }
           const result = response.result;
 
+          if ("approvalRequired" in result) window.dispatchEvent(new Event("order-exchange-requested"));
           showToast("approvalRequired" in result ? "Demande d’échange envoyée à l’administrateur. La commande reste inchangée." : data.type === "Echange" ? "Commande d’échange créée ✓" : "Commande dupliquée ✓", "success");
 
           setOrderToDuplicate(null);

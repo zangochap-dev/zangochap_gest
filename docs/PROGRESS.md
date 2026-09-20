@@ -1,5 +1,83 @@
 # Journal de reprise
 
+## 2026-09-20 — Lisibilité de la carte flottante
+
+- TypeScript, lint ciblé et diff-check passent. Lint global : dette inchangée de 744 erreurs / 83 avertissements. Pas de déploiement effectué.
+
+- Capture utilisateur : bouton et texte partageaient une ligne flex, comprimant le texte en colonne très étroite. Remplacement par une grille explicite icône/message/réduction, avec lien sur une seconde ligne indépendante. Texte raccourci, largeur responsive, états focus conservés et message réseau visible aussi sur mobile. Comportement métier inchangé ; rendu navigateur réel non vérifié pendant cette correction.
+
+## 2026-09-20 — Rappel flottant des échanges en attente
+
+- Vérifications finales : TypeScript, lint ciblé des nouveaux fichiers/layout et `git diff --check` passent. Lint global : 744 erreurs / 83 avertissements préexistants, inchangés.
+
+- Rappel permanent sur les pages du manager commercial : petite carte flottante en bas à gauche, compteur et accès aux demandes, réductible en pastille sans masquer complètement le rappel. Aucun écran bloquant ni son. Disparaît quand le compteur serveur atteint zéro ; reste présent avec indication d’indisponibilité si l’actualisation échoue.
+- Route GET en lecture seule, authentifiée, réservée au commercial ; compte uniquement ses demandes PENDING sous le préfixe échange, sans retourner les données client. Actualisation toutes les 20 s quand visible, navigation/focus/reconnexion et après soumission. Requêtes annulées au démontage, pas de chevauchement de polling.
+- Test API simulé passe : session, rôles, isolation entre commerciaux, statuts/prefixes, compteur zéro après décision, no-store et erreur technique sans fuite. Aucun accès à une base réelle ni déploiement. Rendu navigateur réel non vérifié.
+
+## 2026-09-18 — Messages précis pour les échecs d’échange
+
+- Approbation : messages distincts pour original supprimé/archivé, réattribution, modification, commercial supprimé ou rôle changé, décision déjà prise et paramètres de décision invalides. Contrôle transactionnel des produits/variantes référencés avant création, avec numéro d’article en erreur. Les articles personnalisés restent hors catalogue.
+- Validation finale : lint ciblé et `git diff --check` passent ; lint global : 744 erreurs / 83 avertissements préexistants, inchangés.
+- Validation : champs/articles et limites indiqués en français, données persistées invalides expliquées. Les erreurs prévues du relais, des promotions et des cadeaux sont transmises sans détail SQL. Classification technique par code Prisma (unicité, relation, donnée supprimée, disponibilité, transaction, concurrence, structure) avec référence de diagnostic ; aucune cause précise inventée si le code manque.
+- Tests simulés : suite étendue passe, dont 16 scénarios de refus et 13 classifications techniques ; aucune création et demande PENDING conservée dans les scénarios de blocage. Anciens originaux livrés/réglés, idempotence et correction admin toujours couverts. TypeScript passe. Aucun accès base ou production ; la référence d’incident transmise reste non diagnostiquée faute du log serveur correspondant.
+
+
+## 2026-09-18 — Robustesse et correction admin des échanges
+
+- Ajout d’un schéma de lecture des demandes persistées distinct des règles de soumission : les dates passées restent consultables, les anciennes adresses nulles deviennent des champs vides à compléter. Les JSON illisibles sont comptés et signalés sans suppression ni crash de la liste.
+- L’admin peut corriger uniquement date/adresse à l’approbation. Validation serveur complète, droits et contrôle de l’original inchangés ; correction avant/après et validateur conservés dans la demande. Aucun changement de l’original hors historique. Les demandes obsolètes à cause d’un original modifié nécessitent toujours refus/recréation.
+- `getExchangeRequestsForUi` gère les échecs de chargement ; diagnostics techniques avec référence UUID, étape et code Prisma autorisé, sans message d’exception/payload. La liste est relue après décision. WhatsApp et automatisations indépendants ; erreurs de revalidation après commit journalisées sans échec apparent de la décision.
+- Vérifications : suites échanges étendue et stale-action passent, TypeScript passe, lint ciblé passe. Lint global exécuté : 744 erreurs / 83 avertissements, dette inchangée. Vérifications sans PostgreSQL réel, navigateur authentifié ou déploiement.
+- Aucun accès base, migration, seed ou opération de production. Prochaines étapes : déployer dans le cadre autorisé et corréler un éventuel échec avec sa référence technique/build ; valider visuellement ; définir les règles financières puis traiter concurrence/pagination. Le problème de builds production n’est pas déclaré résolu.
+
+## 2026-09-18 — Audit complet de la page échanges
+
+- Rapport : `docs/EXCHANGES_AUDIT.md`. Parcours, permissions, transactions, stockage JSON, interface, notifications et diagnostic de production examinés.
+- Vérifié : les originaux anciens/livrés/réglés sont échangeables ; une modification de l’original ou une date de nouvelle livraison passée bloque l’approbation. Points sensibles : lecture JSON sans schéma, confiance dans le total proposé, diagnostics incomplets, références concurrentes, liste non paginée et rafraîchissement partiel.
+- Deux suites locales passent : `node scripts/test-order-exchanges.mjs` et `node scripts/test-stale-server-action.mjs`. Base simulée uniquement ; aucune validation navigateur, PostgreSQL réel ou déploiement. Code applicatif inchangé ; TS/lint/build non relancés pour cet audit documentaire.
+- Inconnues : build réellement servi, erreur exacte corrélée au clic admin, qualité des anciennes demandes, traitement financier et physique attendu de l’échange.
+- Suite : corréler erreur/build, sécuriser lecture et diagnostics, définir les invariants financiers, améliorer le circuit de correction puis tester la concurrence sur une base de test autorisée. Aucun accès base ou production effectué.
+
+## 2026-09-18 — Logs : action absente du build
+
+- Pièce jointe utilisateur : 49 erreurs répétées « Failed to find Server Action » pour le même identifiant, entre 12:14:46 et 12:15:16 UTC. Échec de résolution avant exécution métier ; aucune erreur adresse/Zod/Prisma dans cet extrait. Action non identifiée dans le manifeste local, qui ne représente pas nécessairement le déploiement. Lien causal avec le clic d'approbation non établi.
+- `ExchangeRequestsClient.tsx` utilise désormais le mécanisme existant `reloadOnStaleServerAction` pour chargement manuel/décision. Rechargement au plus une fois par session quand le message explicite est disponible ; ne rejoue pas automatiquement la mutation. `lib/stale-server-action.ts` protège le stockage navigateur et n'effectue aucun rechargement automatique si le garde-fou persistant est indisponible. Les erreurs génériques masquées ne déclenchent pas de rechargement spéculatif.
+- Exploitation à vérifier : fermer les anciens onglets puis rouvrir ; si récidive, vérifier que toutes les instances servent le même build, que les anciens conteneurs ne reçoivent plus de trafic et que le proxy/CDN ne sert pas d'ancien HTML. Pas d'accès hébergeur/de déploiement effectué. Ces modifications locales ne corrigent pas à elles seules un mélange de builds en production.
+- Suite isolée échanges et `scripts/test-stale-server-action.mjs` passent (rechargement unique, erreurs ordinaires inchangées, stockage bloqué sans boucle). TypeScript et lint ciblé passent ; lint global : dette inchangée, 744 erreurs / 83 avertissements.
+
+## 2026-09-18 — Erreurs masquées lors de la décision administrateur
+
+- Utilisateur confirme le déclenchement à la validation admin. L'écran appelait encore directement `reviewOrderExchange`, donc les erreurs levées étaient masquées en production malgré le correctif de l'envoi commercial.
+- Nouvelle façade `reviewOrderExchangeForUi` dans `modules/orders/actions/index.ts`, utilisée par `ExchangeRequestsClient.tsx` : erreurs métier attendues retournées en données, validation Zod/date expirée expliquée, erreur inattendue générique avec journal technique sans payload. Droits et transaction inchangés ; pas de changement automatique de date.
+- Suite isolée passe : commentaire requis pour refus, date expirée à l'approbation sans création et statut PENDING conservé, refus motivé toujours possible. Cause métier précise du cas utilisateur non confirmée ; déployer puis relever le message explicite. Aucun accès base ni déploiement effectué.
+- TypeScript passe ; lint global terminé avec dette inchangée : 744 erreurs / 83 avertissements.
+
+## 2026-09-17 — Adresse invalide lors d’un échange
+
+- Utilisateur rapporte « adresse du client invalide ». Vérifié : `Order.customerLocation` est nullable, mais `ExchangeOrderSchema` exige un texte non vide (maximum 2000 caractères). Une ancienne commande sans adresse préremplit un champ vide ; absence réelle sur la commande utilisateur non auditée en base.
+- `OrdersClient.tsx` : adresse d’échange marquée obligatoire, aide indiquant de compléter les données anciennes sans modifier l’original ; envoi avec adresse vide interrompu localement avec focus/scroll sur le champ et toast. Schéma serveur : message explicite pour adresse vide. Aucune adresse inventée et aucun assouplissement de validation.
+- Suite isolée d’échange et TypeScript passent ; lint global conserve 744 erreurs / 83 avertissements préexistants. Aucune opération base ni déploiement, rendu navigateur réel non vérifié.
+
+## 2026-09-17 — Erreurs d’échange masquées en production
+
+- Réponse réseau fournie : digest `2626922034`, identique aux logs « Invalid input » précédents ; le champ/callstack précis reste inconnu et dépend du build déployé. Aucun blocage d’âge établi.
+- `exchange-actions.ts` : première erreur de validation qualifiée par champ/article, sans valeur client ; erreur métier nommée ExchangeValidationError. Façade `duplicateOrderForUi` (`actions/index.ts`) retourne les erreurs attendues sous forme de données ; erreurs inattendues masquées. `OrdersClient.tsx` affiche l’explication et conserve le formulaire ouvert en cas de refus ; aucun assouplissement droits/date/paiement.
+- Suite isolée `test-order-exchanges.mjs` passe, incluant retour UI adresse nulle/motif vide et demande valide sans mutation sur validation invalide. TypeScript passe. Lint ciblé des validations/suite passe ; lint global inchangé, 744 erreurs / 83 avertissements.
+- À faire : déployer un build cohérent puis actualiser les navigateurs ; reproduire l’envoi et relever le champ signalé. Actions introuvables et livraison clôturée sont des incidents distincts. Aucun déploiement ou test en production effectué ici.
+
+## 2026-09-17 — Bouton d’échange commercial grisé
+
+- Vérifié dans `OrderFormModal` : envoi désactivé pendant une action, panier vide ou motif d’échange commercial vide ; aucune condition d’âge. Bouton Créer un échange de la liste accessible aux commerciaux propriétaires uniquement.
+- `OrdersClient.tsx` : motif marqué obligatoire, aide dynamique sous le champ et près des actions, indication accessible liée au bouton. Règles de validation conservées, aucun changement base/serveur. Message/étape précis à recontrôler si le bouton reste grisé avec un motif et un article.
+- TypeScript passe ; lint global reste à 744 erreurs / 83 avertissements préexistants. Validation navigateur réelle non effectuée.
+
+## 2026-09-17 — Vérification des échanges sur commandes anciennes
+
+- Aucune restriction d’âge trouvée dans `duplicateOrder`, `requestOrderExchange` ou `reviewOrderExchange`. Original livré/réglé autorisé pour créer une nouvelle commande d’échange ; la date de l’original n’est pas utilisée comme date du nouvel échange.
+- Régression ajoutée à `scripts/test-order-exchanges.mjs` : original daté de 2020, livraison ancienne, statut DELIVERED et settlement renseigné, commercial avec approbation et admin direct. Suite passe, Prisma simulé uniquement ; lint ciblé lancé, résultat encore en attente à la rédaction.
+- Restrictions effectivement présentes : commercial propriétaire, original non supprimé, motif/date future ou actuelle/champs client/articles valides, paiements hors Abidjan, une demande en attente par original, original inchangé depuis la demande, commercial toujours disponible et quotas cadeaux. À l’approbation, une date demandée passée entre-temps est également refusée.
+- Cause de l’incident utilisateur non confirmée ; message exact et étape du blocage demandés. Aucune restriction métier supprimée ni donnée réelle examinée/modifiée.
+
 ## 2026-09-17 — Refonte de l’écran des demandes d’échange
 
 - Ajustement demandé pendant la refonte : cartes compactées (espacements, en-tête, motif/date, détails et zone de décision), commentaire redimensionnable de 46 px initialement. Aucun contenu ou droit supprimé.

@@ -1,3 +1,4 @@
+import { personnelSummary } from "@/modules/personnel/summary";
 import React from "react";
 import prisma from "@/lib/prisma";
 import { getSession } from "@/modules/auth/actions";
@@ -23,10 +24,17 @@ export default async function SettingsTeamPage() {
     orderBy: { name: 'asc' }
   });
 
+  // Separate query keeps account management available before personnel tables are activated.
+  let personnel: Record<string, ReturnType<typeof personnelSummary>> = {};
+  try {
+    const profiles = await prisma.riderPersonnelProfile.findMany({ where: { userId: { in: accounts.map(account => account.id) } }, select: { userId: true, data: true, documents: { select: { kind: true } } } });
+    const byUser = new Map(profiles.map(profile => [profile.userId, profile]));
+    personnel = Object.fromEntries(accounts.map(account => [account.id, personnelSummary(account.role, byUser.get(account.id) || null)]));
+  } catch { /* Unknown is displayed instead of a false 0%. */ }
   return (
     <>
-      <Topbar title="Configuration" subtitle="équipe & accès" />
-      <TeamClient accounts={JSON.parse(JSON.stringify(accounts))} currentUser={user} />
+      <Topbar title="Personnel" subtitle="dossiers, équipe & accès" />
+      <TeamClient accounts={JSON.parse(JSON.stringify(accounts.map(account => ({ ...account, personnel: personnel[account.id] ?? null }))))} currentUser={user} />
     </>
   );
 }

@@ -1,5 +1,7 @@
 # Cartographie du projet ZangoChap Gest
 
+Personnel de toute l’équipe (2026-09-22) : `modules/personnel/` contient schéma, formulaire, actions et normalisation des justificatifs privés. Entrée depuis l’équipe vers `app/zangochap-manager/admin/settings/team/[userId]/page.tsx`. Deux tables Prisma dédiées (fiche et documents binaires), accès admin/développeur, aucune URL R2 publique. Migration SQL préparée mais non appliquée ; voir `docs/RIDER_PERSONNEL.md` pour activation, limites et tests.
+
 Rappel commercial du 2026-09-20 : `modules/orders/components/ExchangePendingReminder.tsx` est monté dans le layout manager hors zone défilante, uniquement pour le commercial. Carte flottante réductible, sans fermeture définitive ; compteur via `GET /api/order-exchange-reminder` (session obligatoire, filtre propriétaire/PENDING côté serveur, count uniquement, cache interdit). Actualisation 20 s, navigation, focus, retour en ligne/visibilité et événement `order-exchange-requested` émis par `OrdersClient` après soumission. Styles dans `exchange-reminder.css`, test isolé `scripts/test-exchange-reminder.mjs`.
 
 Audit ciblé du 2026-09-18 : `docs/EXCHANGES_AUDIT.md` détaille la page des demandes d’échange, ses restrictions, risques et vérifications.
@@ -335,3 +337,5 @@ Les tests raccourcis `test-rider-history`, `test-rider-tracking`, `test-rider-st
 **Non examinés / à confirmer :** état réel PostgreSQL et migrations appliquées, données production, configuration hébergeur/HTTPS/SSE, services externes et quotas, validation mobile authentifiée, conservation GPS, portée exacte du compte client, matrice exhaustive des permissions, qualité visuelle de tous les écrans. Les modules secondaires ont été examinés par leurs points d'entrée/symboles et usages principaux, pas par une revue exhaustive de chaque fonction. Secrets et contenus opérationnels de scratch/backups/uploads exclus ; aucun fichier d'environnement réel lu.
 
 **Changement concurrent détecté le 2026-09-17 :** `.env.example`, consulté lors de la cartographie initiale, est désormais supprimé dans l'arbre de travail hors des changements de cette tâche. Les mentions du modèle d'environnement dans cette carte décrivent son contenu précédemment observé ; vérifier les variables dans les modules/configurations et voir le journal avant de supposer ce fichier disponible.
+
+Personnel : `modules/personnel/summary.ts` calcule les résumés enregistrés des cartes/listes, via chargement groupé dans `app/zangochap-manager/admin/settings/team/page.tsx`. `RiderPersonnelForm` propose saisie et vue détaillée. Aperçu annuaire : `/dev/personnel-preview?view=team`.

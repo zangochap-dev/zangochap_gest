@@ -7,6 +7,7 @@ import { useToast } from "@/components/Toast";
 import { createAccount, updateAccount, deleteAccount } from "@/modules/auth/actions";
 import { ROLE_LABELS, getInitials } from "@/lib/constants";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import "./team-client.css";
 import {
   Plus, Edit3, Trash2, Mail, Phone, Shield,
@@ -51,7 +52,8 @@ function formatPauseDuration(value?: string | null) {
   return `${days}j`;
 }
 
-export default function TeamClient({ accounts, currentUser }: { accounts: any[]; currentUser: any }) {
+export default function TeamClient({ accounts, currentUser, preview = false }: { accounts: any[]; currentUser: any; preview?: boolean }) {
+  const [view, setView] = useState<"cards" | "list">("cards");
   const [showNew, setShowNew] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -93,7 +95,8 @@ export default function TeamClient({ accounts, currentUser }: { accounts: any[];
         const users = byRole[role] || [];
         return users.some(u =>
           u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          u.email.toLowerCase().includes(searchTerm.toLowerCase())
+          u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (ROLE_LABELS[role] || role).toLowerCase().includes(searchTerm.toLowerCase())
         );
       });
   }, [byRole, searchTerm, currentUser]);
@@ -142,6 +145,7 @@ export default function TeamClient({ accounts, currentUser }: { accounts: any[];
         />
       </div>
 
+      <div className="personnel-list-heading"><div><h2>Annuaire du personnel</h2><p>Retrouvez les membres, suivez leurs dossiers et complétez les informations manquantes.</p></div><div className="personnel-view-switch" aria-label="Affichage">{(["cards", "list"] as const).map(mode => <button key={mode} aria-pressed={view === mode} onClick={() => setView(mode)}>{mode === "cards" ? "Cartes" : "Liste"}</button>)}</div></div>
       {/* SEARCH & ACTION */}
       <div style={{ display: 'flex', gap: 14, marginBottom: 20, alignItems: 'center' }}>
         <div style={{ position: 'relative', flex: 1 }}>
@@ -156,14 +160,14 @@ export default function TeamClient({ accounts, currentUser }: { accounts: any[];
           />
           {searchTerm && (
             <button
-              onClick={() => setSearchTerm('')}
+              aria-label="Effacer la recherche" onClick={() => setSearchTerm('')}
               style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: '#DEE2E6', border: 'none', width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--brown-soft)' }}
             >
               <X size={12} />
             </button>
           )}
         </div>
-        <button className="btn-orange" onClick={() => setShowNew(true)} style={{ height: 44 }}>
+        <button className="btn-orange" disabled={preview} onClick={() => setShowNew(true)} style={{ height: 44 }}>
           <Plus size={16} /> Nouveau membre
         </button>
       </div>
@@ -176,7 +180,8 @@ export default function TeamClient({ accounts, currentUser }: { accounts: any[];
           filteredRoles.map(([role, label]) => {
             const roleUsers = (byRole[role] || []).filter(a =>
               a.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-              a.email.toLowerCase().includes(searchTerm.toLowerCase())
+              a.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              label.toLowerCase().includes(searchTerm.toLowerCase())
             );
 
             if (roleUsers.length === 0) return null;
@@ -191,7 +196,7 @@ export default function TeamClient({ accounts, currentUser }: { accounts: any[];
                   <div className="role-meta-badge">{roleUsers.length} membres</div>
                 </div>
 
-                <div className="team-grid">
+                <div className={`team-grid ${view === "list" ? "personnel-list-view" : ""}`}>
                   {roleUsers.map(member => (
                     <div key={member.id} className="member-card">
                       <div className="member-card-inner">
@@ -220,10 +225,10 @@ export default function TeamClient({ accounts, currentUser }: { accounts: any[];
                         </div>
 
                         <div className="member-actions">
-                          <button className="action-btn-circle" onClick={() => setEditing(member)} title="Modifier">
+                          <button className="action-btn-circle" disabled={preview} onClick={() => setEditing(member)} title="Modifier">
                             <Edit3 size={14} />
                           </button>
-                          {member.email !== currentUser.email && (
+                          {!preview && member.email !== currentUser.email && (
                             <button
                               className="action-btn-circle delete"
                               onClick={() => handleDelete(member.email)}
@@ -234,6 +239,8 @@ export default function TeamClient({ accounts, currentUser }: { accounts: any[];
                           )}
                         </div>
                       </div>
+                      {role !== "customer" && <div className="member-completion"><div><span>Dossier {member.personnel?.saved ? "enregistré" : member.personnel ? "à créer" : "indisponible"}</span><strong>{member.personnel ? `${member.personnel.percent} %` : "—"}</strong></div>{member.personnel && <progress max={100} value={member.personnel.percent} aria-label={`Complétude du dossier de ${member.name}`} />}<small>{member.personnel ? `${member.personnel.filled} / ${member.personnel.total} éléments · ${member.personnel.status || "Statut à renseigner"}` : "Complétude non disponible"}</small></div>}
+                      {role !== "customer" && <Link href={preview ? `/dev/personnel-preview?role=${role === "livreur" ? "livreur" : "commercial"}` : `/zangochap-manager/admin/settings/team/${encodeURIComponent(member.id)}`} className="member-personnel-link" aria-label={`Ouvrir la fiche du personnel de ${member.name}`}><User size={16} /> Ouvrir la fiche du personnel</Link>}
                     </div>
                   ))}
                 </div>

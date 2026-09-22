@@ -1,6 +1,65 @@
 # Journal de mémoire IA
 
+## 2026-09-22 — Consultation par défaut et actions en haut
+
+- `RiderPersonnelForm` ouvre la vue détaillée en premier, y compris en aperçu. Boutons de mode et action principale déplacés sous l’en-tête, avant la synthèse ; enregistrement toujours associé au formulaire. Barre persistante en haut sur grand écran et statique sur mobile.
+- TypeScript, lint ciblé et diff-check passent. Lint global : dette historique inchangée. Vérification visuelle non réalisée, aucun déploiement.
+
+
+## 2026-09-22 — Harmonisation ZangoChap et ergonomie
+
+- Fiche, synthèses et annuaire harmonisés avec orange/crème/navy ZangoChap. Focus clavier et rubrique ciblée visibles ; petites largeurs et saisie mobile ajustées.
+- Recherche par rôle effectivement prise en charge. Dates affichées en jour/mois/année. Consultation propose de revenir à la modification ; sauvegarde désactivée sans changement sur une fiche existante et changement de mode bloqué pendant traitement.
+- TypeScript, lint ciblé, tests isolés personnel et diff-check passent. Lint global : dette préexistante inchangée. Pas de vérification visuelle navigateur, migration ou déploiement.
+
+
+## 2026-09-22 — Style inspiré de la référence utilisateur
+
+- Palette bleue et surfaces blanches, avatar circulaire, progression en anneau, trois cartes synthétiques alimentées par les champs réels et navigation horizontale. Cartes de l’annuaire harmonisées. Aucun ajout de paie/évaluation fictive ni changement métier.
+- Lint ciblé et diff-check valides ; lint global inchangé (744 erreurs / 83 avertissements). Recette visuelle interactive non confirmée ; aucun déploiement ni migration.
+
+
+## 2026-09-22 — Annuaire et complétude du personnel
+
+- Cartes et vue liste avec pourcentage enregistré, progression, compte des éléments et statut. Chargement groupé des profils/documents (catégories seulement) ; requête séparée pour garder l’équipe utilisable si tables absentes. Données indisponibles/invalides affichées comme inconnues, jamais comme 0 %. Profil absent = dossier à créer à 0 %.
+- Formulaire avec bascule saisie/vue détaillée, navigation et barre d’enregistrement conservées. Aperçu annuaire fictif `/dev/personnel-preview?view=team`, création/modification de comptes désactivées dans cet aperçu.
+- Tests isolés incluant résumés passent ; lint ciblé valide, lint global inchangé (744 erreurs / 83 avertissements). Aucun déploiement ni migration. Recette navigateur authentifiée et stockage réel restent à faire sur base autorisée.
+
+
+## 2026-09-22 — Interface professionnelle de la fiche
+
+- En-tête identité/rôle/statut, navigation par ancres, progression compacte, champs harmonisés, pièces privées structurées et barre d’enregistrement persistante. Indication des modifications non enregistrées ; formulaire associé au bouton externe par identifiant HTML. Adaptation mobile à une colonne avec navigation horizontale.
+- TypeScript, lint ciblé, tests isolés personnel et diff-check passent. Lint global : dette préexistante. Serveur aperçu arrêté lors de la vérification ; relance isolée autorisée et réussie après blocage spawn EPERM ; aperçu commercial HTTP 200, navigation et bouton associé au formulaire présents. Recette visuelle interactive non confirmée. Aucune écriture métier ni migration.
+
+
+## 2026-09-22 — Accès visible aux fiches du personnel
+
+- Vérification : le menu principal admin portait le libellé « Settings » ; l’accès à la fiche était une icône seule dans la carte du membre. Ancien chemin `/admin/team` redirige vers `/admin/settings/team`.
+- Ajout du raccourci « Équipe & personnel » au menu admin (hérité par développeur) et d’un lien textuel « Ouvrir la fiche du personnel » sur chaque carte staff. Sous-menu équipe : « Fiches & accès ».
+- Lint global : dette inchangée, 744 erreurs / 83 avertissements ; diff-check valide. Pas de déploiement, migration ni recette avec compte admin réel. Le serveur local isolé ne permet pas la connexion aux comptes de production.
+
+
+## 2026-09-22 — Fiches pour toute l’équipe
+
+- Fiche et progression étendues à tous les rôles staff, hors CUSTOMER. Cinq rubriques communes ; permis, véhicule et justificatifs associés réservés aux livreurs dans l’interface et à l’upload serveur. Valeurs historiques conservées lors d’un changement de rôle. Comptes développeurs réservés aux développeurs, y compris documents.
+- Tests isolés `node scripts/test-rider-personnel.mjs`, TypeScript, lint ciblé et diff-check passent. Lint global : 744 erreurs / 83 avertissements préexistants. Aperçu HTTP commercial : 200, 32 champs, progression présente, aucun champ véhicule.
+- Noms techniques des tables/actions livreur conservés pour compatibilité ; aucun changement supplémentaire de schéma. Aucune migration ou écriture sur la base distante. Pas de recette interactive authentifiée ni de sauvegarde réelle confirmée.
+- Suite : autoriser et préparer une base de test, appliquer la création initiale des tables après sauvegarde et accord explicite, vérifier enregistrement et justificatifs pour commercial/livreur/admin.
+
+
 Les entrées les plus récentes sont placées en premier.
+
+## 2026-09-22 — Serveur local de test personnel
+
+- Next.js démarré sur 127.0.0.1:3100 avec URL DB locale inactive, sans toucher la base distante. Aperçu développement fictif ajouté, HTTP 200/42 champs/barre 0 % vérifiés ; routes privées 403/307 sans session. Tests isolés passent. Navigation visuelle bloquée par transport outil fermé ; vraie sauvegarde en attente d’une base de test autorisée.
+
+## 2026-09-22 — Progression fiche livreur
+
+- Barre de remplissage en direct, compteur et liste des informations manquantes. Calcul conditionnel des justificatifs et du départ, données invalides non comptées, versions de documents dédupliquées. Pas de nouvelle migration.
+
+## 2026-09-22 — Dossiers livreurs
+
+- Fiche à six rubriques, accès depuis équipe, validation et protections de concurrence. Justificatifs privés avec versions conservées, limites de taille et routes protégées. Schéma Prisma et migration manuelle prêts ; aucune migration exécutée. Tests simulés et TS/lint ciblé passent, dette globale inchangée ; procédure dans `docs/RIDER_PERSONNEL.md`.
 
 ## 2026-09-20 — Apparence du rappel
 

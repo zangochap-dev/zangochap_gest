@@ -124,6 +124,7 @@ const NAV_FOR_ROLE: Record<string, (counts: SidebarCounts) => NavSection[]> = {
         { label: 'Importation', href: '/zangochap-manager/admin/import', icon: <Upload size={18} /> },
         { label: 'Comptabilite', href: '/zangochap-manager/accounting', icon: <Landmark size={18} /> },
         { label: 'Règlements', href: '/zangochap-manager/admin/settlements', icon: <Wallet size={18} /> },
+        { label: 'Équipe & personnel', href: '/zangochap-manager/admin/settings/team', icon: <Users size={18} /> },
         { label: 'Settings', href: '/zangochap-manager/admin/settings', icon: <Settings size={18} /> }
       ]
     },

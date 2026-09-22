@@ -35,7 +35,7 @@ const NAV_ITEMS = [
     label: "Équipe",
     href: "/zangochap-manager/admin/settings/team",
     icon: <Users size={16} />,
-    desc: "Accès",
+    desc: "Fiches & accès",
   },
   {
     label: "Cadeaux",

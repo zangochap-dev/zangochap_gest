@@ -1,5 +1,7 @@
 # Contexte durable — ZangoChap Gest
 
+2026-09-22 : module `personnel` pour dossiers confidentiels de toute l’équipe (hors clients ; cinq rubriques communes, véhicule et permis réservés aux livreurs ; accès admin/développeur seulement). Documents privés en PostgreSQL via routes authentifiées, aucune URL publique. Deux tables nouvelles et SQL manuel préparé mais non appliqué ; voir `docs/RIDER_PERSONNEL.md`. Le statut du dossier est administratif, sans effet automatique sur accès/login.
+
 2026-09-20 : rappel flottant des échanges PENDING sur toutes les pages manager commerciales. Réductible, non bloquant, compteur strictement filtré par session via `/api/order-exchange-reminder`. Voir cartographie pour composants, polling et tests.
 
 Complément du 2026-09-18 : demandes d’échange lues avec schéma structurel et signalement des données illisibles. Correction admin date/adresse atomique avec approbation, trace avant/après ; garde de version de l’original conservé. Façades de chargement/décision et diagnostics techniques sans payload ; notifications externes séparées. Tests simulés/TS/lint ciblé passent, production non vérifiée. Détails : `docs/EXCHANGES_AUDIT.md` et `docs/PROGRESS.md`.

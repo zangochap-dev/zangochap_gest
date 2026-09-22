@@ -155,6 +155,7 @@ model User {
   role         Role         @default(COMMERCIAL)
   initials     String?
   trackingState RiderTrackingState?
+  personnelProfile RiderPersonnelProfile?
   locationPoints RiderLocationPoint[]
   phone2       String? // Second numéro
   serviceLabel String? // Libellé si numéro de service
@@ -170,6 +171,31 @@ model User {
   receivedChatMessages ChatMessage[] @relation("ChatMessageRecipient")
   chatReads            ChatRead[]
   createdAt    DateTime     @default(now())
+}
+
+model RiderPersonnelProfile {
+  id        String @id @default(cuid())
+  userId    String @unique
+  user      User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  matricule String? @unique
+  data      Json
+  version   Int @default(1)
+  updatedBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  documents RiderPersonnelDocument[]
+}
+
+model RiderPersonnelDocument {
+  id        String @id @default(cuid())
+  profileId String
+  profile   RiderPersonnelProfile @relation(fields: [profileId], references: [id], onDelete: Restrict)
+  kind      String
+  mimeType  String
+  content   Bytes
+  uploadedBy String
+  createdAt DateTime @default(now())
+  @@index([profileId, kind, createdAt])
 }
 
 model ChatMessage {
